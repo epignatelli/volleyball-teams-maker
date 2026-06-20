@@ -78,7 +78,7 @@ body {
   flex-shrink: 0;
   -webkit-tap-highlight-color: transparent;
 }
-.end-event-btn { margin-left: auto; }
+.back-btn, .end-event-btn { margin-left: auto; }
 
 /* ─── Check-in screen ─────────────────────────────── */
 .checkin-content {
