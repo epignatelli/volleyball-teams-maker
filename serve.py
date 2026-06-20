@@ -3,9 +3,9 @@
 Local dev server. Use instead of `python3 -m http.server 8080`.
 
 Extra API endpoints (used by KQOTC QR check-in):
-  GET  /api/ip                        → {"ip": "192.168.x.x"}
-  POST /api/checkin?s=SESSION_ID      ← {"name": "Alice"}
-  GET  /api/players?s=SESSION_ID&after=N → {"players": [...], "total": N}
+  GET  /api/ip                          → {"ip": "192.168.x.x"}
+  POST /api/checkin?t=TOURNAMENT_ID     ← {"name": "Alice"}
+  GET  /api/players?t=TOURNAMENT_ID&after=N → {"players": [...], "total": N}
 """
 import http.server, socket, json, sys, threading
 from urllib.parse import urlparse, parse_qs
@@ -49,7 +49,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             json_response(self, {'ip': get_lan_ip()})
 
         elif parsed.path == '/api/players':
-            sid   = qs.get('s', [''])[0]
+            sid   = qs.get('t', [''])[0]
             after = int(qs.get('after', ['0'])[0])
             with _lock:
                 all_players = _sessions.get(sid, [])
@@ -64,7 +64,7 @@ class Handler(http.server.SimpleHTTPRequestHandler):
         qs     = parse_qs(parsed.query)
 
         if parsed.path == '/api/checkin':
-            sid    = qs.get('s', [''])[0]
+            sid    = qs.get('t', [''])[0]
             length = int(self.headers.get('Content-Length', 0))
             body   = self.rfile.read(length).decode().strip()
             try:

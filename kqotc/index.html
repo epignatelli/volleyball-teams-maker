@@ -17,9 +17,9 @@
 <body>
 
 <!-- ══════════════════════════════════════════════════
-     SCREEN 1 — CHECK-IN
+     SCREEN 0 — HOME
 ══════════════════════════════════════════════════ -->
-<div class="screen active" id="screen-checkin">
+<div class="screen active" id="screen-home">
 
   <header class="app-header">
     <div class="logo">
@@ -32,6 +32,52 @@
       <h1>KQOTC</h1>
       <div class="subtitle">King / Queen of the Court</div>
     </div>
+  </header>
+
+  <div class="home-content" id="home-content">
+    <div class="home-empty">Loading…</div>
+  </div>
+
+  <div class="footer">
+    <button class="cta-btn" onclick="showCreateForm()">+ New event</button>
+  </div>
+
+  <!-- Create event slide-up panel -->
+  <div class="qr-overlay" id="create-overlay">
+    <div class="qr-panel">
+      <div class="qr-header">
+        <span class="qr-title">New event</span>
+        <button class="qr-close" onclick="hideCreateForm()">✕</button>
+      </div>
+      <div style="width:100%;display:flex;flex-direction:column;gap:10px">
+        <input class="create-input" type="text" id="create-name" placeholder="Tournament name" maxlength="40"
+          autocomplete="off" autocorrect="off" spellcheck="false" />
+        <input class="create-input" type="date" id="create-date" />
+      </div>
+      <button class="cta-btn" onclick="submitCreateTournament()">Create &amp; open check-in →</button>
+    </div>
+  </div>
+
+</div>
+
+
+<!-- ══════════════════════════════════════════════════
+     SCREEN 1 — CHECK-IN
+══════════════════════════════════════════════════ -->
+<div class="screen" id="screen-checkin">
+
+  <header class="app-header">
+    <div class="logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#0f1117" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 20h18"/>
+        <path d="M5 20 3 11l5 3.5L12 6l4 8.5L21 11l-2 9"/>
+      </svg>
+    </div>
+    <div>
+      <h1>KQOTC</h1>
+      <div class="subtitle" id="checkin-tournament-name"></div>
+    </div>
+    <button class="end-event-btn" onclick="goHome()">← Events</button>
   </header>
 
   <div class="checkin-content">
@@ -180,7 +226,7 @@
   <div class="round-content" id="leaderboard-content"></div>
 
   <div class="footer">
-    <button class="cta-btn secondary-btn" onclick="newEvent()">New event</button>
+    <button class="cta-btn secondary-btn" onclick="goHome()">← Events</button>
   </div>
 </div>
 

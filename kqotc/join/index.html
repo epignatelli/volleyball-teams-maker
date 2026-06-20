@@ -110,32 +110,52 @@
     });
   </script>
   <script>
-    const params    = new URLSearchParams(location.search);
-    const sessionId = params.get('s');
-    const card      = document.getElementById('main-card');
+    const params       = new URLSearchParams(location.search);
+    const tournamentId = params.get('t');
+    const card         = document.getElementById('main-card');
 
-    if (!sessionId) {
+    if (!tournamentId) {
       card.innerHTML = `
         <span class="card-label">Check-in</span>
         <p style="color:var(--muted);font-size:14px;line-height:1.6">
           Invalid link — ask your organiser for the QR code.
         </p>`;
     } else {
-      card.innerHTML = `
-        <span class="card-label">Check-in</span>
-        <input type="text" id="name-input" placeholder="Your name" maxlength="24"
-          autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false" />
-        <div class="error-msg" id="error-msg">Please enter your name.</div>
-        <button class="cta-btn" id="checkin-btn" onclick="checkIn()">Check in</button>
-        <div class="success" id="success">
-          <div class="success-icon">✓</div>
-          <h2>You're in!</h2>
-          <p>See you on the court.</p>
-        </div>`;
-
-      document.getElementById('name-input').addEventListener('keydown', e => {
-        if (e.key === 'Enter') checkIn();
-      });
+      // Load tournament name then render the form
+      firebase.firestore().collection('tournaments').doc(tournamentId).get()
+        .then(doc => {
+          const tname = doc.exists ? (doc.data().name || '') : '';
+          card.innerHTML = `
+            <span class="card-label">${tname ? tname : 'Check-in'}</span>
+            <input type="text" id="name-input" placeholder="Your name" maxlength="24"
+              autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false" />
+            <div class="error-msg" id="error-msg">Please enter your name.</div>
+            <button class="cta-btn" id="checkin-btn" onclick="checkIn()">Check in</button>
+            <div class="success" id="success">
+              <div class="success-icon">✓</div>
+              <h2>You're in!</h2>
+              <p>See you on the court.</p>
+            </div>`;
+          document.getElementById('name-input').addEventListener('keydown', e => {
+            if (e.key === 'Enter') checkIn();
+          });
+        })
+        .catch(() => {
+          card.innerHTML = `
+            <span class="card-label">Check-in</span>
+            <input type="text" id="name-input" placeholder="Your name" maxlength="24"
+              autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false" />
+            <div class="error-msg" id="error-msg">Please enter your name.</div>
+            <button class="cta-btn" id="checkin-btn" onclick="checkIn()">Check in</button>
+            <div class="success" id="success">
+              <div class="success-icon">✓</div>
+              <h2>You're in!</h2>
+              <p>See you on the court.</p>
+            </div>`;
+          document.getElementById('name-input').addEventListener('keydown', e => {
+            if (e.key === 'Enter') checkIn();
+          });
+        });
     }
 
     // Must be global so onclick="checkIn()" can reach it
@@ -152,7 +172,7 @@
         // Try local serve.py first (LAN dev mode)
         let usedLocal = false;
         try {
-          const r = await fetch(`/api/checkin?s=${sessionId}`, {
+          const r = await fetch(`/api/checkin?t=${tournamentId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ name }),
@@ -160,19 +180,23 @@
           usedLocal = r.ok;
         } catch (e) {}
 
-        // Production: write to Firestore
+        // Production: write player into tournament doc via arrayUnion
         if (!usedLocal) {
-          await firebase.firestore()
-            .collection('sessions').doc(sessionId).collection('players')
-            .add({ name, ts: firebase.firestore.FieldValue.serverTimestamp() });
+          await firebase.firestore().collection('tournaments').doc(tournamentId).update({
+            players: firebase.firestore.FieldValue.arrayUnion({
+              id: Date.now() + Math.random(),
+              name: name.trim(),
+              cumScore: 0,
+            }),
+          });
         }
       } catch (e) {
         console.error('Check-in error:', e);
       }
 
-      document.getElementById('name-input').style.display = 'none';
-      document.getElementById('checkin-btn').style.display = 'none';
-      document.getElementById('success').style.display = 'flex';
+      document.getElementById('name-input').style.display   = 'none';
+      document.getElementById('checkin-btn').style.display  = 'none';
+      document.getElementById('success').style.display      = 'flex';
     }
   </script>
 

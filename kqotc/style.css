@@ -556,3 +556,54 @@ body {
   pointer-events: none;
 }
 #score-toast.visible { top: calc(16px + env(safe-area-inset-top)); }
+
+/* ─── Home screen ─────────────────────────────────── */
+.home-content {
+  flex: 1; overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding: 20px 20px 0;
+}
+.home-empty {
+  text-align: center; color: var(--muted);
+  font-size: 14px; padding: 60px 20px; line-height: 1.8;
+}
+.tour-group { margin-bottom: 24px; }
+.tour-group-label {
+  font-family: var(--sport); font-size: 11px; font-weight: 700;
+  letter-spacing: .12em; text-transform: uppercase; margin-bottom: 8px;
+}
+.tour-item {
+  display: flex; align-items: center; gap: 10px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-md); padding: 12px 14px;
+  cursor: pointer; margin-bottom: 6px;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color .15s;
+}
+.tour-item:active { border-color: var(--border2); }
+.tour-main { flex: 1; min-width: 0; }
+.tour-name  { font-size: 14px; font-weight: 600; display: block; }
+.tour-meta  { font-size: 11px; color: var(--muted); margin-top: 2px; display: block; }
+.tour-badge {
+  font-family: var(--sport); font-size: 10px; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase;
+  padding: 3px 7px; border-radius: var(--pill);
+}
+.tour-badge.active    { background: var(--green-bg);  color: var(--green); }
+.tour-badge.upcoming  { background: var(--amber-bg);  color: var(--amber); }
+.tour-badge.completed { background: var(--surface2);  color: var(--muted); }
+.tour-arrow { color: var(--muted); font-size: 18px; }
+
+/* ─── Create event form inputs ────────────────────── */
+.create-input {
+  width: 100%; height: 48px;
+  background: var(--surface2); border: 1.5px solid var(--border2);
+  border-radius: var(--radius-md); padding: 0 14px;
+  font-size: 15px; color: var(--text);
+  outline: none; -webkit-appearance: none; transition: border-color .15s;
+}
+.create-input::placeholder { color: var(--muted); }
+.create-input:focus { border-color: var(--amber); }
+input.create-input[type=date]::-webkit-calendar-picker-indicator {
+  filter: invert(1) opacity(.4);
+}
