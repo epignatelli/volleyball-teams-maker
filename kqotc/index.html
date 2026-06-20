@@ -114,9 +114,12 @@
 
   <div class="round-content" id="transition-content"></div>
 
-  <div class="footer" style="display:flex;gap:8px">
-    <button class="cta-btn secondary-btn" onclick="showScreen('round')">← Back</button>
-    <button class="cta-btn" onclick="startNextRound()">Round <span id="next-round-num">2</span> →</button>
+  <div class="footer" style="flex-direction:column;gap:8px">
+    <div style="display:flex;gap:8px">
+      <button class="cta-btn secondary-btn" onclick="showScreen('round')">← Back</button>
+      <button class="cta-btn" onclick="startNextRound()">Round <span id="next-round-num">2</span> →</button>
+    </div>
+    <button class="end-tourney-btn" onclick="endEvent()">End tournament &amp; see results</button>
   </div>
 </div>
 
