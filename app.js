@@ -13,12 +13,16 @@ function loadRoster() {
   } catch(e) {}
 }
 function saveSettings() {
-  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify({ minWomen })); } catch(e) {}
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify({ minWomen, splitHitters })); } catch(e) {}
 }
 function loadSettings() {
   try {
     const d = localStorage.getItem(SETTINGS_KEY);
-    if (d) { const s = JSON.parse(d); if (typeof s.minWomen === 'number') minWomen = s.minWomen; }
+    if (d) {
+      const s = JSON.parse(d);
+      if (typeof s.minWomen    === 'number')  minWomen    = s.minWomen;
+      if (typeof s.splitHitters === 'boolean') splitHitters = s.splitHitters;
+    }
   } catch(e) {}
 }
 
@@ -27,9 +31,14 @@ let players = [];      // { id, name, gender:'m'|'f', positions: Set }
 let selectedGender = 'm';
 let ALL_LINEUPS = [];
 let minWomen = 2;
+let splitHitters = false;
 
-const POSITIONS = ['setter','outside','opposite','middle','libero'];
-const POS_LABEL = { setter:'S', outside:'OH', opposite:'OPP', middle:'M', libero:'L' };
+const POS_LABEL = { setter:'S', hitter:'H', outside:'OH', opposite:'OPP', middle:'M', libero:'L' };
+function getPositions() {
+  return splitHitters
+    ? ['setter','outside','opposite','middle','libero']
+    : ['setter','hitter','middle','libero'];
+}
 
 // ─── Lineup generation ─────────────────────────────────────────────────────────
 function isWoman(p) { return p.gender === 'f'; }
@@ -45,40 +54,64 @@ function combos(arr, k) {
 }
 
 function generateLineups() {
-  const setters   = players.filter(p => p.positions.has('setter'));
-  const outsides  = players.filter(p => p.positions.has('outside'));
-  const opposites = players.filter(p => p.positions.has('opposite'));
-  const middles   = players.filter(p => p.positions.has('middle'));
-  const liberos   = players.filter(p => p.positions.has('libero'));
-
+  const setters = players.filter(p => p.positions.has('setter'));
+  const middles = players.filter(p => p.positions.has('middle'));
+  const liberos = players.filter(p => p.positions.has('libero'));
   const out = [];
-  for (const s of setters) {
-    const oppPool = opposites.filter(p => p.id !== s.id);
-    for (const opp of oppPool) {
-      const ohPool = outsides.filter(p => p.id !== s.id && p.id !== opp.id);
-      for (const oh of combos(ohPool, 2)) {
-        const used = new Set([s.id, opp.id, ...oh.map(p=>p.id)]);
-        const mPool = middles.filter(p => !used.has(p.id));
-        for (const m of combos(mPool, 2)) {
+
+  if (!splitHitters) {
+    const hitters = players.filter(p => p.positions.has('hitter'));
+    for (const s of setters) {
+      for (const h of combos(hitters.filter(p => p.id !== s.id), 3)) {
+        const used = new Set([s.id, ...h.map(p=>p.id)]);
+        for (const m of combos(middles.filter(p => !used.has(p.id)), 2)) {
           const used2 = new Set([...used, ...m.map(p=>p.id)]);
-          const lPool = liberos.filter(p => !used2.has(p.id));
-          for (const l of lPool) {
-            // Rotation check: libero swaps in for each middle
+          for (const l of liberos.filter(p => !used2.has(p.id))) {
             let ok = true, minW = 9;
             for (const sit of m) {
               const act = m.find(x => x.id !== sit.id);
-              const active = [s, opp, ...oh, act, l];
+              const active = [s, ...h, act, l];
               const wc = active.filter(isWoman).length;
               if (wc < minWomen) { ok = false; break; }
               if (wc < minW) minW = wc;
             }
-            const all7 = [s, opp, ...oh, ...m, l];
+            const all7 = [s, ...h, ...m, l];
             if (all7.filter(isWoman).length < minWomen) ok = false;
             if (ok) out.push({
-              setter: s, opposite: opp, outsides: oh, middles: m, libero: l,
+              setter: s, hitters: h, middles: m, libero: l,
               wc: all7.filter(isWoman).length,
               tight: minW === minWomen
             });
+          }
+        }
+      }
+    }
+  } else {
+    const outsides  = players.filter(p => p.positions.has('outside'));
+    const opposites = players.filter(p => p.positions.has('opposite'));
+    for (const s of setters) {
+      for (const opp of opposites.filter(p => p.id !== s.id)) {
+        for (const oh of combos(outsides.filter(p => p.id !== s.id && p.id !== opp.id), 2)) {
+          const used = new Set([s.id, opp.id, ...oh.map(p=>p.id)]);
+          for (const m of combos(middles.filter(p => !used.has(p.id)), 2)) {
+            const used2 = new Set([...used, ...m.map(p=>p.id)]);
+            for (const l of liberos.filter(p => !used2.has(p.id))) {
+              let ok = true, minW = 9;
+              for (const sit of m) {
+                const act = m.find(x => x.id !== sit.id);
+                const active = [s, opp, ...oh, act, l];
+                const wc = active.filter(isWoman).length;
+                if (wc < minWomen) { ok = false; break; }
+                if (wc < minW) minW = wc;
+              }
+              const all7 = [s, opp, ...oh, ...m, l];
+              if (all7.filter(isWoman).length < minWomen) ok = false;
+              if (ok) out.push({
+                setter: s, opposite: opp, outsides: oh, middles: m, libero: l,
+                wc: all7.filter(isWoman).length,
+                tight: minW === minWomen
+              });
+            }
           }
         }
       }
@@ -138,6 +171,13 @@ function setPlayerGender(id, g) {
   validateSetup();
 }
 
+function setSplitHitters(val) {
+  splitHitters = val;
+  saveSettings();
+  renderRoster();
+  validateSetup();
+}
+
 function adjustMinWomen(delta) {
   const v = minWomen + delta;
   if (v < 0) return;
@@ -173,7 +213,7 @@ function renderRoster() {
 
   list.innerHTML = players.map(p => {
     const isF  = p.gender === 'f';
-    const chips = POSITIONS.map(pos => {
+    const chips = getPositions().map(pos => {
       const on = p.positions.has(pos);
       return `<button class="pos-chip${on?' on-'+pos:''}" onclick="togglePosition(${p.id},'${pos}')">${POS_LABEL[pos]}</button>`;
     }).join('');
@@ -194,16 +234,21 @@ function validateSetup() {
   const msg = document.getElementById('validation-msg');
   const btn = document.getElementById('build-btn');
 
-  const setters   = players.filter(p => p.positions.has('setter'));
-  const outsides  = players.filter(p => p.positions.has('outside'));
-  const opposites = players.filter(p => p.positions.has('opposite'));
-  const middles   = players.filter(p => p.positions.has('middle'));
-  const liberos   = players.filter(p => p.positions.has('libero'));
+  const setters = players.filter(p => p.positions.has('setter'));
+  const middles = players.filter(p => p.positions.has('middle'));
+  const liberos = players.filter(p => p.positions.has('libero'));
 
   const issues = [];
   if (!setters.length)    issues.push('at least 1 setter');
-  if (!opposites.length)  issues.push('at least 1 opposite');
-  if (outsides.length < 2) issues.push(`at least 2 outside hitters (have ${outsides.length})`);
+  if (!splitHitters) {
+    const hitters = players.filter(p => p.positions.has('hitter'));
+    if (hitters.length < 3) issues.push(`at least 3 hitters (have ${hitters.length})`);
+  } else {
+    const outsides  = players.filter(p => p.positions.has('outside'));
+    const opposites = players.filter(p => p.positions.has('opposite'));
+    if (!opposites.length)   issues.push('at least 1 opposite');
+    if (outsides.length < 2) issues.push(`at least 2 outside hitters (have ${outsides.length})`);
+  }
   if (middles.length < 2) issues.push(`at least 2 middles (have ${middles.length})`);
   if (!liberos.length)    issues.push('at least 1 libero');
 
@@ -246,6 +291,7 @@ function goResults() {
 const filterState = {
   setter:   null,
   lib:      null,
+  hitters:  new Set(),
   opposite: null,
   outsides: new Set(),
   middles:  new Set(),
@@ -257,6 +303,7 @@ const filterState = {
 function resetFilters() {
   filterState.setter   = null;
   filterState.lib      = null;
+  filterState.hitters.clear();
   filterState.opposite = null;
   filterState.outsides.clear();
   filterState.middles.clear();
@@ -266,17 +313,28 @@ function resetFilters() {
 }
 
 function buildFilterPanel() {
-  const setters   = [...new Set(ALL_LINEUPS.map(t => t.setter))];
-  const opposites = [...new Set(ALL_LINEUPS.map(t => t.opposite))];
-  const outsides  = [...new Set(ALL_LINEUPS.flatMap(t => t.outsides))];
-  const middles   = [...new Set(ALL_LINEUPS.flatMap(t => t.middles))];
-  const liberos   = [...new Set(ALL_LINEUPS.map(t => t.libero))];
+  const setters = [...new Set(ALL_LINEUPS.map(t => t.setter))];
+  const middles = [...new Set(ALL_LINEUPS.flatMap(t => t.middles))];
+  const liberos = [...new Set(ALL_LINEUPS.map(t => t.libero))];
 
-  // dedupe by id
   const uniq = arr => {
     const seen = new Set();
     return arr.filter(p => { if (seen.has(p.id)) return false; seen.add(p.id); return true; });
   };
+
+  const hitterSection = splitHitters ? `
+    <div class="filter-section">
+      <div class="filter-section-label">Opposite <span class="filter-hint">(single select)</span></div>
+      <div class="pills" id="fp-opposite">${uniq([...new Set(ALL_LINEUPS.map(t => t.opposite))]).map(p => pillHtml(p,'opposite',false)).join('')}</div>
+    </div>
+    <div class="filter-section">
+      <div class="filter-section-label">Must include outside hitter <span class="filter-hint">(multi-select)</span></div>
+      <div class="pills" id="fp-outside">${uniq([...new Set(ALL_LINEUPS.flatMap(t => t.outsides))]).map(p => pillHtml(p,'outsides',true)).join('')}</div>
+    </div>` : `
+    <div class="filter-section">
+      <div class="filter-section-label">Must include hitter <span class="filter-hint">(multi-select)</span></div>
+      <div class="pills" id="fp-hitter">${uniq([...new Set(ALL_LINEUPS.flatMap(t => t.hitters))]).map(p => pillHtml(p,'hitters',true)).join('')}</div>
+    </div>`;
 
   const panel = document.getElementById('filter-panel');
   panel.innerHTML = `
@@ -284,14 +342,7 @@ function buildFilterPanel() {
       <div class="filter-section-label">Setter <span class="filter-hint">(single select)</span></div>
       <div class="pills" id="fp-setter">${uniq(setters).map(p => pillHtml(p,'setter',false)).join('')}</div>
     </div>
-    <div class="filter-section">
-      <div class="filter-section-label">Opposite <span class="filter-hint">(single select)</span></div>
-      <div class="pills" id="fp-opposite">${uniq(opposites).map(p => pillHtml(p,'opposite',false)).join('')}</div>
-    </div>
-    <div class="filter-section">
-      <div class="filter-section-label">Must include outside hitter <span class="filter-hint">(multi-select)</span></div>
-      <div class="pills" id="fp-outside">${uniq(outsides).map(p => pillHtml(p,'outsides',true)).join('')}</div>
-    </div>
+    ${hitterSection}
     <div class="filter-section">
       <div class="filter-section-label">Libero <span class="filter-hint">(single select)</span></div>
       <div class="pills" id="fp-lib">${uniq(liberos).map(p => pillHtml(p,'lib',false)).join('')}</div>
@@ -386,11 +437,15 @@ function clearFilters() {
 
 function getFiltered() {
   return ALL_LINEUPS.filter(t => {
-    if (filterState.setter   && t.setter.id   !== filterState.setter)   return false;
-    if (filterState.lib      && t.libero.id   !== filterState.lib)      return false;
-    if (filterState.opposite && t.opposite.id !== filterState.opposite) return false;
-    for (const id of filterState.outsides) if (!t.outsides.find(p => p.id === id)) return false;
-    for (const id of filterState.middles)  if (!t.middles.find(p => p.id === id))  return false;
+    if (filterState.setter && t.setter.id !== filterState.setter) return false;
+    if (filterState.lib    && t.libero.id !== filterState.lib)    return false;
+    if (!splitHitters) {
+      for (const id of filterState.hitters) if (!t.hitters.find(p => p.id === id)) return false;
+    } else {
+      if (filterState.opposite && t.opposite.id !== filterState.opposite) return false;
+      for (const id of filterState.outsides) if (!t.outsides.find(p => p.id === id)) return false;
+    }
+    for (const id of filterState.middles) if (!t.middles.find(p => p.id === id)) return false;
     if (filterState.tight && !t.tight) return false;
     if (filterState.w3    && t.wc < minWomen + 1) return false;
     return true;
@@ -434,11 +489,12 @@ function renderResults() {
             ${t.tight ? '<span class="tag tag-a">⚠ rotation-sensitive</span>' : ''}
           </div>
         </div>
-        <div class="court">
+        <div class="court${splitHitters ? ' court-5' : ''}">
           <div class="slot">
             <div class="slot-role">Setter</div>
             <div class="slot-names">${pname(t.setter)}</div>
           </div>
+          ${splitHitters ? `
           <div class="slot">
             <div class="slot-role">Opp</div>
             <div class="slot-names">${pname(t.opposite)}</div>
@@ -446,7 +502,11 @@ function renderResults() {
           <div class="slot">
             <div class="slot-role">Outside</div>
             <div class="slot-names">${t.outsides.map(pname).join('')}</div>
-          </div>
+          </div>` : `
+          <div class="slot">
+            <div class="slot-role">Hitters</div>
+            <div class="slot-names">${t.hitters.map(pname).join('')}</div>
+          </div>`}
           <div class="slot">
             <div class="slot-role">Middle</div>
             <div class="slot-names">${t.middles.map(pname).join('')}</div>
@@ -481,5 +541,7 @@ loadRoster();
 // Re-hydrate position Sets (JSON serialises Set as {}, so we store as arrays)
 players = players.map(p => ({ ...p, positions: new Set(Array.isArray(p.positions) ? p.positions : []) }));
 document.getElementById('min-women-val').textContent = minWomen;
+const splitToggleEl = document.getElementById('split-hitters-toggle');
+if (splitToggleEl) splitToggleEl.checked = splitHitters;
 renderRoster();
 validateSetup();
