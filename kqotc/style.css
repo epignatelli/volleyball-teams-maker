@@ -292,10 +292,22 @@ body {
   border-radius: var(--radius-md);
   padding: 12px 14px;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
 }
+.team-card-left { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 0; }
+.team-subs { display: flex; flex-wrap: wrap; gap: 4px; }
+.sub-chip {
+  font-size: 11px; font-weight: 500;
+  padding: 2px 7px; border-radius: 99px;
+  background: var(--surface2); color: var(--muted);
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+.sub-chip.submitted { color: var(--amber); border-color: rgba(245,166,35,.35); background: var(--amber-dim); }
+.sub-hint { font-size: 12px; color: var(--muted); flex-shrink: 0; min-width: 32px; text-align: right; }
+.sub-hint.submitted { color: var(--amber); font-weight: 600; }
 .team-card.team-new  { border-color: rgba(34,201,122,.3);  background: var(--green-bg); }
 .team-card.team-stay { border-color: rgba(245,166,35,.25); background: var(--amber-dim); }
 .team-names { font-size: 14px; font-weight: 500; flex: 1; line-height: 1.4; }

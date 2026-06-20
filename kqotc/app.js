@@ -351,17 +351,21 @@ function renderRound() {
   const container = document.getElementById('round-content');
 
   const teamCards = topTeams.map(t => {
-    const names = t.playerIds.map(id => esc(getPlayer(id)?.name ?? '—')).join(', ');
     const cum   = t.playerIds.reduce((s, id) => s + (getPlayer(id)?.cumScore ?? 0), 0) / t.playerIds.length;
+    const names = t.playerIds.map(id => esc(getPlayer(id)?.name ?? '—')).join(', ');
+    const chips = t.playerIds.map(id => {
+      const p = getPlayer(id);
+      const submitted = p && p.submittedRound === round && p.submittedScore !== undefined;
+      return `<span class="sub-chip${submitted ? ' submitted' : ''}" data-sub="${id}">${esc(p?.name ?? '—')}: ${submitted ? p.submittedScore + ' pts' : '—'}</span>`;
+    }).join('');
     return `
       <div class="team-card" id="team-${t.id}">
-        <div class="team-names">
-          ${names}
-          <span class="cum-score">total ${Math.round(cum)} pts</span>
+        <div class="team-card-left">
+          <div class="team-names">${names}<span class="cum-score">total ${Math.round(cum)} pts</span></div>
+          <div class="team-subs">${chips}</div>
         </div>
         <input class="score-input" type="number" min="0" inputmode="numeric"
-          value="${t.roundScore}"
-          onfocus="this.select()"
+          value="${t.roundScore}" onfocus="this.select()"
           oninput="setTeamScore(${t.id}, this.value)"
           onblur="blurTeamScore(${t.id}, this)" />
       </div>`;
@@ -369,15 +373,13 @@ function renderRound() {
 
   const workRows = workUp.length ? workUp.map(wu => {
     const p = getPlayer(wu.playerId);
+    const submitted = p && p.submittedRound === round && p.submittedScore !== undefined;
     return `
       <div class="workup-row">
-        <span class="player-name">
-          ${esc(p?.name ?? '—')}
-          <span class="cum-score">${p?.cumScore ?? 0} pts</span>
-        </span>
+        <span class="player-name">${esc(p?.name ?? '—')}<span class="cum-score">${p?.cumScore ?? 0} pts</span></span>
+        <span class="sub-hint${submitted ? ' submitted' : ''}" data-sub="${wu.playerId}">${submitted ? p.submittedScore + ' pts' : '—'}</span>
         <input class="score-input" type="number" min="0" inputmode="numeric"
-          value="${wu.roundScore}"
-          onfocus="this.select()"
+          value="${wu.roundScore}" onfocus="this.select()"
           oninput="setWorkScore('${wu.playerId}', this.value)"
           onblur="blurWorkScore('${wu.playerId}', this)" />
       </div>`;
@@ -391,12 +393,7 @@ function renderRound() {
     <div class="court-section">
       <div class="court-label workup">↑ Work-up Court</div>
       ${workRows}
-    </div>
-    <div class="court-section">
-      <div class="court-label" style="color:var(--muted)">Player submissions — Round ${round}</div>
-      <div id="submitted-scores"></div>
     </div>`;
-  _updateSubmittedScores();
 }
 
 let _toastTimer = null;
@@ -624,6 +621,21 @@ function _stopPlayerListener() {
 }
 
 function _updateSubmittedScores() {
+  // Update inline chips (round screen) and hints (work-up)
+  players.forEach(p => {
+    const submitted = p.submittedRound === round && p.submittedScore !== undefined;
+    document.querySelectorAll(`[data-sub="${p.id}"]`).forEach(el => {
+      if (el.classList.contains('sub-chip')) {
+        el.className = 'sub-chip' + (submitted ? ' submitted' : '');
+        el.textContent = `${p.name}: ${submitted ? p.submittedScore + ' pts' : '—'}`;
+      } else {
+        el.className = 'sub-hint' + (submitted ? ' submitted' : '');
+        el.textContent = submitted ? `${p.submittedScore} pts` : '—';
+      }
+    });
+  });
+
+  // Update transition screen summary if present
   const el = document.getElementById('submitted-scores');
   if (!el) return;
   const allIds = [
