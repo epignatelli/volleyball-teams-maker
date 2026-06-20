@@ -259,10 +259,10 @@ function renderTransition({ moversUp, movingDownTeams, stayTeams, newTeams, stay
     </div>`).join('');
 
   const nextWorkRows = [
-    ...movingDownTeams.flatMap(t => t.playerIds.map(pid => ({ pid, score: t.roundScore, tag: '↓ ' }))),
-    ...stayWorkUp.map(wu => ({ pid: wu.playerId, score: wu.roundScore, tag: '' }))
-  ].map(({ pid, score, tag }) =>
-    `<div class="workup-row"><span class="player-name">${name(pid)}<span class="cum-score">${tag}${score} pts · <b>${total(pid)} total</b></span></span></div>`
+    ...movingDownTeams.flatMap(t => t.playerIds.map(pid => ({ pid, score: t.roundScore }))),
+    ...stayWorkUp.map(wu => ({ pid: wu.playerId, score: wu.roundScore }))
+  ].map(({ pid, score }) =>
+    `<div class="workup-row"><span class="player-name">${name(pid)}<span class="cum-score">${score} pts · <b>${total(pid)} total</b></span></span></div>`
   ).join('') || '<div class="empty-note">—</div>';
 
   document.getElementById('transition-content').innerHTML = `
