@@ -1,7 +1,7 @@
 {
-  "name": "Volleyball Lineup Builder",
+  "name": "VB Lineups",
   "short_name": "VB Lineups",
-  "description": "Generate and explore valid volleyball team combinations",
+  "description": "Build your team. Find every valid lineup for mixed volleyball.",
   "start_url": "./index.html",
   "display": "standalone",
   "background_color": "#0f1117",
