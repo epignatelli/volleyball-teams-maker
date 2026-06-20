@@ -1,5 +1,5 @@
 // ─── Debug ─────────────────────────────────────────────────────────────────────
-const DEBUG = true;
+const DEBUG = false;
 
 // ─── State ─────────────────────────────────────────────────────────────────────
 let players     = [];   // { id, name, cumScore }
@@ -14,13 +14,7 @@ let _tournamentName = '';
 let _currentUser    = null;
 let _isAdmin        = false;
 
-const STORE_KEY = 'kqotc-players-v1';
-
-// ─── localStorage backup ───────────────────────────────────────────────────────
-function savePlayers() {
-  try { localStorage.setItem(STORE_KEY, JSON.stringify(players)); } catch(e) {}
-  saveTournament();
-}
+function savePlayers() { saveTournament(); }
 
 // ─── Firebase / Auth ───────────────────────────────────────────────────────────
 function getDb()   { return firebase.firestore(); }
@@ -665,7 +659,6 @@ function debugFillPlayers() {
     const name = pool[i % pool.length] + (i >= pool.length ? ` ${Math.floor(i / pool.length) + 1}` : '');
     players.push({ id: Date.now() + i, name, cumScore: 0 });
   }
-  try { localStorage.setItem(STORE_KEY, JSON.stringify(players)); } catch(e) {}
   saveTournament();
   renderCheckin();
 }
