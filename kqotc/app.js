@@ -117,11 +117,13 @@ async function openTournament(id) {
   localStorage.setItem('kqotc-last-tournament', id);
   _applyData(data);
   players = loadedPlayers;
+  _startPlayerListener();
   _navigateToScreen(data);
 }
 
 // ─── Home screen ───────────────────────────────────────────────────────────────
 function goHome() {
+  _stopPlayerListener();
   showScreen('home');
   renderHome();
 }
@@ -497,7 +499,12 @@ function renderTransition({ moversUp, movingDownTeams, stayTeams, newTeams, stay
     <div class="court-section">
       <div class="court-label workup">↑ Work-up — Round ${round + 1}</div>
       ${nextWorkRows}
+    </div>
+    <div class="court-section">
+      <div class="court-label" style="color:var(--muted)">Player submissions — Round ${round}</div>
+      <div id="submitted-scores"></div>
     </div>`;
+  _updateSubmittedScores();
 }
 
 function startNextRound() {
@@ -561,15 +568,75 @@ async function resetScores() {
   renderCheckin();
 }
 
-// ─── QR / self check-in ────────────────────────────────────────────────────────
-let _qrActive       = false;
-let _seenKeys       = new Set();
-let _unsubFirestore = null;
+// ─── Persistent player listener ────────────────────────────────────────────────
+let _playerUnsub = null;
+let _seenKeys    = new Set();
+let _qrActive    = false;
 
+function _startPlayerListener() {
+  if (_playerUnsub) _playerUnsub();
+  _seenKeys = new Set(players.map(p => p.id));
+
+  _playerUnsub = _playersRef().onSnapshot(snap => {
+    snap.docChanges().forEach(change => {
+      const d    = change.doc;
+      const data = d.data();
+
+      if (change.type === 'added') {
+        players.forEach(p => _seenKeys.add(p.id));
+        if (_seenKeys.has(d.id)) return;
+        _seenKeys.add(d.id);
+        const p = { id: d.id, name: data.name, cumScore: data.cumScore || 0 };
+        players.push(p);
+        renderCheckin();
+        if (_qrActive) {
+          const list = document.getElementById('qr-player-list');
+          if (list) {
+            const row = document.createElement('div');
+            row.className = 'qr-player-row';
+            row.textContent = p.name;
+            list.prepend(row);
+            const count = list.children.length;
+            document.getElementById('qr-status').textContent =
+              `${count} player${count !== 1 ? 's' : ''} via QR`;
+          }
+        }
+      } else if (change.type === 'modified') {
+        const p = players.find(p => p.id === d.id);
+        if (p) {
+          p.submittedScore = data.submittedScore;
+          p.submittedRound = data.submittedRound;
+          _updateSubmittedScores();
+        }
+      }
+    });
+  });
+}
+
+function _stopPlayerListener() {
+  if (_playerUnsub) { _playerUnsub(); _playerUnsub = null; }
+}
+
+function _updateSubmittedScores() {
+  const el = document.getElementById('submitted-scores');
+  if (!el) return;
+  const rows = topTeams.map(t => {
+    const submitted = t.playerIds
+      .map(id => players.find(p => p.id === id))
+      .filter(p => p && p.submittedRound === round && p.submittedScore !== undefined);
+    if (!submitted.length) return `<div class="sub-row"><span>Team ${t.id}</span><span class="sub-empty">No submissions yet</span></div>`;
+    const scores = submitted.map(p => p.submittedScore);
+    const avg    = Math.round(scores.reduce((a, b) => a + b, 0) / scores.length);
+    const label  = scores.length === t.playerIds.length ? `${avg} pts` : `${avg} pts (${scores.length}/${t.playerIds.length})`;
+    return `<div class="sub-row"><span>Team ${t.id}</span><span class="sub-score">${label}</span></div>`;
+  });
+  el.innerHTML = rows.join('');
+}
+
+// ─── QR check-in panel ─────────────────────────────────────────────────────────
 async function openQRCheckin() {
   if (!_tournamentId) return;
   _qrActive = true;
-  _seenKeys = new Set(players.map(p => p.id));
 
   let base = location.href.split('?')[0].replace(/\/?$/, '/');
   try {
@@ -586,28 +653,6 @@ async function openQRCheckin() {
   document.getElementById('qr-status').textContent    = 'Waiting for players…';
   document.getElementById('qr-player-list').innerHTML = '';
   document.getElementById('qr-overlay').classList.add('open');
-
-  _unsubFirestore = _playersRef().onSnapshot(snap => {
-    if (!_qrActive) return;
-    players.forEach(p => _seenKeys.add(p.id));
-    snap.docChanges().forEach(change => {
-      if (change.type !== 'added') return;
-      const d = change.doc;
-      if (_seenKeys.has(d.id)) return;
-      _seenKeys.add(d.id);
-      const p = { id: d.id, name: d.data().name, cumScore: d.data().cumScore || 0 };
-      players.push(p);
-      renderCheckin();
-      const list  = document.getElementById('qr-player-list');
-      const row   = document.createElement('div');
-      row.className   = 'qr-player-row';
-      row.textContent = p.name;
-      list.prepend(row);
-      const count = list.children.length;
-      document.getElementById('qr-status').textContent =
-        `${count} player${count !== 1 ? 's' : ''} via QR`;
-    });
-  });
 }
 
 function updateQRUrl(url) {
@@ -617,7 +662,6 @@ function updateQRUrl(url) {
 
 function closeQRCheckin() {
   _qrActive = false;
-  if (_unsubFirestore) { _unsubFirestore(); _unsubFirestore = null; }
   document.getElementById('qr-overlay').classList.remove('open');
 }
 
@@ -687,6 +731,7 @@ async function boot() {
         _tournamentId = lastId;
         _applyData(data);
         players = loadedPlayers;
+        _startPlayerListener();
         _navigateToScreen(data);
         return;
       }

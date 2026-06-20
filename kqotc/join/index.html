@@ -47,15 +47,16 @@
       font-family: var(--sport); font-size: 13px; font-weight: 700;
       letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
     }
-    input[type=text] {
+    input[type=text], input[type=number] {
       width: 100%; height: 52px;
       background: var(--surface2); border: 1.5px solid var(--border2);
       border-radius: var(--radius-md); padding: 0 16px;
       font-size: 18px; color: var(--text);
       outline: none; -webkit-appearance: none; transition: border-color .15s;
     }
-    input[type=text]:focus { border-color: var(--amber); }
-    input[type=text]::placeholder { color: var(--muted); }
+    input[type=number] { text-align: center; font-size: 28px; font-family: var(--sport); }
+    input:focus { border-color: var(--amber); }
+    input::placeholder { color: var(--muted); }
     .error-msg { color: var(--red); font-size: 13px; display: none; }
     .cta-btn {
       width: 100%; height: 52px; border-radius: var(--radius-lg); border: none;
@@ -66,19 +67,18 @@
     }
     .cta-btn:disabled { opacity: .35; cursor: default; }
     .cta-btn:not(:disabled):active { opacity: .8; }
-    .success {
-      display: none; flex-direction: column; align-items: center;
+    .state-card {
+      display: flex; flex-direction: column; align-items: center;
       gap: 16px; text-align: center;
     }
-    .success-icon {
+    .state-icon {
       width: 68px; height: 68px; background: var(--green-bg); border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
-      font-size: 34px; color: var(--green);
+      font-size: 32px;
     }
-    .success h2 {
-      font-family: var(--sport); font-size: 26px; font-weight: 700; letter-spacing: .02em;
-    }
-    .success p { color: var(--muted); font-size: 14px; }
+    .state-icon.amber { background: rgba(245,166,35,0.13); }
+    .state-h { font-family: var(--sport); font-size: 26px; font-weight: 700; letter-spacing: .02em; }
+    .state-p { color: var(--muted); font-size: 14px; line-height: 1.5; }
   </style>
 </head>
 <body>
@@ -122,76 +122,155 @@
           Invalid link — ask your organiser for the QR code.
         </p>`;
     } else {
+      let _tourUnsub     = null;
+      let _submittedRound = null;
+
       firebase.auth().onAuthStateChanged(async user => {
-        if (!user) {
-          await firebase.auth().signInAnonymously();
-          return; // onAuthStateChanged fires again with the new user
-        }
+        if (!user) { await firebase.auth().signInAnonymously(); return; }
 
-        const db         = firebase.firestore();
-        const tourRef    = db.collection('tournaments').doc(tournamentId);
-        const playerRef  = tourRef.collection('players').doc(user.uid);
+        const db        = firebase.firestore();
+        const tourRef   = db.collection('tournaments').doc(tournamentId);
+        const playerRef = tourRef.collection('players').doc(user.uid);
 
-        // Load tournament name and check if already joined in parallel
         const [tourDoc, playerDoc] = await Promise.all([tourRef.get(), playerRef.get()]);
         const tname = tourDoc.exists ? (tourDoc.data().name || '') : '';
 
         if (playerDoc.exists) {
-          showSuccess(playerDoc.data().name);
+          _submittedRound = playerDoc.data().submittedRound ?? null;
+          _listen(user, tourRef, playerRef, playerDoc.data().name);
         } else {
-          showForm(tname, playerRef, tourRef);
+          _showForm(tname, user, tourRef, playerRef);
         }
       });
-    }
 
-    function showForm(tname, playerRef, tourRef) {
-      card.innerHTML = `
-        <span class="card-label">${tname || 'Check-in'}</span>
-        <input type="text" id="name-input" placeholder="Your name" maxlength="24"
-          autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false" />
-        <div class="error-msg" id="error-msg">Please enter your name.</div>
-        <button class="cta-btn" id="checkin-btn" onclick="checkIn()">Join →</button>`;
-      document.getElementById('name-input').addEventListener('keydown', e => {
-        if (e.key === 'Enter') checkIn();
-      });
-      document.getElementById('name-input').focus();
+      function _listen(user, tourRef, playerRef, playerName) {
+        if (_tourUnsub) _tourUnsub();
+        _tourUnsub = tourRef.onSnapshot(doc => {
+          if (!doc.exists) return;
+          const data   = doc.data();
+          const screen = data.screen || 'checkin';
+          const round  = data.round  || 0;
 
-      window.checkIn = async function() {
-        const input = document.getElementById('name-input');
-        const name  = input.value.trim();
-        const errEl = document.getElementById('error-msg');
-        if (!name) { errEl.style.display = 'block'; input.focus(); return; }
-        errEl.style.display = 'none';
-        document.getElementById('checkin-btn').disabled = true;
-        input.disabled = true;
+          if (screen === 'round') {
+            _submittedRound = null;
+            _showRoundLive(round, playerName);
+          } else if (screen === 'transition') {
+            if (_submittedRound === round) {
+              _showSubmitted(playerName);
+            } else {
+              const myTeam   = (data.topTeams || []).find(t => t.playerIds?.includes(user.uid));
+              const myWorkUp = (data.workUp   || []).find(w => w.playerId === user.uid);
+              if (myTeam || myWorkUp) {
+                _showScoreInput(round, playerRef, playerName);
+              } else {
+                _showWaiting(playerName, 'Round done! Waiting for next round…');
+              }
+            }
+          } else if (screen === 'leaderboard') {
+            _showDone(playerName);
+          } else {
+            _showWaiting(playerName, 'Waiting for the event to start…');
+          }
+        });
+      }
 
-        try {
-          await playerRef.set({
-            name,
-            cumScore: 0,
-            joinedAt: firebase.firestore.FieldValue.serverTimestamp(),
-          });
-          await tourRef.update({
-            playerCount: firebase.firestore.FieldValue.increment(1),
-          });
-          showSuccess(name);
-        } catch(e) {
-          console.error('Join failed:', e);
-          document.getElementById('checkin-btn').disabled = false;
-          input.disabled = false;
-          errEl.textContent = 'Something went wrong. Try again.';
-          errEl.style.display = 'block';
-        }
-      };
-    }
+      function _showForm(tname, user, tourRef, playerRef) {
+        card.innerHTML = `
+          <span class="card-label">${tname || 'Check-in'}</span>
+          <input type="text" id="name-input" placeholder="Your name" maxlength="24"
+            autocomplete="off" autocorrect="off" autocapitalize="words" spellcheck="false" />
+          <div class="error-msg" id="error-msg">Please enter your name.</div>
+          <button class="cta-btn" id="checkin-btn" onclick="checkIn()">Join →</button>`;
+        const inp = document.getElementById('name-input');
+        inp.addEventListener('keydown', e => { if (e.key === 'Enter') checkIn(); });
+        inp.focus();
 
-    function showSuccess(name) {
-      card.innerHTML = `
-        <div class="success" style="display:flex">
-          <div class="success-icon">✓</div>
-          <h2>You're in, ${name.split(' ')[0]}!</h2>
-          <p>See you on the court.</p>
-        </div>`;
+        window.checkIn = async function() {
+          const name  = inp.value.trim();
+          const errEl = document.getElementById('error-msg');
+          if (!name) { errEl.style.display = 'block'; inp.focus(); return; }
+          errEl.style.display = 'none';
+          document.getElementById('checkin-btn').disabled = true;
+          inp.disabled = true;
+          try {
+            await playerRef.set({ name, cumScore: 0, joinedAt: firebase.firestore.FieldValue.serverTimestamp() });
+            await tourRef.update({ playerCount: firebase.firestore.FieldValue.increment(1) });
+            _listen(user, tourRef, playerRef, name);
+          } catch(e) {
+            console.error('Join failed:', e);
+            document.getElementById('checkin-btn').disabled = false;
+            inp.disabled = false;
+            errEl.textContent = 'Something went wrong. Try again.';
+            errEl.style.display = 'block';
+          }
+        };
+      }
+
+      function _showWaiting(name, msg) {
+        card.innerHTML = `
+          <div class="state-card">
+            <div class="state-icon">✓</div>
+            <div class="state-h">You're in, ${name.split(' ')[0]}!</div>
+            <div class="state-p">${msg}</div>
+          </div>`;
+      }
+
+      function _showRoundLive(round, name) {
+        card.innerHTML = `
+          <div class="state-card">
+            <div class="state-icon amber">🏐</div>
+            <div class="state-h">Round ${round} is live!</div>
+            <div class="state-p">Get to the court, ${name.split(' ')[0]}.</div>
+          </div>`;
+      }
+
+      function _showScoreInput(round, playerRef, name) {
+        card.innerHTML = `
+          <span class="card-label">Round ${round} done</span>
+          <p style="color:var(--muted);font-size:14px">How many points did your team score?</p>
+          <input type="number" id="score-input" inputmode="numeric" min="0" max="99" placeholder="0" />
+          <div class="error-msg" id="score-error">Enter a valid score.</div>
+          <button class="cta-btn" id="score-btn" onclick="submitScore()">Submit score</button>`;
+        const inp = document.getElementById('score-input');
+        inp.addEventListener('keydown', e => { if (e.key === 'Enter') submitScore(); });
+        inp.focus();
+
+        window.submitScore = async function() {
+          const val   = parseInt(inp.value);
+          const errEl = document.getElementById('score-error');
+          if (isNaN(val) || val < 0) { errEl.style.display = 'block'; return; }
+          errEl.style.display = 'none';
+          document.getElementById('score-btn').disabled = true;
+          try {
+            await playerRef.update({ submittedScore: val, submittedRound: round });
+            _submittedRound = round;
+            _showSubmitted(name);
+          } catch(e) {
+            console.error('Score submit failed:', e);
+            document.getElementById('score-btn').disabled = false;
+            errEl.textContent = 'Failed to submit. Try again.';
+            errEl.style.display = 'block';
+          }
+        };
+      }
+
+      function _showSubmitted(name) {
+        card.innerHTML = `
+          <div class="state-card">
+            <div class="state-icon">✓</div>
+            <div class="state-h">Score submitted!</div>
+            <div class="state-p">Waiting for next round, ${name.split(' ')[0]}.</div>
+          </div>`;
+      }
+
+      function _showDone(name) {
+        card.innerHTML = `
+          <div class="state-card">
+            <div class="state-icon amber">♛</div>
+            <div class="state-h">That's a wrap!</div>
+            <div class="state-p">Great game, ${name.split(' ')[0]}. Check the leaderboard.</div>
+          </div>`;
+      }
     }
   </script>
 

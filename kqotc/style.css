@@ -628,3 +628,13 @@ body {
 input.create-input[type=date]::-webkit-calendar-picker-indicator {
   filter: invert(1) opacity(.4);
 }
+
+/* ─── Submitted scores panel ──────────────────────────────── */
+.sub-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 6px 0; border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.sub-row:last-child { border-bottom: none; }
+.sub-score { color: var(--amber); font-weight: 600; }
+.sub-empty { color: var(--muted); }
