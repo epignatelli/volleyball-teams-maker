@@ -8,14 +8,13 @@ A collection of no-build, no-framework Progressive Web Apps (PWAs) for volleybal
 
 ```
 index.html          ← landing page listing all apps
-apps/
-  vb-lineups/       ← lineup builder app
-    index.html
-    app.js
-    style.css
-    manifest.json
-    sw.js
-    icons/
+vb-lineups/         ← lineup builder app
+  index.html
+  app.js
+  style.css
+  manifest.json
+  sw.js
+  icons/
 ```
 
 ## Running locally
@@ -23,14 +22,14 @@ apps/
 ```sh
 python3 -m http.server 8080
 # landing page: http://localhost:8080
-# vb-lineups:   http://localhost:8080/apps/vb-lineups/
+# vb-lineups:   http://localhost:8080/vb-lineups/
 ```
 
 The service worker (`sw.js`) only activates over HTTPS or `localhost`.
 
 ## Adding a new app
 
-1. Create `apps/<app-name>/` with `index.html`, `app.js`, `style.css`, `manifest.json`, `sw.js`
+1. Create `<app-name>/` with `index.html`, `app.js`, `style.css`, `manifest.json`, `sw.js`
 2. Add a card for it in the root `index.html`
 
 ## Deployment
