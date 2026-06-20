@@ -151,10 +151,7 @@
           const screen = data.screen || 'checkin';
           const round  = data.round  || 0;
 
-          if (screen === 'round') {
-            _submittedRound = null;
-            _showRoundLive(round, playerName);
-          } else if (screen === 'transition') {
+          if (screen === 'round' || screen === 'transition') {
             if (_submittedRound === round) {
               _showSubmitted(playerName);
             } else {
@@ -163,7 +160,7 @@
               if (myTeam || myWorkUp) {
                 _showScoreInput(round, playerRef, playerName);
               } else {
-                _showWaiting(playerName, 'Round done! Waiting for next round…');
+                _showWaiting(playerName, 'Waiting for round to start…');
               }
             }
           } else if (screen === 'leaderboard') {
