@@ -1,5 +1,6 @@
 // ─── Persistence ──────────────────────────────────────────────────────────────
-const STORE_KEY = 'vb-roster-v1';
+const STORE_KEY    = 'vb-roster-v1';
+const SETTINGS_KEY = 'vb-settings-v1';
 
 function saveRoster() {
   try { localStorage.setItem(STORE_KEY, JSON.stringify(players)); } catch(e) {}
@@ -10,11 +11,21 @@ function loadRoster() {
     if (d) players = JSON.parse(d);
   } catch(e) {}
 }
+function saveSettings() {
+  try { localStorage.setItem(SETTINGS_KEY, JSON.stringify({ minWomen })); } catch(e) {}
+}
+function loadSettings() {
+  try {
+    const d = localStorage.getItem(SETTINGS_KEY);
+    if (d) { const s = JSON.parse(d); if (typeof s.minWomen === 'number') minWomen = s.minWomen; }
+  } catch(e) {}
+}
 
 // ─── State ─────────────────────────────────────────────────────────────────────
 let players = [];      // { id, name, gender:'m'|'f', positions: Set }
 let selectedGender = 'm';
 let ALL_LINEUPS = [];
+let minWomen = 2;
 
 const POSITIONS = ['setter','hitter','middle','libero'];
 const POS_LABEL = { setter:'S', hitter:'H', middle:'M', libero:'L' };
@@ -54,15 +65,15 @@ function generateLineups() {
             const act = m.find(x => x.id !== sit.id);
             const active = [s, ...h, act, l];
             const wc = active.filter(isWoman).length;
-            if (wc < 2) { ok = false; break; }
+            if (wc < minWomen) { ok = false; break; }
             if (wc < minW) minW = wc;
           }
           const all7 = [s,...h,...m,l];
-          if (all7.filter(isWoman).length < 2) ok = false;
+          if (all7.filter(isWoman).length < minWomen) ok = false;
           if (ok) out.push({
             setter: s, hitters: h, middles: m, libero: l,
             wc: all7.filter(isWoman).length,
-            tight: minW === 2
+            tight: minW === minWomen
           });
         }
       }
@@ -105,6 +116,24 @@ function removePlayer(id) {
   validateSetup();
 }
 
+function toggleGender(id) {
+  const p = players.find(p => p.id === id);
+  if (!p) return;
+  p.gender = p.gender === 'f' ? 'm' : 'f';
+  saveRoster();
+  renderRoster();
+  validateSetup();
+}
+
+function adjustMinWomen(delta) {
+  const v = minWomen + delta;
+  if (v < 0) return;
+  minWomen = v;
+  document.getElementById('min-women-val').textContent = minWomen;
+  saveSettings();
+  validateSetup();
+}
+
 function togglePosition(id, pos) {
   const p = players.find(p => p.id === id);
   if (!p) return;
@@ -134,7 +163,7 @@ function renderRoster() {
     }).join('');
     return `
       <div class="player-item">
-        <span class="player-gender-dot" style="background:${dotColor}"></span>
+        <button class="player-gender-dot" style="background:${dotColor}" onclick="toggleGender(${p.id})" title="${p.gender === 'f' ? 'Woman' : 'Man'} — tap to change"></button>
         <span class="player-name-text">${escHtml(p.name)}</span>
         <div class="player-pos-chips">${chips}</div>
         <button class="remove-player" onclick="removePlayer(${p.id})" title="Remove">×</button>
@@ -158,7 +187,7 @@ function validateSetup() {
   if (!liberos.length) issues.push('at least 1 libero');
 
   const women = players.filter(p => p.gender === 'f');
-  if (women.length < 2) issues.push('at least 2 women in the roster');
+  if (women.length < minWomen) issues.push(`at least ${minWomen} women in the roster`);
 
   if (issues.length) {
     msg.className = 'validation error';
@@ -247,7 +276,7 @@ function buildFilterPanel() {
       <div class="toggle-row">
         <div class="toggle-text">
           Rotation-sensitive only
-          <small>Lineups where a middle swap could leave exactly 2 women</small>
+          <small>Lineups where a middle swap could leave exactly ${minWomen} women</small>
         </div>
         <label class="switch">
           <input type="checkbox" id="chk-tight" onchange="onToggle('tight',this)" />
@@ -255,7 +284,7 @@ function buildFilterPanel() {
         </label>
       </div>
       <div class="toggle-row">
-        <div class="toggle-text">3+ women on court</div>
+        <div class="toggle-text">${minWomen + 1}+ women on court</div>
         <label class="switch">
           <input type="checkbox" id="chk-3w" onchange="onToggle('w3',this)" />
           <span class="switch-track"></span>
@@ -334,7 +363,7 @@ function getFiltered() {
     for (const id of filterState.hitters) if (!t.hitters.find(p => p.id === id)) return false;
     for (const id of filterState.middles) if (!t.middles.find(p => p.id === id)) return false;
     if (filterState.tight && !t.tight) return false;
-    if (filterState.w3    && t.wc < 3) return false;
+    if (filterState.w3    && t.wc < minWomen + 1) return false;
     return true;
   });
 }
@@ -414,8 +443,10 @@ if ('serviceWorker' in navigator) {
 }
 
 // ─── Boot ──────────────────────────────────────────────────────────────────────
+loadSettings();
 loadRoster();
 // Re-hydrate position Sets (JSON doesn't serialise Set)
 players = players.map(p => ({ ...p, positions: new Set(p.positions) }));
+document.getElementById('min-women-val').textContent = minWomen;
 renderRoster();
 validateSetup();
