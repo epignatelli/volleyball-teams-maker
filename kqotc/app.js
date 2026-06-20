@@ -129,13 +129,17 @@ function renderRound() {
 
   const teamCards = topTeams.map(t => {
     const names = t.playerIds.map(id => esc(getPlayer(id)?.name ?? '—')).join(', ');
+    const cum   = t.playerIds.reduce((s, id) => s + (getPlayer(id)?.cumScore ?? 0), 0) / t.playerIds.length;
     return `
       <div class="team-card" id="team-${t.id}">
-        <div class="team-names">${names}</div>
+        <div class="team-names">
+          ${names}
+          <span class="cum-score">total ${Math.round(cum)} pts</span>
+        </div>
         <input class="score-input" type="number" min="0" inputmode="numeric"
           value="${t.roundScore}"
           onfocus="this.select()"
-          oninput="setTeamScore(${t.id}, this.value)" />
+          oninput="setTeamScore(${t.id}, this.value, this)" />
       </div>`;
   }).join('');
 
@@ -143,11 +147,14 @@ function renderRound() {
     const p = getPlayer(wu.playerId);
     return `
       <div class="workup-row">
-        <span class="player-name">${esc(p?.name ?? '—')}</span>
+        <span class="player-name">
+          ${esc(p?.name ?? '—')}
+          <span class="cum-score">${p?.cumScore ?? 0} pts</span>
+        </span>
         <input class="score-input" type="number" min="0" inputmode="numeric"
           value="${wu.roundScore}"
           onfocus="this.select()"
-          oninput="setWorkScore(${wu.playerId}, this.value)" />
+          oninput="setWorkScore(${wu.playerId}, this.value, this)" />
       </div>`;
   }).join('') : '<div class="empty-note">No players on work-up this round</div>';
 
@@ -162,14 +169,25 @@ function renderRound() {
     </div>`;
 }
 
-function setTeamScore(id, val) {
-  const t = topTeams.find(t => t.id === id);
-  if (t) t.roundScore = Math.max(0, parseInt(val) || 0);
+function parseScore(val) {
+  const n = parseInt(val);
+  return isNaN(n) ? null : Math.max(0, n);
 }
 
-function setWorkScore(playerId, val) {
+function setTeamScore(id, val, el) {
+  const n = parseScore(val);
+  if (n === null) { el.classList.add('input-error'); return; }
+  el.classList.remove('input-error');
+  const t = topTeams.find(t => t.id === id);
+  if (t) t.roundScore = n;
+}
+
+function setWorkScore(playerId, val, el) {
+  const n = parseScore(val);
+  if (n === null) { el.classList.add('input-error'); return; }
+  el.classList.remove('input-error');
   const wu = workUp.find(w => w.playerId === playerId);
-  if (wu) wu.roundScore = Math.max(0, parseInt(val) || 0);
+  if (wu) wu.roundScore = n;
 }
 
 // ─── End round ─────────────────────────────────────────────────────────────────
