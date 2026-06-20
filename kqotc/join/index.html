@@ -97,7 +97,24 @@
     <!-- filled by JS -->
   </div>
 
-  <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
+  <script>
+    function Gun(relays) {
+      // Lazy-load Gun.js only when needed (production fallback)
+      return {
+        _relays: relays, _loaded: false,
+        _instance: null,
+        _get(cb) {
+          if (this._instance) return cb(this._instance);
+          const s = document.createElement('script');
+          s.src = 'https://cdn.jsdelivr.net/npm/gun/gun.js';
+          s.onload = () => { this._instance = window.Gun(this._relays); cb(this._instance); };
+          document.head.appendChild(s);
+        },
+        get(key) { return { _key: key, _gun: this, get(k2) { return { _gun: this._gun, _key: this._key, _k2: k2, set(data) { this._gun._get(g => g.get(this._key).get(this._k2).set(data)); } }; } };
+        }
+      };
+    }
+  </script>
   <script>
     const params    = new URLSearchParams(location.search);
     const sessionId = params.get('s');
@@ -126,12 +143,7 @@
         if (e.key === 'Enter') checkIn();
       });
 
-      const gun = Gun([
-        'https://gun-rs.fly.dev/gun',
-        'https://peer.wallie.io/gun',
-      ]);
-
-      function checkIn() {
+      async function checkIn() {
         const input = document.getElementById('name-input');
         const name  = input.value.trim();
         const errEl = document.getElementById('error-msg');
@@ -140,7 +152,24 @@
         document.getElementById('checkin-btn').disabled = true;
         input.disabled = true;
 
-        gun.get('kqotc-v1-' + sessionId).get('players').set({ name, ts: Date.now() });
+        let ok = false;
+
+        // Try local serve.py first
+        try {
+          const r = await fetch(`/api/checkin?s=${sessionId}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name }),
+          });
+          ok = r.ok;
+        } catch (e) {}
+
+        // Fall back to Gun.js for production
+        if (!ok) {
+          const gun = Gun(['https://gun-rs.fly.dev/gun', 'https://peer.wallie.io/gun']);
+          gun.get('kqotc-v1-' + sessionId).get('players').set({ name, ts: Date.now() });
+          ok = true;
+        }
 
         document.getElementById('name-input').style.display = 'none';
         document.getElementById('checkin-btn').style.display = 'none';

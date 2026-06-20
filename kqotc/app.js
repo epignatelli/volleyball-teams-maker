@@ -345,11 +345,14 @@ function newEvent() {
   renderCheckin();
 }
 
-// ─── QR / Gun self check-in ────────────────────────────────────────────────────
-let _gun        = null;
-let _sessionId  = null;
-let _qrActive   = false;
-let _seenKeys   = new Set();
+// ─── QR / self check-in ────────────────────────────────────────────────────────
+let _gun         = null;
+let _sessionId   = null;
+let _qrActive    = false;
+let _seenKeys    = new Set();
+let _pollTimer   = null;
+let _pollTotal   = 0;
+let _localMode   = false;
 
 function getGun() {
   if (!_gun) _gun = Gun(['https://gun-rs.fly.dev/gun', 'https://peer.wallie.io/gun']);
@@ -361,36 +364,52 @@ function genSessionId() {
 }
 
 async function openQRCheckin() {
-  _sessionId = genSessionId();
-  _qrActive  = true;
-  _seenKeys  = new Set();
+  _sessionId  = genSessionId();
+  _qrActive   = true;
+  _seenKeys   = new Set();
+  _pollTotal  = 0;
+  _localMode  = false;
 
   let base = location.href.split('?')[0].replace(/\/?$/, '/');
-  if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
-    try {
-      const r = await fetch('/api/ip');
-      if (r.ok) {
-        const { ip } = await r.json();
-        if (ip && ip !== '127.0.0.1') base = base.replace(location.hostname, ip);
-      }
-    } catch (e) { /* serve.py not running — leave as localhost */ }
-  }
+
+  // Detect serve.py and get LAN IP in one shot
+  try {
+    const r = await fetch('/api/ip');
+    if (r.ok) {
+      const { ip } = await r.json();
+      if (ip && ip !== '127.0.0.1') base = base.replace(location.hostname, ip);
+      _localMode = true;
+    }
+  } catch (e) { /* production — use Gun */ }
+
   const joinUrl = base + 'join/?s=' + _sessionId;
-
-  const urlInput = document.getElementById('qr-join-url');
-  urlInput.value = joinUrl;
+  document.getElementById('qr-join-url').value = joinUrl;
   updateQRUrl(joinUrl);
-
   document.getElementById('qr-code-text').textContent = _sessionId;
   document.getElementById('qr-status').textContent = 'Waiting for players…';
   document.getElementById('qr-player-list').innerHTML = '';
   document.getElementById('qr-overlay').classList.add('open');
 
-  getGun().get('kqotc-v1-' + _sessionId).get('players').map().on((data, key) => {
-    if (!_qrActive || !data || !data.name || _seenKeys.has(key)) return;
-    _seenKeys.add(key);
-    _addPlayerFromQR(data.name.trim());
-  });
+  if (_localMode) {
+    _pollTimer = setInterval(_pollPlayers, 2000);
+  } else {
+    getGun().get('kqotc-v1-' + _sessionId).get('players').map().on((data, key) => {
+      if (!_qrActive || !data || !data.name || _seenKeys.has(key)) return;
+      _seenKeys.add(key);
+      _addPlayerFromQR(data.name.trim());
+    });
+  }
+}
+
+async function _pollPlayers() {
+  if (!_qrActive) return;
+  try {
+    const r = await fetch(`/api/players?s=${_sessionId}&after=${_pollTotal}`);
+    if (!r.ok) return;
+    const { players, total } = await r.json();
+    players.forEach(name => _addPlayerFromQR(name));
+    _pollTotal = total;
+  } catch (e) {}
 }
 
 function updateQRUrl(url) {
@@ -400,6 +419,8 @@ function updateQRUrl(url) {
 
 function closeQRCheckin() {
   _qrActive = false;
+  clearInterval(_pollTimer);
+  _pollTimer = null;
   document.getElementById('qr-overlay').classList.remove('open');
 }
 
