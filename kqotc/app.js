@@ -125,8 +125,23 @@ function _renderTourItem(t) {
         <span class="tour-name">${esc(t.name)}</span>
         ${meta ? `<span class="tour-meta">${meta}</span>` : ''}
       </div>
-      <div style="display:flex;align-items:center;gap:8px">${badge}<span class="tour-arrow">›</span></div>
+      <div style="display:flex;align-items:center;gap:8px">
+        ${badge}
+        <button class="tour-delete-btn" onclick="event.stopPropagation();deleteTournament('${t.id}','${esc(t.name)}')" title="Delete event">✕</button>
+        <span class="tour-arrow">›</span>
+      </div>
     </div>`;
+}
+
+async function deleteTournament(id, name) {
+  if (!confirm(`Delete "${name}"?\n\nThis will permanently remove the event and all its data.`)) return;
+  try {
+    await getDb().collection('tournaments').doc(id).delete();
+    await renderHome();
+  } catch(e) {
+    console.error('Delete failed:', e);
+    alert('Could not delete the event. Please try again.');
+  }
 }
 
 function showCreateForm() {
