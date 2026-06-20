@@ -485,10 +485,10 @@ function renderResults() {
     return `
       <div class="card${t.tight ? ' warn' : ''}">
         <div class="card-top">
-          <span class="card-num">Lineup #${idx}</span>
-          <div class="tags">
-            <span class="tag tag-g">${t.wc} women</span>
-            ${t.tight ? '<span class="tag tag-a">⚠ rotation-sensitive</span>' : ''}
+          <div class="card-wc">${t.wc}<span class="card-wc-label">women</span></div>
+          <div class="card-right">
+            ${t.tight ? '<span class="tag tag-a">⚠ tight</span>' : ''}
+            <span class="card-num">#${idx}</span>
           </div>
         </div>
         <div class="court${splitHitters ? ' court-5' : ''}">
