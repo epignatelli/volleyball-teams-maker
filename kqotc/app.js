@@ -454,7 +454,6 @@ const _DEBUG_NAMES = [
 
 function debugFillPlayers() {
   const n = Math.max(1, parseInt(document.getElementById('debug-n').value) || 24);
-  players = [];
   const pool = [..._DEBUG_NAMES].sort(() => Math.random() - 0.5);
   for (let i = 0; i < n; i++) {
     const name = pool[i % pool.length] + (i >= pool.length ? ` ${Math.floor(i / pool.length) + 1}` : '');
