@@ -142,7 +142,7 @@ function renderRound() {
         <input class="score-input" type="number" min="0" inputmode="numeric"
           value="${t.roundScore}"
           onfocus="this.select()"
-          oninput="setTeamScore(${t.id}, this.value, this)"
+          oninput="setTeamScore(${t.id}, this.value)"
           onblur="blurTeamScore(${t.id}, this)" />
       </div>`;
   }).join('');
@@ -158,7 +158,7 @@ function renderRound() {
         <input class="score-input" type="number" min="0" inputmode="numeric"
           value="${wu.roundScore}"
           onfocus="this.select()"
-          oninput="setWorkScore(${wu.playerId}, this.value, this)"
+          oninput="setWorkScore(${wu.playerId}, this.value)"
           onblur="blurWorkScore(${wu.playerId}, this)" />
       </div>`;
   }).join('') : '<div class="empty-note">No players on work-up this round</div>';
@@ -193,23 +193,24 @@ function parseScore(val) {
   return isNaN(n) ? null : Math.max(0, n);
 }
 
-function setTeamScore(id, val, el) {
+function setTeamScore(id, val) {
   const n = parseScore(val);
-  if (n === null) { showToast('Invalid score — numbers only'); return; }
   const t = topTeams.find(t => t.id === id);
-  if (t) t.roundScore = n;
+  if (n !== null && t) t.roundScore = n;
 }
 
 function blurTeamScore(id, el) {
   const t = topTeams.find(t => t.id === id);
-  if (parseScore(el.value) === null) el.value = t ? t.roundScore : 0;
+  if (parseScore(el.value) === null) {
+    showToast('Invalid score — numbers only');
+    el.value = t ? t.roundScore : 0;
+  }
 }
 
-function setWorkScore(playerId, val, el) {
+function setWorkScore(playerId, val) {
   const n = parseScore(val);
-  if (n === null) { showToast('Invalid score — numbers only'); return; }
   const wu = workUp.find(w => w.playerId === playerId);
-  if (wu) wu.roundScore = n;
+  if (n !== null && wu) wu.roundScore = n;
 }
 
 function blurWorkScore(playerId, el) {
