@@ -571,7 +571,14 @@ async function openQRCheckin() {
   _qrActive = true;
   _seenKeys = new Set(players.map(p => p.id));
 
-  const base    = location.href.split('?')[0].replace(/\/?$/, '/');
+  let base = location.href.split('?')[0].replace(/\/?$/, '/');
+  try {
+    const r = await fetch('/api/ip');
+    if (r.ok) {
+      const { ip } = await r.json();
+      if (ip && ip !== '127.0.0.1') base = base.replace(location.hostname, ip);
+    }
+  } catch(e) {}
   const joinUrl = base + 'join/?t=' + _tournamentId;
   document.getElementById('qr-join-url').value  = joinUrl;
   updateQRUrl(joinUrl);
