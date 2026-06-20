@@ -25,6 +25,13 @@ python3 -m http.server 8080
 # vb-lineups:   http://localhost:8080/vb-lineups/
 ```
 
+For KQOTC QR check-in testing, use `serve.py` instead — it exposes `GET /api/ip` so the app can auto-detect the LAN IP and generate a scannable QR code from other devices on the same network:
+
+```sh
+python3 serve.py
+# also prints the LAN URL, e.g. http://192.168.1.42:8080
+```
+
 The service worker (`sw.js`) only activates over HTTPS or `localhost`.
 
 ## Adding a new app

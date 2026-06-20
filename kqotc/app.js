@@ -360,12 +360,21 @@ function genSessionId() {
   return Math.random().toString(36).slice(2, 8).toUpperCase();
 }
 
-function openQRCheckin() {
+async function openQRCheckin() {
   _sessionId = genSessionId();
   _qrActive  = true;
   _seenKeys  = new Set();
 
-  const base   = location.href.split('?')[0].replace(/\/?$/, '/');
+  let base = location.href.split('?')[0].replace(/\/?$/, '/');
+  if (location.hostname === 'localhost' || location.hostname === '127.0.0.1') {
+    try {
+      const r = await fetch('/api/ip');
+      if (r.ok) {
+        const { ip } = await r.json();
+        if (ip && ip !== '127.0.0.1') base = base.replace(location.hostname, ip);
+      }
+    } catch (e) { /* serve.py not running — leave as localhost */ }
+  }
   const joinUrl = base + 'join/?s=' + _sessionId;
 
   const urlInput = document.getElementById('qr-join-url');
