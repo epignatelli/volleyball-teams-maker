@@ -177,6 +177,7 @@ body {
 .session-badge.open      { background: var(--green-bg);  color: var(--green); }
 .session-badge.full      { background: var(--amber-bg);  color: var(--amber); }
 .session-badge.cancelled { background: var(--red-bg);    color: var(--red);   }
+.session-badge.level     { background: var(--surface2);  color: var(--muted); }
 
 .session-admin-btns { display: flex; gap: 6px; }
 

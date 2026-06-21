@@ -72,6 +72,23 @@
         </div>
         <div class="field-row">
           <div class="field">
+            <label class="field-label">Coach</label>
+            <input class="field-input" type="text" id="form-coach" placeholder="Name" maxlength="60"
+              autocomplete="off" autocorrect="off" spellcheck="false" />
+          </div>
+          <div class="field">
+            <label class="field-label">Level</label>
+            <select class="field-input field-select" id="form-level">
+              <option value="">Any level</option>
+              <option value="beginner">Beginner</option>
+              <option value="intermediate">Intermediate</option>
+              <option value="advanced">Advanced</option>
+              <option value="competitive">Competitive</option>
+            </select>
+          </div>
+        </div>
+        <div class="field-row">
+          <div class="field">
             <label class="field-label">Max players</label>
             <input class="field-input" type="number" id="form-max" min="1" max="100" inputmode="numeric" placeholder="12" />
           </div>
@@ -79,6 +96,10 @@
             <label class="field-label">Cost (£)</label>
             <input class="field-input" type="number" id="form-cost" min="0" step="0.5" inputmode="decimal" placeholder="0" />
           </div>
+        </div>
+        <div class="field">
+          <label class="field-label">Registration deadline</label>
+          <input class="field-input" type="datetime-local" id="form-deadline" />
         </div>
         <div class="field">
           <label class="field-label">Status</label>

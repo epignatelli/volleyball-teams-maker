@@ -123,15 +123,17 @@ function _renderSessionCard(s) {
   const timeStr  = s.time || '';
   const costStr  = _formatCost(s.cost);
   const countStr = s.attendeeCount != null ? `${s.attendeeCount}/${s.maxPlayers}` : `0/${s.maxPlayers}`;
+  const levelLabel = { beginner: 'Beginner', intermediate: 'Intermediate', advanced: 'Advanced', competitive: 'Competitive' }[s.level] || '';
   return `
     <div class="session-card" onclick="openSession('${s.id}')">
       <div class="session-card-main">
         <div class="session-date">${esc(dateStr)}${timeStr ? ` · ${esc(timeStr)}` : ''}</div>
-        <div class="session-venue">${esc(s.venue || '—')}</div>
+        <div class="session-venue">${esc(s.venue || '—')}${s.coach ? ` · ${esc(s.coach)}` : ''}</div>
         ${s.description ? `<div class="session-desc">${esc(s.description)}</div>` : ''}
       </div>
       <div class="session-card-meta">
         <span class="session-badge ${statusClass}">${statusLabel}</span>
+        ${levelLabel ? `<span class="session-badge level">${esc(levelLabel)}</span>` : ''}
         <span class="session-meta-item">👥 ${countStr}</span>
         <span class="session-meta-item">${esc(costStr)}</span>
       </div>
@@ -173,18 +175,27 @@ async function openSession(id) {
 }
 
 function _renderDetail(session, attendees, isAttending, content, footer) {
-  const spotsLeft  = _spotsLeft(session, attendees.length);
-  const isCancelled = session.status === 'cancelled';
-  const isFull      = spotsLeft === 0 && !isAttending;
-  const canRegister = _currentUser && !isCancelled;
+  const spotsLeft      = _spotsLeft(session, attendees.length);
+  const isCancelled    = session.status === 'cancelled';
+  const isFull         = spotsLeft === 0 && !isAttending;
+  const deadlinePassed = session.registrationDeadline && session.registrationDeadline.toDate() < new Date();
+
+  const levelLabel = { beginner: 'Beginner', intermediate: 'Intermediate', advanced: 'Advanced', competitive: 'Competitive' }[session.level] || '';
+  const deadlineStr = session.registrationDeadline
+    ? session.registrationDeadline.toDate().toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })
+    : '';
+  const deadlinePassed = session.registrationDeadline && session.registrationDeadline.toDate() < new Date();
 
   content.innerHTML = `
     <div class="detail-section">
       <div class="detail-meta-grid">
         ${session.venue ? `<div class="detail-meta-row"><span class="detail-meta-label">Venue</span><span>${esc(session.venue)}</span></div>` : ''}
         <div class="detail-meta-row"><span class="detail-meta-label">Date</span><span>${esc(_formatDate(session.date))}${session.time ? ` at ${esc(session.time)}` : ''}</span></div>
+        ${session.coach ? `<div class="detail-meta-row"><span class="detail-meta-label">Coach</span><span>${esc(session.coach)}</span></div>` : ''}
+        ${levelLabel ? `<div class="detail-meta-row"><span class="detail-meta-label">Level</span><span>${esc(levelLabel)}</span></div>` : ''}
         <div class="detail-meta-row"><span class="detail-meta-label">Cost</span><span>${esc(_formatCost(session.cost))}</span></div>
         <div class="detail-meta-row"><span class="detail-meta-label">Spots</span><span>${attendees.length} / ${session.maxPlayers}${isCancelled ? '' : ` · ${spotsLeft} left`}</span></div>
+        ${deadlineStr ? `<div class="detail-meta-row"><span class="detail-meta-label">Deadline</span><span${deadlinePassed ? ' style="color:var(--red)"' : ''}>${esc(deadlineStr)}${deadlinePassed ? ' · closed' : ''}</span></div>` : ''}
         ${isCancelled ? `<div class="detail-meta-row"><span class="detail-badge cancelled">Cancelled</span></div>` : ''}
       </div>
       ${session.description ? `<p class="detail-description">${esc(session.description)}</p>` : ''}
@@ -212,6 +223,8 @@ function _renderDetail(session, attendees, isAttending, content, footer) {
     footer.innerHTML = `<button class="cta-btn secondary-btn" onclick="cancelRegistration('${session.id}')">Cancel my registration</button>`;
   } else if (isFull) {
     footer.innerHTML = `<button class="cta-btn" disabled>Session full</button>`;
+  } else if (deadlinePassed) {
+    footer.innerHTML = `<button class="cta-btn" disabled>Registration closed</button>`;
   } else {
     footer.innerHTML = `<button class="cta-btn" onclick="register('${session.id}')">Join session →</button>`;
   }
@@ -283,12 +296,16 @@ function openSessionForm(id = null) {
       if (!doc.exists) return;
       const s = doc.data();
       const d = s.date?.toDate();
-      document.getElementById('form-date').value        = d ? d.toISOString().slice(0, 10) : '';
+      const dl = s.registrationDeadline?.toDate();
+      document.getElementById('form-date').value        = d  ? d.toISOString().slice(0, 10) : '';
       document.getElementById('form-time').value        = s.time || '';
       document.getElementById('form-venue').value       = s.venue || '';
+      document.getElementById('form-coach').value       = s.coach || '';
+      document.getElementById('form-level').value       = s.level || '';
       document.getElementById('form-description').value = s.description || '';
       document.getElementById('form-max').value         = s.maxPlayers || '';
       document.getElementById('form-cost').value        = s.cost != null ? s.cost : '';
+      document.getElementById('form-deadline').value    = dl ? dl.toISOString().slice(0, 16) : '';
       document.getElementById('form-status').value      = s.status || 'open';
     });
   } else {
@@ -298,9 +315,12 @@ function openSessionForm(id = null) {
     document.getElementById('form-date').value        = now.toISOString().slice(0, 10);
     document.getElementById('form-time').value        = '10:00';
     document.getElementById('form-venue').value       = '';
+    document.getElementById('form-coach').value       = '';
+    document.getElementById('form-level').value       = '';
     document.getElementById('form-description').value = '';
     document.getElementById('form-max').value         = '12';
     document.getElementById('form-cost').value        = '0';
+    document.getElementById('form-deadline').value    = '';
     document.getElementById('form-status').value      = 'open';
   }
 
@@ -314,17 +334,20 @@ function closeSessionForm() {
 
 async function submitSessionForm() {
   if (!_isAdmin) return;
-  const dateVal  = document.getElementById('form-date').value;
-  const timeVal  = document.getElementById('form-time').value;
-  const venueVal = document.getElementById('form-venue').value.trim();
-  const descVal  = document.getElementById('form-description').value.trim();
-  const maxVal   = parseInt(document.getElementById('form-max').value);
-  const costVal  = parseFloat(document.getElementById('form-cost').value) || 0;
-  const status   = document.getElementById('form-status').value;
-  const errorEl  = document.getElementById('form-error');
+  const dateVal     = document.getElementById('form-date').value;
+  const timeVal     = document.getElementById('form-time').value;
+  const venueVal    = document.getElementById('form-venue').value.trim();
+  const coachVal    = document.getElementById('form-coach').value.trim();
+  const levelVal    = document.getElementById('form-level').value;
+  const descVal     = document.getElementById('form-description').value.trim();
+  const maxVal      = parseInt(document.getElementById('form-max').value);
+  const costVal     = parseFloat(document.getElementById('form-cost').value) || 0;
+  const deadlineVal = document.getElementById('form-deadline').value;
+  const status      = document.getElementById('form-status').value;
+  const errorEl     = document.getElementById('form-error');
 
-  if (!dateVal)          { errorEl.textContent = 'Please set a date.'; return; }
-  if (!venueVal)         { errorEl.textContent = 'Please enter a venue.'; return; }
+  if (!dateVal)                    { errorEl.textContent = 'Please set a date.'; return; }
+  if (!venueVal)                   { errorEl.textContent = 'Please enter a venue.'; return; }
   if (isNaN(maxVal) || maxVal < 1) { errorEl.textContent = 'Max players must be at least 1.'; return; }
 
   errorEl.textContent = '';
@@ -332,12 +355,17 @@ async function submitSessionForm() {
   btn.disabled = true;
 
   const data = {
-    date:       firebase.firestore.Timestamp.fromDate(new Date(dateVal + 'T12:00:00')),
-    time:       timeVal,
-    venue:      venueVal,
-    description: descVal,
-    maxPlayers: maxVal,
-    cost:       costVal,
+    date:                 firebase.firestore.Timestamp.fromDate(new Date(dateVal + 'T12:00:00')),
+    time:                 timeVal,
+    venue:                venueVal,
+    coach:                coachVal,
+    level:                levelVal,
+    description:          descVal,
+    maxPlayers:           maxVal,
+    cost:                 costVal,
+    registrationDeadline: deadlineVal
+      ? firebase.firestore.Timestamp.fromDate(new Date(deadlineVal))
+      : null,
     status,
   };
 
