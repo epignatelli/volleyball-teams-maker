@@ -353,7 +353,9 @@ async function submitSessionForm() {
     renderHome();
   } catch(e) {
     console.error('Save session failed:', e);
-    errorEl.textContent = 'Something went wrong. Try again.';
+    errorEl.textContent = e.code === 'permission-denied'
+      ? 'You don\'t have permission to do this. Make sure your account is listed as an admin in Firestore.'
+      : 'Something went wrong. Try again.';
     btn.disabled = false;
   }
 }
