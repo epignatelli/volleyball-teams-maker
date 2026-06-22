@@ -369,23 +369,39 @@ async function openSession(id) {
     let attendees   = [];
     let isAttending = false;
 
+    let waitingList         = [];
+    let myWaitingListPos    = 0; // 0 = not on list
+
     if (_currentUser) {
-      const attendeesSnap = await _attendeesRef(id).orderBy('joinedAt', 'asc').get();
+      const wlRef = getDb().collection('sessions').doc(id).collection('waitingList');
+      const [attendeesSnap, ownWlSnap] = await Promise.all([
+        _attendeesRef(id).orderBy('joinedAt', 'asc').get(),
+        wlRef.doc(_currentUser.uid).get(),
+      ]);
       attendees   = attendeesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
       isAttending = attendees.some(a => a.id === _currentUser.uid);
+
+      try {
+        const wlSnap = await wlRef.orderBy('joinedAt', 'asc').get();
+        waitingList      = wlSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        myWaitingListPos = waitingList.findIndex(w => w.id === _currentUser.uid) + 1;
+      } catch {
+        // Rules don't yet cover waitingList collection — fall back to own-doc check
+        if (ownWlSnap.exists) myWaitingListPos = -1;
+      }
     }
 
     document.getElementById('detail-subtitle').textContent =
       [_formatDate(session.date), session.time].filter(Boolean).join(' · ');
 
-    _renderDetail(session, attendees, isAttending, content, footer);
+    _renderDetail(session, attendees, isAttending, waitingList, myWaitingListPos, content, footer);
   } catch(e) {
     content.innerHTML = '<div class="home-empty">Couldn\'t load session.</div>';
     console.error(e);
   }
 }
 
-function _renderDetail(session, attendees, isAttending, content, footer) {
+function _renderDetail(session, attendees, isAttending, waitingList, myWaitingListPos, content, footer) {
   const knownCount     = _currentUser ? attendees.length : (session.attendeeCount || 0);
   const spotsLeft      = _spotsLeft(session, knownCount);
   const isCancelled    = session.status === 'cancelled';
@@ -408,6 +424,7 @@ function _renderDetail(session, attendees, isAttending, content, footer) {
         <div class="detail-meta-row"><span class="detail-meta-label">Spots</span><span>${knownCount} / ${session.maxPlayers}${isCancelled ? '' : ` · ${spotsLeft} left`}</span></div>
         ${deadlineStr ? `<div class="detail-meta-row"><span class="detail-meta-label">Deadline</span><span${deadlinePassed ? ' style="color:var(--red)"' : ''}>${esc(deadlineStr)}${deadlinePassed ? ' · closed' : ''}</span></div>` : ''}
         ${isCancelled ? `<div class="detail-meta-row"><span class="detail-badge cancelled">Cancelled</span></div>` : ''}
+        ${_isAdmin && session.createdAt ? `<div class="detail-meta-row"><span class="detail-meta-label">Created</span><span>${esc(_formatDate(session.createdAt))}</span></div>` : ''}
       </div>
       ${session.description ? `<p class="detail-description">${esc(session.description)}</p>` : ''}
       ${isAttending && !isCancelled && !isClosed && session.date ? (() => {
@@ -450,7 +467,25 @@ function _renderDetail(session, attendees, isAttending, content, footer) {
               </div>`;
             }).join('')}
           </div>` : '<div class="empty-note">No one signed up yet.</div>'}
-    </div>`;
+    </div>
+
+    ${_isAdmin && waitingList.length ? `
+    <div class="detail-section">
+      <div class="detail-section-title">Waiting list (${waitingList.length})</div>
+      <div class="attendee-list">
+        ${waitingList.map((w, i) => `
+          <div class="attendee-row">
+            <span class="attendee-num">${i + 1}</span>
+            <span class="attendee-name">${esc(w.name)}</span>
+            <span class="attendee-email">${esc(w.email || '')}</span>
+          </div>`).join('')}
+      </div>
+    </div>` : ''}`;
+
+  const hasWaitingList = waitingList.length > 0;
+  const cancelLabel    = isAttending && hasWaitingList && !isCancelled && !isClosed
+    ? 'Sell my spot →'
+    : 'Cancel my registration';
 
   const canStart = _isAdmin || (_currentUser && session.coachUid && session.coachUid === _currentUser.uid);
   if (isClosed) {
@@ -465,11 +500,18 @@ function _renderDetail(session, attendees, isAttending, content, footer) {
       : '';
     footer.innerHTML = `
       <button class="cta-btn" onclick="openSessionRun('${session.id}')">▶ Start session</button>
-      ${isAttending ? `<button class="cta-btn secondary-btn" onclick="cancelRegistration('${session.id}')">Cancel</button>` : joinBtn}`;
+      ${isAttending ? `<button class="cta-btn secondary-btn" onclick="cancelRegistration('${session.id}')">${cancelLabel}</button>` : joinBtn}`;
   } else if (isAttending) {
-    footer.innerHTML = `<button class="cta-btn secondary-btn" onclick="cancelRegistration('${session.id}')">Cancel my registration</button>`;
-  } else if (isFull) {
-    footer.innerHTML = `<button class="cta-btn" disabled>Session full</button>`;
+    footer.innerHTML = `<button class="cta-btn secondary-btn" onclick="cancelRegistration('${session.id}')">${cancelLabel}</button>`;
+  } else if (myWaitingListPos !== 0 && !isFull && !deadlinePassed) {
+    footer.innerHTML = `<button class="cta-btn" onclick="register('${session.id}')">Claim your spot →</button>`;
+  } else if (myWaitingListPos !== 0) {
+    const posLabel = myWaitingListPos > 0 ? `You're #${myWaitingListPos} on the waiting list` : `You're on the waiting list`;
+    footer.innerHTML = `
+      <span class="waiting-pos">${posLabel}</span>
+      <button class="cta-btn secondary-btn" onclick="leaveWaitingList('${session.id}')">Leave list</button>`;
+  } else if (isFull && !deadlinePassed) {
+    footer.innerHTML = `<button class="cta-btn" onclick="joinWaitingList('${session.id}')">Join waiting list →</button>`;
   } else if (deadlinePassed) {
     footer.innerHTML = `<button class="cta-btn" disabled>Registration closed</button>`;
   } else {
@@ -561,35 +603,21 @@ async function cancelRegistration(sessionId) {
   } catch(e) {}
 
   const msg = isPaid
-    ? 'Cancel your registration? You\'ll receive a refund (excluding the booking fee). Cancellations within 24 h of the session are not allowed.'
+    ? 'Cancel your registration? You\'ll receive a refund (excluding the booking fee).'
     : 'Cancel your registration for this session?';
   if (!confirm(msg)) return;
 
   const btn = document.querySelector('#detail-footer .cta-btn');
   if (btn) { btn.disabled = true; btn.classList.add('loading'); }
 
-  if (isPaid) {
-    try {
-      const data = await callFn('cancelAttendeeAndRefund', { sessionId });
-      showToast(data.refunded ? 'Cancelled — refund on its way.' : 'Registration cancelled.');
-      await openSession(sessionId);
-    } catch(e) {
-      console.error('Cancel + refund failed:', e);
-      showToast(e.message || 'Couldn\'t cancel. Try again.', 'error');
-      if (btn) { btn.disabled = false; btn.classList.remove('loading'); }
-    }
-  } else {
-    try {
-      await _attendeesRef(sessionId).doc(_currentUser.uid).delete();
-      await _sessionRef(sessionId).update({
-        attendeeCount: firebase.firestore.FieldValue.increment(-1),
-      });
-      await openSession(sessionId);
-    } catch(e) {
-      console.error('Cancel registration failed:', e);
-      showToast('Couldn\'t cancel registration. Try again.', 'error');
-      if (btn) { btn.disabled = false; btn.classList.remove('loading'); }
-    }
+  try {
+    const data = await callFn('cancelAttendeeAndRefund', { sessionId });
+    showToast(data.refunded ? 'Cancelled — refund on its way.' : 'Registration cancelled.');
+    await openSession(sessionId);
+  } catch(e) {
+    console.error('Cancel failed:', e);
+    showToast(e.message || 'Couldn\'t cancel. Try again.', 'error');
+    if (btn) { btn.disabled = false; btn.classList.remove('loading'); }
   }
 }
 
@@ -602,6 +630,34 @@ async function removeAttendee(sessionId, uid) {
   } catch(e) {
     console.error('Remove attendee failed:', e);
     showToast(e.message || 'Couldn\'t remove attendee. Try again.', 'error');
+  }
+}
+
+async function joinWaitingList(sessionId) {
+  if (!_currentUser) {
+    _pendingJoinSessionId = sessionId;
+    await handleAuthClick();
+    return;
+  }
+  const btn = document.querySelector('#detail-footer .cta-btn');
+  if (btn) { btn.disabled = true; btn.classList.add('loading'); }
+  try {
+    const data = await callFn('joinWaitingList', { sessionId });
+    showToast(`You're #${data.position} on the waiting list.`);
+    await openSession(sessionId);
+  } catch(e) {
+    showToast(e.message || 'Couldn\'t join the waiting list. Try again.', 'error');
+    if (btn) { btn.disabled = false; btn.classList.remove('loading'); }
+  }
+}
+
+async function leaveWaitingList(sessionId) {
+  if (!confirm('Leave the waiting list for this session?')) return;
+  try {
+    await callFn('leaveWaitingList', { sessionId });
+    await openSession(sessionId);
+  } catch(e) {
+    showToast(e.message || 'Couldn\'t leave the waiting list. Try again.', 'error');
   }
 }
 
@@ -954,13 +1010,9 @@ async function submitSessionForm() {
 // ─── Delete session ────────────────────────────────────────────────────────────
 async function deleteSession(id, venue) {
   if (!_isAdmin) return;
-  if (!confirm(`Delete session at "${venue}"?\n\nThis will remove all registrations too.`)) return;
+  if (!confirm(`Delete session at "${venue}"?\n\nAttendees will be notified by email.`)) return;
   try {
-    const snap  = await _attendeesRef(id).get();
-    const batch = getDb().batch();
-    snap.docs.forEach(d => batch.delete(d.ref));
-    batch.delete(_sessionRef(id));
-    await batch.commit();
+    await callFn('deleteSessionAdmin', { sessionId: id });
     renderHome();
   } catch(e) { console.error('Delete session failed:', e); showToast('Couldn\'t delete session. Try again.', 'error'); }
 }

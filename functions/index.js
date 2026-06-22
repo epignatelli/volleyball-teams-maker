@@ -70,6 +70,27 @@ async function sendEmail(to, subject, html) {
   }
 }
 
+async function _notifyWaitingList(db, sessionId, session) {
+  const wlSnap = await db.collection('sessions').doc(sessionId)
+    .collection('waitingList').get();
+  console.log(`_notifyWaitingList: sessionId=${sessionId} wlCount=${wlSnap.size}`);
+  if (wlSnap.empty) return;
+  const venue   = session.venue || 'the session';
+  const dateStr = _formatDate(session.date);
+  const calUrl  = _calendarUrl(session);
+  await Promise.all(wlSnap.docs.map(doc => {
+    const a = doc.data();
+    if (!a.email) return;
+    return sendEmail(a.email,
+      `Spot available — ${venue}${dateStr ? ` · ${dateStr}` : ''}`,
+      _emailHtml(`Hi ${a.name || 'there'},`, [
+        `A spot has opened up for <strong>${venue}</strong>${dateStr ? ` on <strong>${dateStr}</strong>` : ''}.`,
+        `Open the app to claim it — first come, first served.`,
+      ], calUrl)
+    );
+  }));
+}
+
 // ── createCheckoutSession ───────────────────────────────────────────────────
 exports.createCheckoutSession = functions
   .region(REGION)
@@ -192,6 +213,16 @@ exports.stripeWebhook = functions
         if (isNew) t.update(sessionRef, { attendeeCount: FieldValue.increment(1) });
       });
 
+      // Remove from waiting list if they paid after being on it
+      const wlRef = sessionRef.collection('waitingList').doc(uid);
+      const wlEntry = await wlRef.get();
+      if (wlEntry.exists) {
+        await db.runTransaction(async t => {
+          t.delete(wlRef);
+          t.update(sessionRef, { waitingListCount: FieldValue.increment(-1) });
+        });
+      }
+
       const email    = u.email || checkout.customer_details?.email;
       const name     = u.name  || checkout.customer_details?.name || 'there';
       const amount   = ((checkout.amount_total || parseInt(refundAmountPence, 10)) / 100).toFixed(2);
@@ -241,14 +272,13 @@ exports.cancelAttendeeAndRefund = functions
     const session  = sessionSnap.data();
     const attendee = attendeeSnap.data();
 
-    if (session.date) {
+    const within24h = session.date && (() => {
       const sessionDate = session.date.toDate ? session.date.toDate() : new Date(session.date);
-      if ((sessionDate - Date.now()) / 36e5 < 24)
-        return res.status(403).json({ error: 'Cancellations are not allowed within 24 hours of the session.' });
-    }
+      return (sessionDate - Date.now()) / 36e5 < 24;
+    })();
 
     let refunded = false;
-    if (attendee.paid && attendee.paymentIntentId) {
+    if (!within24h && attendee.paid && attendee.paymentIntentId) {
       const refundPence = attendee.refundAmountPence || 0;
       if (refundPence > 0) {
         await getStripe().refunds.create({
@@ -272,7 +302,9 @@ exports.cancelAttendeeAndRefund = functions
     const dateStr = _formatDate(session.date);
     const refundNote = refunded
       ? `A refund of <strong>£${(attendee.refundAmountPence / 100).toFixed(2)}</strong> has been issued and should appear within 5–10 business days.`
-      : '';
+      : within24h && attendee.paid
+        ? `As this is within 24 hours of the session, no refund will be issued.`
+        : '';
     await sendEmail(email,
       `Registration cancelled — ${venue}${dateStr ? ` · ${dateStr}` : ''}`,
       _emailHtml(`Hi ${name},`, [
@@ -280,6 +312,8 @@ exports.cancelAttendeeAndRefund = functions
         refundNote,
       ].filter(Boolean))
     );
+
+    await _notifyWaitingList(db, sessionId, session);
 
     return res.json({ refunded });
   });
@@ -315,6 +349,21 @@ exports.onSessionCancelled = onDocumentUpdated({
       ].filter(Boolean))
     );
   }));
+
+  // Also notify waiting list that the session is gone
+  const wlSnap = await db.collection('sessions').doc(event.params.sessionId)
+    .collection('waitingList').get();
+  await Promise.all(wlSnap.docs.map(doc => {
+    const a = doc.data();
+    if (!a.email) return;
+    return sendEmail(a.email,
+      `Session cancelled — ${venue}${dateStr ? ` · ${dateStr}` : ''}`,
+      _emailHtml(`Hi ${a.name || 'there'},`, [
+        `Unfortunately <strong>${venue}</strong>${dateStr ? ` on <strong>${dateStr}</strong>` : ''} has been cancelled.`,
+        `Your place on the waiting list has been removed.`,
+      ])
+    );
+  }));
 });
 
 // ── onAttendeeJoined — registration confirmation for free sessions ───────────
@@ -328,9 +377,21 @@ exports.onAttendeeJoined = onDocumentCreated({
   if (!attendee.email) return;
 
   const db         = getFirestore();
-  const sessionDoc = await db.collection('sessions').doc(event.params.sessionId).get();
+  const sessionId  = event.params.sessionId;
+  const uid        = event.params.uid;
+  const sessionDoc = await db.collection('sessions').doc(sessionId).get();
   if (!sessionDoc.exists) return;
   const session = sessionDoc.data();
+
+  // Remove from waiting list if they were on it
+  const wlRef = db.collection('sessions').doc(sessionId).collection('waitingList').doc(uid);
+  const wlEntry = await wlRef.get();
+  if (wlEntry.exists) {
+    await db.runTransaction(async t => {
+      t.delete(wlRef);
+      t.update(db.collection('sessions').doc(sessionId), { waitingListCount: FieldValue.increment(-1) });
+    });
+  }
 
   const venue   = session.venue || 'the session';
   const dateStr = _formatDate(session.date);
@@ -392,6 +453,8 @@ exports.removeAttendeeAdmin = functions
       ])
     );
 
+    await _notifyWaitingList(db, sessionId, session);
+
     return res.json({ ok: true });
   });
 
@@ -443,6 +506,153 @@ exports.onSessionUpdated = onDocumentUpdated({
     );
   }));
 });
+
+// ── deleteSessionAdmin ───────────────────────────────────────────────────────
+exports.deleteSessionAdmin = functions
+  .region(REGION)
+  .runWith({ secrets: [GMAIL_APP_PASSWORD] })
+  .https.onRequest(async (req, res) => {
+    setCors(res);
+    if (req.method === 'OPTIONS') return res.status(204).end();
+    if (req.method !== 'POST')    return res.status(405).end();
+
+    let decoded;
+    try { decoded = await verifyAuth(req); }
+    catch (e) { return res.status(401).json({ error: e.message }); }
+
+    const db = getFirestore();
+    const [callerDoc, adminDoc] = await Promise.all([
+      db.collection('users').doc(decoded.uid).get(),
+      db.collection('admins').doc(decoded.email || '').get(),
+    ]);
+    const isAdmin = (callerDoc.data()?.roles || []).includes('admin') || adminDoc.exists;
+    if (!isAdmin) return res.status(403).json({ error: 'Admin only.' });
+
+    const { sessionId } = req.body;
+    if (!sessionId) return res.status(400).json({ error: 'Missing sessionId.' });
+
+    const sessionRef   = db.collection('sessions').doc(sessionId);
+    const sessionSnap  = await sessionRef.get();
+    if (!sessionSnap.exists) return res.status(404).json({ error: 'Session not found.' });
+
+    const session   = sessionSnap.data();
+    const venue     = session.venue || 'the session';
+    const dateStr   = _formatDate(session.date);
+    const [attendeesSnap, wlSnap] = await Promise.all([
+      sessionRef.collection('attendees').get(),
+      sessionRef.collection('waitingList').get(),
+    ]);
+
+    // Notify attendees
+    await Promise.all(attendeesSnap.docs.map(doc => {
+      const a = doc.data();
+      if (!a.email) return;
+      return sendEmail(a.email,
+        `Session deleted — ${venue}${dateStr ? ` · ${dateStr}` : ''}`,
+        _emailHtml(`Hi ${a.name || 'there'},`, [
+          `<strong>${venue}</strong>${dateStr ? ` on <strong>${dateStr}</strong>` : ''} has been deleted.`,
+          a.paid && a.refundAmountPence > 0
+            ? `A refund of <strong>£${(a.refundAmountPence / 100).toFixed(2)}</strong> will be processed automatically.`
+            : '',
+          `Apologies for the inconvenience.`,
+        ].filter(Boolean))
+      );
+    }));
+
+    // Delete subcollections and session
+    const batch = db.batch();
+    attendeesSnap.docs.forEach(d => batch.delete(d.ref));
+    wlSnap.docs.forEach(d => batch.delete(d.ref));
+    batch.delete(sessionRef);
+    await batch.commit();
+
+    return res.json({ ok: true });
+  });
+
+// ── joinWaitingList ──────────────────────────────────────────────────────────
+exports.joinWaitingList = functions
+  .region(REGION)
+  .runWith({ secrets: [GMAIL_APP_PASSWORD] })
+  .https.onRequest(async (req, res) => {
+    setCors(res);
+    if (req.method === 'OPTIONS') return res.status(204).end();
+    if (req.method !== 'POST')    return res.status(405).end();
+
+    let decoded;
+    try { decoded = await verifyAuth(req); }
+    catch (e) { return res.status(401).json({ error: e.message }); }
+
+    const { sessionId } = req.body;
+    if (!sessionId) return res.status(400).json({ error: 'Missing sessionId.' });
+
+    const db         = getFirestore();
+    const auth       = getAuth();
+    const sessionRef = db.collection('sessions').doc(sessionId);
+
+    const [sessionSnap, userDoc, userRecord] = await Promise.all([
+      sessionRef.get(),
+      db.collection('users').doc(decoded.uid).get(),
+      auth.getUser(decoded.uid),
+    ]);
+
+    if (!sessionSnap.exists) return res.status(404).json({ error: 'Session not found.' });
+    const session = sessionSnap.data();
+    const u       = userDoc.exists ? userDoc.data() : {};
+    const name    = u.name  || userRecord.displayName || 'there';
+    const email   = u.email || userRecord.email;
+
+    const wlRef   = sessionRef.collection('waitingList').doc(decoded.uid);
+    const existing = await wlRef.get();
+    if (existing.exists) return res.status(400).json({ error: 'Already on waiting list.' });
+
+    await db.runTransaction(async t => {
+      t.set(wlRef, { uid: decoded.uid, name, email, gender: u.gender || null, positions: u.positions || [], joinedAt: FieldValue.serverTimestamp() });
+      t.update(sessionRef, { waitingListCount: FieldValue.increment(1) });
+    });
+
+    const wlSnap   = await sessionRef.collection('waitingList').orderBy('joinedAt', 'asc').get();
+    const position = wlSnap.docs.findIndex(d => d.id === decoded.uid) + 1;
+
+    const venue   = session.venue || 'the session';
+    const dateStr = _formatDate(session.date);
+    await sendEmail(email,
+      `You're on the waiting list — ${venue}${dateStr ? ` · ${dateStr}` : ''}`,
+      _emailHtml(`Hi ${name},`, [
+        `You're <strong>#${position}</strong> on the waiting list for <strong>${venue}</strong>${dateStr ? ` on <strong>${dateStr}</strong>` : ''}.`,
+        `We'll email you if a spot opens up.`,
+      ])
+    );
+
+    return res.json({ ok: true, position });
+  });
+
+// ── leaveWaitingList ─────────────────────────────────────────────────────────
+exports.leaveWaitingList = functions
+  .region(REGION)
+  .https.onRequest(async (req, res) => {
+    setCors(res);
+    if (req.method === 'OPTIONS') return res.status(204).end();
+    if (req.method !== 'POST')    return res.status(405).end();
+
+    let decoded;
+    try { decoded = await verifyAuth(req); }
+    catch (e) { return res.status(401).json({ error: e.message }); }
+
+    const { sessionId } = req.body;
+    if (!sessionId) return res.status(400).json({ error: 'Missing sessionId.' });
+
+    const db     = getFirestore();
+    const wlRef  = db.collection('sessions').doc(sessionId).collection('waitingList').doc(decoded.uid);
+    const entry  = await wlRef.get();
+    if (!entry.exists) return res.status(404).json({ error: 'Not on waiting list.' });
+
+    await db.runTransaction(async t => {
+      t.delete(wlRef);
+      t.update(db.collection('sessions').doc(sessionId), { waitingListCount: FieldValue.increment(-1) });
+    });
+
+    return res.json({ ok: true });
+  });
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 function _playerPrice(adminPrice) {

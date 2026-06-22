@@ -229,6 +229,8 @@ body {
 .detail-meta-label { color: var(--muted); min-width: 60px; flex-shrink: 0; }
 .detail-description { font-size: 14px; color: var(--muted); line-height: 1.6; }
 
+.waiting-pos { font-size: 13px; color: var(--muted); align-self: center; }
+
 .cal-row  { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
 .cal-link {
   font-size: 12px; font-weight: 600; padding: 5px 12px; border-radius: 6px;

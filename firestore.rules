@@ -1,0 +1,89 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isAdmin() {
+      return request.auth != null
+          && request.auth.token.email != null
+          && exists(/databases/$(database)/documents/admins/$(request.auth.token.email));
+    }
+
+    function isSessionCoach(sessionId) {
+      return get(/databases/$(database)/documents/sessions/$(sessionId)).data.coachUid
+             == request.auth.uid;
+    }
+
+    match /admins/{email} {
+      allow read:  if request.auth != null;
+      allow write: if false;
+    }
+
+    match /tournaments/{tournamentId} {
+      allow read: if true;
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin()
+                    || (request.auth != null
+                        && request.resource.data.diff(resource.data)
+                             .affectedKeys().hasOnly(['playerCount']));
+
+      match /players/{playerId} {
+        allow read: if true;
+        allow create: if request.auth != null && request.auth.uid == playerId;
+        allow update: if isAdmin()
+                      || (request.auth != null
+                          && request.auth.uid == playerId
+                          && request.resource.data.diff(resource.data)
+                               .affectedKeys().hasOnly(['submittedScore', 'submittedRound']));
+        allow delete: if isAdmin();
+      }
+    }
+
+    match /sessions/{sessionId} {
+      allow read: if true;
+      allow create, delete: if isAdmin();
+      allow update: if isAdmin()
+                    || (request.auth != null
+                        && request.resource.data.diff(resource.data)
+                             .affectedKeys().hasOnly(['attendeeCount', 'waitingListCount']))
+                    || (request.auth != null
+                        && resource.data.coachUid == request.auth.uid
+                        && request.resource.data.diff(resource.data)
+                             .affectedKeys().hasOnly(['status', 'report']));
+    }
+
+    match /sessions/{sessionId}/attendees/{attendeeId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == attendeeId;
+      allow update: if request.auth != null && (
+        isAdmin()
+        || (request.auth.uid == attendeeId
+            && request.resource.data.diff(resource.data)
+                 .affectedKeys().hasOnly(['positions']))
+        || (isSessionCoach(sessionId)
+            && request.resource.data.diff(resource.data)
+                 .affectedKeys().hasOnly(['present']))
+      );
+      allow delete: if request.auth != null
+                    && (request.auth.uid == attendeeId || isAdmin());
+    }
+
+    match /sessions/{sessionId}/waitingList/{uid} {
+      allow read: if request.auth != null;
+      allow write: if false; // written only via Cloud Functions (Admin SDK)
+    }
+
+    match /users/{uid} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null && request.auth.uid == uid;
+      allow update: if request.auth != null
+                    && (isAdmin()
+                        || (request.auth.uid == uid
+                            && request.resource.data.diff(resource.data)
+                                 .affectedKeys().hasOnly([
+                                   'name','email','photoURL','updatedAt',
+                                   'gender','positions'
+                                 ])));
+      allow delete: if isAdmin();
+    }
+  }
+}
