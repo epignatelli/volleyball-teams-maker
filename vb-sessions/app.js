@@ -10,6 +10,20 @@ let _pendingJoinSessionId   = null;   // session to join after sign-in completes
 let _pendingProfileNeeds    = {};     // { needsGender, needsPositions } for profile overlay
 let _editingAttendeeSession = null;   // sessionId when editing own attendee entry (positions)
 
+// Handle return from Stripe Checkout before Firebase initialises.
+// Stripe appends ?checkout=success|cancelled&session=ID to the success/cancel URLs.
+// We convert this to a hash route immediately so normal routing takes over,
+// and stash the success flag to show a toast after auth resolves.
+let _pendingCheckoutSuccess = null;
+(function _handleStripeReturn() {
+  const p      = new URLSearchParams(window.location.search);
+  const status = p.get('checkout');
+  const sid    = p.get('session');
+  if (!status || !sid) return;
+  history.replaceState(null, '', window.location.pathname + '#session/' + sid);
+  if (status === 'success') _pendingCheckoutSuccess = sid;
+})();
+
 // ─── Toast ─────────────────────────────────────────────────────────────────────
 let _toastTimer = null;
 function showToast(msg) {
@@ -23,6 +37,7 @@ function showToast(msg) {
 // ─── Firebase ──────────────────────────────────────────────────────────────────
 function getDb()   { return firebase.firestore(); }
 function getAuth() { return firebase.auth(); }
+function getFn()   { return firebase.app().functions('europe-west2'); }
 
 function _sessionsRef()           { return getDb().collection('sessions'); }
 function _sessionRef(id)          { return _sessionsRef().doc(id); }
@@ -118,8 +133,14 @@ getAuth().onAuthStateChanged(async user => {
     _isAdmin = _legacyAdmin;
     _updateAuthUI();
 
-    if (!_initialRouted) { _initialRouted = true; await _routeFromHash(); }
-    else renderHome();
+    if (!_initialRouted) {
+      _initialRouted = true;
+      await _routeFromHash();
+      if (_pendingCheckoutSuccess) {
+        showToast('Payment confirmed! You\'re in.');
+        _pendingCheckoutSuccess = null;
+      }
+    } else renderHome();
 
     await _upsertUserDoc(user);
     _subscribeToUserDoc(user);
@@ -346,13 +367,15 @@ function _renderDetail(session, attendees, isAttending, content, footer) {
                     `<span class="att-chip${posSet.has(key) ? ' on-' + key : ''}">${label}</span>`
                   ).join('')
                 : '';
-              const isOwn = _currentUser && a.id === _currentUser.uid;
+              const isOwn  = _currentUser && a.id === _currentUser.uid;
+              const canSee = _isAdmin || (_currentUser && session.coachUid === _currentUser.uid);
               return `
               <div class="attendee-row">
                 <span class="attendee-num">${i + 1}</span>
                 ${genderSym ? `<span class="attendee-gender ${genderClass}">${genderSym}</span>` : ''}
                 <span class="attendee-name">${esc(a.name)}</span>
                 ${posChips ? `<div class="att-chips">${posChips}</div>` : ''}
+                ${canSee && session.cost > 0 ? `<span class="att-chip ${a.paid ? 'paid-chip' : 'unpaid-chip'}">${a.paid ? '£✓' : '£?'}</span>` : ''}
                 ${_isAdmin ? `<span class="attendee-email">${esc(a.email || '')}</span>` : ''}
                 ${isOwn && session.askPositions ? `<button class="icon-btn small" onclick="openEditPositions('${session.id}','${Array.from(posSet).join(',')}')" title="Edit positions">✎</button>` : ''}
                 ${_isAdmin ? `<button class="icon-btn danger small" onclick="removeAttendee('${session.id}','${a.id}')" title="Remove">✕</button>` : ''}
@@ -411,19 +434,36 @@ async function _doRegister(sessionId, extra = {}) {
   const btn = document.querySelector('#detail-footer .cta-btn');
   if (btn) btn.disabled = true;
   try {
-    // Include gender from user doc if not already in extra
+    const [userDoc, sessionDoc] = await Promise.all([
+      _userRef(_currentUser.uid).get(),
+      _sessionRef(sessionId).get(),
+    ]);
+    const session = sessionDoc.data() || {};
+
     if (!extra.gender) {
-      try {
-        const userDoc = await _userRef(_currentUser.uid).get();
-        const g = userDoc.data()?.gender;
-        if (g) extra = { ...extra, gender: g };
-      } catch(e) {}
+      const g = userDoc.data()?.gender;
+      if (g) extra = { ...extra, gender: g };
     }
 
+    // Paid session → redirect to Stripe Checkout.
+    // The webhook creates the attendee doc after payment succeeds.
+    if ((session.cost || 0) > 0) {
+      const base = window.location.origin + window.location.pathname;
+      const { data } = await getFn().httpsCallable('createCheckoutSession')({
+        sessionId,
+        successUrl: `${base}?checkout=success&session=${sessionId}`,
+        cancelUrl:  `${base}?checkout=cancelled&session=${sessionId}`,
+      });
+      window.location.href = data.url;
+      return;
+    }
+
+    // Free session → direct Firestore write.
     await _attendeesRef(sessionId).doc(_currentUser.uid).set({
       name:     _currentUser.displayName || _currentUser.email,
       email:    _currentUser.email || '',
       joinedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      paid:     false,
       ...extra,
     });
     await _sessionRef(sessionId).update({
@@ -432,26 +472,50 @@ async function _doRegister(sessionId, extra = {}) {
     await openSession(sessionId);
   } catch(e) {
     console.error('Register failed:', e);
-    showToast('Couldn\'t join session. Try again.');
+    showToast(e.message || 'Couldn\'t join session. Try again.');
     if (btn) btn.disabled = false;
   }
 }
 
 async function cancelRegistration(sessionId) {
   if (!_currentUser) return;
-  if (!confirm('Cancel your registration for this session?')) return;
+
+  let isPaid = false;
+  try {
+    const att = await _attendeesRef(sessionId).doc(_currentUser.uid).get();
+    isPaid = att.exists && !!att.data().paid;
+  } catch(e) {}
+
+  const msg = isPaid
+    ? 'Cancel your registration? You\'ll receive a refund (excluding the booking fee). Cancellations within 24 h of the session are not allowed.'
+    : 'Cancel your registration for this session?';
+  if (!confirm(msg)) return;
+
   const btn = document.querySelector('#detail-footer .cta-btn');
   if (btn) btn.disabled = true;
-  try {
-    await _attendeesRef(sessionId).doc(_currentUser.uid).delete();
-    await _sessionRef(sessionId).update({
-      attendeeCount: firebase.firestore.FieldValue.increment(-1),
-    });
-    await openSession(sessionId);
-  } catch(e) {
-    console.error('Cancel registration failed:', e);
-    showToast('Couldn\'t cancel registration. Try again.');
-    if (btn) btn.disabled = false;
+
+  if (isPaid) {
+    try {
+      const { data } = await getFn().httpsCallable('cancelAttendeeAndRefund')({ sessionId });
+      showToast(data.refunded ? 'Cancelled — refund on its way.' : 'Registration cancelled.');
+      await openSession(sessionId);
+    } catch(e) {
+      console.error('Cancel + refund failed:', e);
+      showToast(e.message || 'Couldn\'t cancel. Try again.');
+      if (btn) btn.disabled = false;
+    }
+  } else {
+    try {
+      await _attendeesRef(sessionId).doc(_currentUser.uid).delete();
+      await _sessionRef(sessionId).update({
+        attendeeCount: firebase.firestore.FieldValue.increment(-1),
+      });
+      await openSession(sessionId);
+    } catch(e) {
+      console.error('Cancel registration failed:', e);
+      showToast('Couldn\'t cancel registration. Try again.');
+      if (btn) btn.disabled = false;
+    }
   }
 }
 
