@@ -250,6 +250,7 @@ body {
 .att-chip.on-libero  { border-color: var(--green);  background: var(--green-bg);  color: var(--green);  }
 .att-chip.paid-chip  { border-color: var(--green);  background: var(--green-bg);  color: var(--green);  }
 .att-chip.unpaid-chip{ border-color: var(--amber);  background: var(--amber-bg);  color: var(--amber);  }
+.att-chip.waived-chip{ border-color: var(--muted);  background: transparent;       color: var(--muted);  }
 .attendee-email { color: var(--muted); font-size: 11px; }
 
 .empty-note { font-size: 13px; color: var(--muted); }

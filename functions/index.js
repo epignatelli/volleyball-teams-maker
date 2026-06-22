@@ -70,12 +70,14 @@ exports.createCheckoutSession = functions
       return res.status(409).json({ error: 'Already registered and paid.' });
 
     const session     = sessionSnap.data();
-    const playerPrice = _playerPrice(session.cost || 0);
+    const playerPrice = session.absorbFee ? (session.cost || 0) : _playerPrice(session.cost || 0);
     if (playerPrice <= 0)
       return res.status(400).json({ error: 'This session is free.' });
 
     const checkout = await getStripe().checkout.sessions.create({
       mode: 'payment',
+      automatic_payment_methods: { enabled: true },
+      billing_address_collection: 'required',
       line_items: [{
         price_data: {
           currency: 'gbp',
@@ -134,10 +136,12 @@ exports.stripeWebhook = functions
         t.set(attendeeRef, {
           name:              u.name  || checkout.customer_details?.name  || '',
           email:             u.email || checkout.customer_details?.email || '',
+          address:           checkout.customer_details?.address || null,
           gender:            u.gender    || null,
           positions:         u.positions || [],
           present:           false,
           paid:              true,
+          feeWaived:         false,
           paymentIntentId,
           refundAmountPence: parseInt(refundAmountPence, 10) || 0,
           paidAt:            FieldValue.serverTimestamp(),

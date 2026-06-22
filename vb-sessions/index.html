@@ -103,6 +103,10 @@
             <label class="field-label">Cost (£)</label>
             <input class="field-input" type="number" id="form-cost" min="0" step="0.5" inputmode="decimal" placeholder="0" oninput="updateCostPreview()" />
             <div class="field-hint" id="form-cost-preview">Free session — no payment required</div>
+            <label class="toggle-row" style="margin-top:6px">
+              <input type="checkbox" id="form-absorb-fee" onchange="updateCostPreview()" />
+              <span class="toggle-label-text">Waive booking fee</span>
+            </label>
           </div>
         </div>
         <div class="field">

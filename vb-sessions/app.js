@@ -234,9 +234,10 @@ function _playerPrice(adminPrice) {
   return Math.ceil(gross / 0.50) * 0.50;  // round up to nearest 50p
 }
 
-function _formatPlayerPrice(adminPrice) {
-  const p = _playerPrice(adminPrice);
-  return p === 0 ? 'Free' : `£${p.toFixed(2).replace(/\.00$/, '')}`;
+function _formatPlayerPrice(adminPrice, absorbFee = false) {
+  if (!adminPrice || adminPrice <= 0) return 'Free';
+  const p = absorbFee ? adminPrice : _playerPrice(adminPrice);
+  return `£${p.toFixed(2).replace(/\.00$/, '')}`;
 }
 
 function _spotsLeft(session, attendeeCount) {
@@ -282,7 +283,7 @@ function _renderSessionCard(s) {
   const statusLabel = s.status === 'cancelled' ? 'Cancelled' : s.status === 'full' ? 'Full' : s.status === 'closed' ? 'Closed' : 'Open';
   const dateStr     = _formatDate(s.date);
   const timeStr     = s.time || '';
-  const costStr     = _formatPlayerPrice(s.cost);
+  const costStr     = _formatPlayerPrice(s.cost, s.absorbFee);
   const countStr    = s.attendeeCount != null ? `${s.attendeeCount}/${s.maxPlayers}` : `0/${s.maxPlayers}`;
   const levelLabel  = { beginner: 'Beginner', intermediate: 'Intermediate', advanced: 'Advanced', competitive: 'Competitive' }[s.level] || '';
   return `
@@ -358,7 +359,7 @@ function _renderDetail(session, attendees, isAttending, content, footer) {
         <div class="detail-meta-row"><span class="detail-meta-label">Date</span><span>${esc(_formatDate(session.date))}${session.time ? ` at ${esc(session.time)}` : ''}</span></div>
         ${session.coach ? `<div class="detail-meta-row"><span class="detail-meta-label">Coach</span><span>${esc(session.coach)}</span></div>` : ''}
         ${levelLabel ? `<div class="detail-meta-row"><span class="detail-meta-label">Level</span><span>${esc(levelLabel)}</span></div>` : ''}
-        <div class="detail-meta-row"><span class="detail-meta-label">Cost</span><span>${esc(_formatPlayerPrice(session.cost))}</span></div>
+        <div class="detail-meta-row"><span class="detail-meta-label">Cost</span><span>${esc(_formatPlayerPrice(session.cost, session.absorbFee))}</span></div>
         <div class="detail-meta-row"><span class="detail-meta-label">Spots</span><span>${knownCount} / ${session.maxPlayers}${isCancelled ? '' : ` · ${spotsLeft} left`}</span></div>
         ${deadlineStr ? `<div class="detail-meta-row"><span class="detail-meta-label">Deadline</span><span${deadlinePassed ? ' style="color:var(--red)"' : ''}>${esc(deadlineStr)}${deadlinePassed ? ' · closed' : ''}</span></div>` : ''}
         ${isCancelled ? `<div class="detail-meta-row"><span class="detail-badge cancelled">Cancelled</span></div>` : ''}
@@ -390,7 +391,7 @@ function _renderDetail(session, attendees, isAttending, content, footer) {
                 ${genderSym ? `<span class="attendee-gender ${genderClass}">${genderSym}</span>` : ''}
                 <span class="attendee-name">${esc(a.name)}</span>
                 ${posChips ? `<div class="att-chips">${posChips}</div>` : ''}
-                ${canSee && session.cost > 0 ? `<span class="att-chip ${a.paid ? 'paid-chip' : 'unpaid-chip'}">${a.paid ? '£✓' : '£?'}</span>` : ''}
+                ${canSee && session.cost > 0 ? `<span class="att-chip ${a.feeWaived ? 'waived-chip' : a.paid ? 'paid-chip' : 'unpaid-chip'}">${a.feeWaived ? '£–' : a.paid ? '£✓' : '£?'}</span>` : ''}
                 ${_isAdmin ? `<span class="attendee-email">${esc(a.email || '')}</span>` : ''}
                 ${isOwn && session.askPositions ? `<button class="icon-btn small" onclick="openEditPositions('${session.id}','${Array.from(posSet).join(',')}')" title="Edit positions">✎</button>` : ''}
                 ${_isAdmin ? `<button class="icon-btn danger small" onclick="removeAttendee('${session.id}','${a.id}')" title="Remove">✕</button>` : ''}
@@ -407,9 +408,12 @@ function _renderDetail(session, attendees, isAttending, content, footer) {
   } else if (isCancelled) {
     footer.innerHTML = `<button class="cta-btn" disabled>Session cancelled</button>`;
   } else if (canStart) {
+    const joinBtn = !isAttending && !isFull && !deadlinePassed
+      ? `<button class="cta-btn secondary-btn" onclick="${_isAdmin && session.cost > 0 ? `registerFree('${session.id}')` : `register('${session.id}')`}">${_isAdmin && session.cost > 0 ? 'Register free →' : 'Join →'}</button>`
+      : '';
     footer.innerHTML = `
       <button class="cta-btn" onclick="openSessionRun('${session.id}')">▶ Start session</button>
-      ${isAttending ? `<button class="cta-btn secondary-btn" onclick="cancelRegistration('${session.id}')">Cancel</button>` : ''}`;
+      ${isAttending ? `<button class="cta-btn secondary-btn" onclick="cancelRegistration('${session.id}')">Cancel</button>` : joinBtn}`;
   } else if (isAttending) {
     footer.innerHTML = `<button class="cta-btn secondary-btn" onclick="cancelRegistration('${session.id}')">Cancel my registration</button>`;
   } else if (isFull) {
@@ -420,6 +424,8 @@ function _renderDetail(session, attendees, isAttending, content, footer) {
     footer.innerHTML = `<button class="cta-btn" onclick="register('${session.id}')">Join session →</button>`;
   }
 }
+
+function registerFree(sessionId) { return _doRegister(sessionId, { feeWaived: true }); }
 
 async function register(sessionId) {
   if (!_currentUser) {
@@ -460,9 +466,8 @@ async function _doRegister(sessionId, extra = {}) {
       if (g) extra = { ...extra, gender: g };
     }
 
-    // Paid session → redirect to Stripe Checkout.
-    // The webhook creates the attendee doc after payment succeeds.
-    if ((session.cost || 0) > 0) {
+    // Paid session → redirect to Stripe Checkout (unless fee is waived by admin).
+    if ((session.cost || 0) > 0 && !extra.feeWaived) {
       const base = window.location.origin + window.location.pathname;
       const data = await callFn('createCheckoutSession', {
         sessionId,
@@ -473,12 +478,13 @@ async function _doRegister(sessionId, extra = {}) {
       return;
     }
 
-    // Free session → direct Firestore write.
+    // Free session or fee-waived → direct Firestore write.
     await _attendeesRef(sessionId).doc(_currentUser.uid).set({
-      name:     _currentUser.displayName || _currentUser.email,
-      email:    _currentUser.email || '',
-      joinedAt: firebase.firestore.FieldValue.serverTimestamp(),
-      paid:     false,
+      name:       _currentUser.displayName || _currentUser.email,
+      email:      _currentUser.email || '',
+      joinedAt:   firebase.firestore.FieldValue.serverTimestamp(),
+      paid:       false,
+      feeWaived:  !!extra.feeWaived,
       ...extra,
     });
     await _sessionRef(sessionId).update({
@@ -781,6 +787,7 @@ function openSessionForm(id = null) {
       }
       statusSel.value = s.status || 'open';
       document.getElementById('form-ask-positions').checked = s.askPositions || false;
+      document.getElementById('form-absorb-fee').checked   = s.absorbFee    || false;
       updateCostPreview();
     });
   } else {
@@ -800,6 +807,7 @@ function openSessionForm(id = null) {
     statusSel.querySelector('option[value="closed"]')?.remove();
     statusSel.value = 'open';
     document.getElementById('form-ask-positions').checked = false;
+    document.getElementById('form-absorb-fee').checked   = false;
     updateCostPreview();
   }
 
@@ -807,12 +815,17 @@ function openSessionForm(id = null) {
 }
 
 function updateCostPreview() {
-  const val      = parseFloat(document.getElementById('form-cost').value) || 0;
-  const preview  = document.getElementById('form-cost-preview');
-  const pp       = _playerPrice(val);
-  preview.textContent = pp === 0
-    ? 'Free session — no payment required'
-    : `Players will be charged £${pp.toFixed(2)} (covers card processing)`;
+  const val     = parseFloat(document.getElementById('form-cost').value) || 0;
+  const absorb  = document.getElementById('form-absorb-fee').checked;
+  const preview = document.getElementById('form-cost-preview');
+  if (val === 0) {
+    preview.textContent = 'Free session — no payment required';
+  } else if (absorb) {
+    preview.textContent = `Players will be charged £${val.toFixed(2)} (booking fee waived)`;
+  } else {
+    const pp = _playerPrice(val);
+    preview.textContent = `Players will be charged £${pp.toFixed(2)} (covers card processing)`;
+  }
 }
 
 function closeSessionForm() {
@@ -856,7 +869,8 @@ async function submitSessionForm() {
     description:          descVal,
     maxPlayers:           maxVal,
     cost:                 costVal,
-    playerPrice:          _playerPrice(costVal),
+    absorbFee:            document.getElementById('form-absorb-fee').checked,
+    playerPrice:          document.getElementById('form-absorb-fee').checked ? costVal : _playerPrice(costVal),
     askPositions:         document.getElementById('form-ask-positions').checked,
     registrationDeadline: deadlineVal
       ? firebase.firestore.Timestamp.fromDate(new Date(deadlineVal))
