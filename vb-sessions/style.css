@@ -751,6 +751,32 @@ body {
   margin-bottom: 10px;
 }
 
+/* vertical bar chart (fill rate) */
+.bar-chart-wrap { display: flex; gap: 8px; align-items: stretch; }
+.bar-y-labels {
+  display: flex; flex-direction: column; justify-content: space-between;
+  font-size: 10px; color: var(--muted); text-align: right;
+  padding-bottom: 18px; min-width: 34px;
+}
+.bar-chart {
+  flex: 1; display: flex; align-items: flex-end; gap: 4px;
+  height: 120px;
+  border-left: 1px solid var(--border2);
+  border-bottom: 1px solid var(--border2);
+  padding: 0 4px;
+}
+.bar-col { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; gap: 3px; height: 100%; }
+.bar-fill { width: 100%; max-width: 40px; border-radius: 3px 3px 0 0; min-height: 2px; }
+.bar-tip  { font-size: 9px; color: var(--muted); white-space: nowrap; }
+
+/* horizontal bar chart (venue revenue) */
+.hbar-chart { display: flex; flex-direction: column; gap: 10px; }
+.hbar-row   { display: flex; align-items: center; gap: 10px; font-size: 12px; }
+.hbar-label { color: var(--muted); min-width: 80px; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; text-align: right; flex-shrink: 0; }
+.hbar-track { flex: 1; height: 12px; background: var(--surface2); border-radius: 99px; overflow: hidden; }
+.hbar-fill  { height: 100%; background: var(--amber); border-radius: 99px; min-width: 2px; opacity: .85; }
+.hbar-val   { color: var(--text); font-size: 11px; min-width: 40px; }
+
 /* ── Stats screen ────────────────────────────────────────────────────────── */
 .stats-user-row {
   display: flex; align-items: center; gap: 10px;
@@ -761,3 +787,42 @@ body {
 .stats-rank  { font-family: var(--sport); font-size: 12px; font-weight: 700; color: var(--amber); min-width: 20px; }
 .stats-name  { flex: 1; }
 .stats-count { font-size: 12px; color: var(--muted); white-space: nowrap; }
+
+/* ── Insights screen layout ──────────────────────────────────────────────── */
+.insights-body { display: flex; flex-direction: column; gap: 8px; padding: 8px 16px 24px; }
+.insights-section-label {
+  font-family: var(--sport); font-size: 11px; font-weight: 700;
+  letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
+  padding-top: 12px;
+}
+.insights-body .kpi-tiles { padding: 0; }
+.hbar-note { font-size: 10px; color: var(--muted); margin-left: 4px; }
+
+/* ── Venues screen ───────────────────────────────────────────────────────── */
+.venue-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-md); padding: 14px 16px;
+  margin-bottom: 8px; cursor: pointer;
+  display: flex; flex-direction: column; gap: 4px;
+  transition: border-color .15s;
+}
+.venue-card:active { border-color: var(--border2); }
+.venue-card-name { font-size: 15px; font-weight: 600; }
+.venue-card-meta { font-size: 12px; color: var(--muted); }
+
+/* session form — venue row */
+.venue-field-row { display: flex; gap: 8px; align-items: center; }
+.venue-field-row .field-input { flex: 1; }
+.venue-new-btn {
+  background: var(--surface2); border: 1px solid var(--border2);
+  border-radius: var(--radius-sm); color: var(--muted);
+  font-size: 12px; font-weight: 600; padding: 0 12px;
+  height: 42px; cursor: pointer; white-space: nowrap;
+  transition: color .15s;
+}
+.venue-new-btn:hover { color: var(--text); }
+
+/* session detail — venue inline info */
+.venue-address { font-size: 11px; color: var(--muted); margin-left: 6px; }
+.venue-maps-link { font-size: 11px; color: var(--amber); margin-left: 6px; text-decoration: none; }
+.venue-maps-link:hover { text-decoration: underline; }

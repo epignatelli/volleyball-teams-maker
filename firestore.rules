@@ -72,6 +72,11 @@ service cloud.firestore {
       allow write: if false; // written only via Cloud Functions (Admin SDK)
     }
 
+    match /venues/{venueId} {
+      allow read:  if request.auth != null;
+      allow write: if isAdmin();
+    }
+
     match /users/{uid} {
       allow read: if request.auth != null;
       allow create: if request.auth != null && request.auth.uid == uid;

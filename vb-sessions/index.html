@@ -34,7 +34,8 @@
     </div>
     <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
       <button class="nav-btn" id="home-finances-btn" onclick="openFinancesScreen()" style="display:none">Finances</button>
-      <button class="nav-btn" id="home-stats-btn" onclick="openStatsScreen()" style="display:none">Stats</button>
+      <button class="nav-btn" id="home-insights-btn" onclick="openInsightsScreen()" style="display:none">Insights</button>
+      <button class="nav-btn" id="home-venues-btn" onclick="openVenuesScreen()" style="display:none">Venues</button>
       <button class="nav-btn" id="home-users-btn" onclick="openUsersScreen()" style="display:none">Users</button>
       <button class="nav-btn" id="home-profile-btn" onclick="openProfileScreen()" style="display:none">Profile</button>
       <button class="auth-btn" id="auth-btn" onclick="handleAuthClick()">Sign in</button>
@@ -69,8 +70,12 @@
         </div>
         <div class="field">
           <label class="field-label">Venue</label>
-          <input class="field-input" type="text" id="form-venue" placeholder="e.g. Hampstead Heath Court 3" maxlength="80"
-            autocomplete="off" autocorrect="off" spellcheck="false" />
+          <div class="venue-field-row">
+            <select class="field-input field-select" id="form-venue-select" onchange="onVenueSelectChange()">
+              <option value="">Select a venue…</option>
+            </select>
+            <button type="button" class="venue-new-btn" onclick="openVenueForm()">+ New</button>
+          </div>
         </div>
         <div class="field">
           <label class="field-label">Description</label>
@@ -298,7 +303,7 @@
     </div>
     <div>
       <h1>Finances</h1>
-      <div class="subtitle" id="finances-subtitle">Business dashboard</div>
+      <div class="subtitle">Revenue per session</div>
     </div>
     <button class="back-btn" onclick="goHome()">← Sessions</button>
   </header>
@@ -310,9 +315,9 @@
 </div>
 
 <!-- ══════════════════════════════════════════════════
-     SCREEN — STATS
+     SCREEN — INSIGHTS
 ══════════════════════════════════════════════════ -->
-<div class="screen" id="screen-stats">
+<div class="screen" id="screen-insights">
 
   <header class="app-header">
     <div class="logo">
@@ -321,18 +326,81 @@
       </svg>
     </div>
     <div>
-      <h1>Stats</h1>
-      <div class="subtitle">Attendance &amp; trends</div>
+      <h1>Insights</h1>
+      <div class="subtitle">Business dashboard</div>
     </div>
     <button class="back-btn" onclick="goHome()">← Sessions</button>
   </header>
 
-  <div class="finances-content" id="stats-content">
+  <div class="finances-content" id="insights-content">
     <div class="home-empty">Loading…</div>
   </div>
 
 </div>
 
+
+<!-- ══════════════════════════════════════════════════
+     SCREEN — VENUES
+══════════════════════════════════════════════════ -->
+<div class="screen" id="screen-venues">
+
+  <header class="app-header">
+    <div class="logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#0f1117" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/><circle cx="12" cy="9" r="2.5"/>
+      </svg>
+    </div>
+    <div>
+      <h1>Venues</h1>
+      <div class="subtitle">Locations &amp; costs</div>
+    </div>
+    <button class="back-btn" onclick="goHome()">← Sessions</button>
+  </header>
+
+  <div class="home-content" id="venues-list">
+    <div class="home-empty">Loading…</div>
+  </div>
+
+  <div class="footer">
+    <button class="cta-btn" onclick="openVenueForm()">+ Add venue</button>
+  </div>
+
+</div>
+
+<!-- ── Venue form overlay ─────────────────────────────────────────────────── -->
+<div class="overlay" id="venue-form-overlay">
+  <div class="panel">
+    <div class="panel-header">
+      <span id="venue-form-title">New venue</span>
+      <button class="panel-close" onclick="closeVenueForm()">✕</button>
+    </div>
+    <div class="field">
+      <label class="field-label">Name <span style="color:var(--red)">*</span></label>
+      <input class="field-input" type="text" id="vf-name" placeholder="e.g. Brixton Recreation Centre" maxlength="80" />
+    </div>
+    <div class="field">
+      <label class="field-label">Address</label>
+      <input class="field-input" type="text" id="vf-address" placeholder="Full address" maxlength="120" />
+    </div>
+    <div class="field">
+      <label class="field-label">Google Maps link</label>
+      <input class="field-input" type="url" id="vf-maps" placeholder="https://maps.google.com/…" />
+    </div>
+    <div class="field">
+      <label class="field-label">Cost per hour (£)</label>
+      <input class="field-input" type="number" id="vf-cost" min="0" step="0.5" placeholder="0" inputmode="decimal" />
+    </div>
+    <div class="field">
+      <label class="field-label">Contact</label>
+      <input class="field-input" type="text" id="vf-contact" placeholder="Name, phone, email…" maxlength="120" />
+    </div>
+    <p id="venue-form-error" style="color:var(--red);font-size:13px;min-height:18px"></p>
+    <div style="display:flex;gap:8px">
+      <button class="cta-btn secondary-btn" id="venue-delete-btn" onclick="deleteVenue()" style="display:none">Delete</button>
+      <button class="cta-btn" id="venue-submit-btn" onclick="submitVenueForm()" style="flex:1">Save venue</button>
+    </div>
+  </div>
+</div>
 
 <!-- ══════════════════════════════════════════════════
      OVERLAY — ONE-TIME PROFILE

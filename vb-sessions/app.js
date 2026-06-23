@@ -134,7 +134,8 @@ function _updateAuthUI() {
   const newBtn       = document.getElementById('home-new-btn');
   const usersBtn     = document.getElementById('home-users-btn');
   const financesBtn  = document.getElementById('home-finances-btn');
-  const statsBtn     = document.getElementById('home-stats-btn');
+  const insightsBtn  = document.getElementById('home-insights-btn');
+  const venuesBtn    = document.getElementById('home-venues-btn');
   const profileBtn   = document.getElementById('home-profile-btn');
   if (_currentUser) {
     const label = _currentUser.displayName?.split(' ')[0] || _currentUser.email;
@@ -147,7 +148,8 @@ function _updateAuthUI() {
   if (newBtn)      newBtn.style.display      = _isAdmin     ? '' : 'none';
   if (usersBtn)    usersBtn.style.display    = _isAdmin     ? '' : 'none';
   if (financesBtn) financesBtn.style.display = _isAdmin     ? '' : 'none';
-  if (statsBtn)    statsBtn.style.display    = _isAdmin     ? '' : 'none';
+  if (insightsBtn) insightsBtn.style.display  = _isAdmin     ? '' : 'none';
+  if (venuesBtn)   venuesBtn.style.display    = _isAdmin     ? '' : 'none';
   if (profileBtn)  profileBtn.style.display  = _currentUser ? '' : 'none';
 }
 
@@ -219,7 +221,8 @@ async function _routeFromHash() {
   if (!hash || hash === 'home') { renderHome(); return; }
   if (hash === 'users')         { if (_isAdmin) openUsersScreen();    else renderHome(); return; }
   if (hash === 'finances')      { if (_isAdmin) openFinancesScreen(); else renderHome(); return; }
-  if (hash === 'stats')         { if (_isAdmin) openStatsScreen();    else renderHome(); return; }
+  if (hash === 'insights')      { if (_isAdmin) openInsightsScreen(); else renderHome(); return; }
+  if (hash === 'venues')        { if (_isAdmin) openVenuesScreen();   else renderHome(); return; }
   const slash   = hash.indexOf('/');
   const section = slash > -1 ? hash.slice(0, slash) : hash;
   const id      = slash > -1 ? hash.slice(slash + 1) : '';
@@ -403,7 +406,7 @@ function _renderSessionCard(s) {
       ${_isAdmin ? `
         <div class="session-admin-btns" onclick="event.stopPropagation()">
           <button class="icon-btn" onclick="openSessionForm('${s.id}')" title="Edit">✎</button>
-          <button class="icon-btn danger" onclick="deleteSession('${s.id}','${esc(s.venue || '')}')" title="Delete">✕</button>
+          <button class="icon-btn danger" onclick="deleteSession('${s.id}','${esc(s.venue || '')}',this)" title="Delete">✕</button>
         </div>` : ''}
     </div>`;
 }
@@ -474,7 +477,13 @@ function _renderDetail(session, attendees, isAttending, waitingList, myWaitingLi
   content.innerHTML = `
     <div class="detail-section">
       <div class="detail-meta-grid">
-        ${session.venue ? `<div class="detail-meta-row"><span class="detail-meta-label">Venue</span><span>${esc(session.venue)}</span></div>` : ''}
+        ${session.venue ? `<div class="detail-meta-row"><span class="detail-meta-label">Venue</span><span>${(() => {
+          const v = session.venueId ? _allVenues.find(x => x.id === session.venueId) : null;
+          const name = esc(session.venue);
+          const addr = v?.address ? ` <span class="venue-address">${esc(v.address)}</span>` : '';
+          const link = v?.mapsUrl ? ` <a class="venue-maps-link" href="${esc(v.mapsUrl)}" target="_blank" rel="noopener">Map ↗</a>` : '';
+          return name + addr + link;
+        })()}</span></div>` : ''}
         <div class="detail-meta-row"><span class="detail-meta-label">Date</span><span>${esc(_formatDate(session.date))}${session.time ? ` at ${esc(session.time)}` : ''}</span></div>
         ${session.coach ? `<div class="detail-meta-row"><span class="detail-meta-label">Coach</span><span>${esc(session.coach)}</span></div>` : ''}
         ${levelLabel ? `<div class="detail-meta-row"><span class="detail-meta-label">Level</span><span>${esc(levelLabel)}</span></div>` : ''}
@@ -1280,23 +1289,21 @@ function openSessionForm(id = null) {
   if (id) {
     titleEl.textContent  = 'Edit session';
     submitEl.textContent = 'Save changes';
-    _sessionRef(id).get().then(doc => {
+    _sessionRef(id).get().then(async doc => {
       if (!doc.exists) return;
       const s  = doc.data();
       const d  = s.date?.toDate();
       const dl = s.registrationDeadline?.toDate();
       document.getElementById('form-date').value        = d  ? d.toISOString().slice(0, 10) : '';
       document.getElementById('form-time').value        = s.time || '';
-      document.getElementById('form-venue').value       = s.venue || '';
       document.getElementById('form-level').value       = s.level || '';
       _loadCoachOptions(s.coach || '', s.coachUid || '');
       document.getElementById('form-description').value = s.description || '';
       document.getElementById('form-max').value         = s.maxPlayers || '';
       document.getElementById('form-cost').value        = s.cost != null ? s.cost : '';
       document.getElementById('form-coach-fee').value   = s.coachFee != null ? s.coachFee : '50';
-      document.getElementById('form-deadline').value        = dl ? dl.toISOString().slice(0, 16) : '';
+      document.getElementById('form-deadline').value    = dl ? dl.toISOString().slice(0, 16) : '';
       const statusSel = document.getElementById('form-status');
-      // Ensure 'closed' option exists when editing a closed session
       if (s.status === 'closed' && !statusSel.querySelector('option[value="closed"]')) {
         const opt = document.createElement('option');
         opt.value = 'closed'; opt.textContent = 'Closed';
@@ -1305,6 +1312,7 @@ function openSessionForm(id = null) {
       statusSel.value = s.status || 'open';
       document.getElementById('form-ask-positions').checked = s.askPositions || false;
       document.getElementById('form-absorb-fee').checked   = s.absorbFee    || false;
+      await _populateVenueSelect(s.venueId || '');
       updateCostPreview();
     });
   } else {
@@ -1313,19 +1321,19 @@ function openSessionForm(id = null) {
     const now = new Date();
     document.getElementById('form-date').value        = now.toISOString().slice(0, 10);
     document.getElementById('form-time').value        = '10:00';
-    document.getElementById('form-venue').value       = '';
     document.getElementById('form-level').value       = '';
     _loadCoachOptions('');
     document.getElementById('form-description').value = '';
     document.getElementById('form-max').value         = '12';
     document.getElementById('form-cost').value        = '0';
     document.getElementById('form-coach-fee').value   = '50';
-    document.getElementById('form-deadline').value        = '';
+    document.getElementById('form-deadline').value    = '';
     const statusSel = document.getElementById('form-status');
     statusSel.querySelector('option[value="closed"]')?.remove();
     statusSel.value = 'open';
     document.getElementById('form-ask-positions').checked = false;
     document.getElementById('form-absorb-fee').checked   = false;
+    _populateVenueSelect('');
     updateCostPreview();
   }
 
@@ -1355,7 +1363,10 @@ async function submitSessionForm() {
   if (!_isAdmin) return;
   const dateVal     = document.getElementById('form-date').value;
   const timeVal     = document.getElementById('form-time').value;
-  const venueVal    = document.getElementById('form-venue').value.trim();
+  const venueSelEl  = document.getElementById('form-venue-select');
+  const venueId     = venueSelEl.value;
+  const venueObj    = _allVenues.find(v => v.id === venueId);
+  const venueVal    = venueObj?.name || '';
   const coachSel    = document.getElementById('form-coach-select').value;
   const coachUidVal = (coachSel && coachSel !== '__custom__') ? coachSel : '';
   const coachVal    = coachSel === '__custom__'
@@ -1371,7 +1382,7 @@ async function submitSessionForm() {
   const errorEl     = document.getElementById('form-error');
 
   if (!dateVal)                    { errorEl.textContent = 'Please set a date.'; return; }
-  if (!venueVal)                   { errorEl.textContent = 'Please enter a venue.'; return; }
+  if (!venueId)                    { errorEl.textContent = 'Please select a venue.'; return; }
   if (isNaN(maxVal) || maxVal < 1) { errorEl.textContent = 'Max players must be at least 1.'; return; }
 
   errorEl.textContent = '';
@@ -1382,6 +1393,7 @@ async function submitSessionForm() {
     date:                 firebase.firestore.Timestamp.fromDate(new Date(dateVal + 'T12:00:00')),
     time:                 timeVal,
     venue:                venueVal,
+    venueId:              venueId,
     coach:                coachVal,
     coachUid:             coachUidVal,
     level:                levelVal,
@@ -1418,13 +1430,18 @@ async function submitSessionForm() {
 }
 
 // ─── Delete session ────────────────────────────────────────────────────────────
-async function deleteSession(id, venue) {
+async function deleteSession(id, venue, btn) {
   if (!_isAdmin) return;
   if (!confirm(`Delete session at "${venue}"?\n\nAttendees will be notified by email.`)) return;
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
   try {
     await callFn('deleteSessionAdmin', { sessionId: id });
     renderHome();
-  } catch(e) { console.error('Delete session failed:', e); showToast('Couldn\'t delete session. Try again.', 'error'); }
+  } catch(e) {
+    console.error('Delete session failed:', e);
+    showToast('Couldn\'t delete session. Try again.', 'error');
+    if (btn) { btn.disabled = false; btn.textContent = '✕'; }
+  }
 }
 
 // ─── Session run ───────────────────────────────────────────────────────────────
@@ -2187,10 +2204,17 @@ function computeSessionFinancials(session) {
   return { revenue, coachFee, net, attendeeCount, playerPrice };
 }
 
-// ─── Finances screen ──────────────────────────────────────────────────────────
+// ─── Shared session cache ──────────────────────────────────────────────────────
 
-let _allSessions = [];   // cached after first load
-let _finFilter   = { range: 'all', venues: [], coaches: [], levels: [] };
+let _allSessions = [];
+
+async function _loadAllSessions() {
+  if (_allSessions.length) return;
+  const snap = await _sessionsRef().orderBy('date', 'desc').get();
+  _allSessions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+// ─── Finances screen (simple table) ───────────────────────────────────────────
 
 function openFinancesScreen() {
   if (!_isAdmin) return;
@@ -2201,150 +2225,49 @@ function openFinancesScreen() {
 
 async function renderFinances() {
   const container = document.getElementById('finances-content');
-  if (!_allSessions.length) {
-    container.innerHTML = '<div class="home-empty">Loading…</div>';
-    try {
-      const snap = await _sessionsRef().orderBy('date', 'desc').get();
-      _allSessions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    } catch(e) {
-      container.innerHTML = '<div class="home-empty">Couldn\'t load finances.</div>';
-      console.error(e); return;
+  container.innerHTML = '<div class="home-empty">Loading…</div>';
+  try {
+    await _loadAllSessions();
+    const sessions = _allSessions.filter(s => s.status === 'closed');
+    if (!sessions.length) {
+      container.innerHTML = '<div class="home-empty">No closed sessions yet.</div>'; return;
     }
-  }
-  if (!_allSessions.length) {
-    container.innerHTML = '<div class="home-empty">No sessions yet.</div>'; return;
-  }
-  _renderFinancesUI(container);
-}
-
-function _applyFinFilter(sessions) {
-  const now  = new Date();
-  const cut  = { '30d': 30, '3m': 90, 'year': 365 }[_finFilter.range];
-  return sessions.filter(s => {
-    if (cut) {
-      const d = s.date?.toDate ? s.date.toDate() : new Date(s.date);
-      if ((now - d) / 86400000 > cut) return false;
-    }
-    if (_finFilter.venues.length  && !_finFilter.venues.includes(s.venue  || '')) return false;
-    if (_finFilter.coaches.length && !_finFilter.coaches.includes(s.coach || '')) return false;
-    if (_finFilter.levels.length  && !_finFilter.levels.includes(s.level  || '')) return false;
-    return true;
-  });
-}
-
-function setFinFilter(key, value) {
-  if (key === 'range') {
-    _finFilter.range = value;
-  } else {
-    const arr = _finFilter[key];
-    const i   = arr.indexOf(value);
-    if (i > -1) arr.splice(i, 1); else arr.push(value);
-  }
-  _renderFinancesUI(document.getElementById('finances-content'));
-}
-
-function _renderFinancesUI(container) {
-  const closed  = _allSessions.filter(s => s.status === 'closed');
-  const visible = _applyFinFilter(closed);
-  const fmt     = n => `£${n.toFixed(2)}`;
-
-  // KPIs
-  let totalRevenue = 0, totalCosts = 0, totalAttendees = 0, totalCapacity = 0;
-  visible.forEach(s => {
-    const f = computeSessionFinancials(s);
-    totalRevenue   += f.revenue;
-    totalCosts     += f.coachFee;
-    totalAttendees += f.attendeeCount;
-    totalCapacity  += (s.maxPlayers || 0);
-  });
-  const totalNet     = totalRevenue - totalCosts;
-  const avgAttend    = visible.length ? (totalAttendees / visible.length).toFixed(1) : '—';
-  const avgNet       = visible.length ? fmt(totalNet / visible.length) : '—';
-  const fillRate     = totalCapacity  ? Math.round(totalAttendees / totalCapacity * 100) + '%' : '—';
-
-  // Distinct values for filter dropdowns
-  const venues  = [...new Set(_allSessions.map(s => s.venue  || '').filter(Boolean))].sort();
-  const coaches = [...new Set(_allSessions.map(s => s.coach  || '').filter(Boolean))].sort();
-  const levels  = [...new Set(_allSessions.map(s => s.level  || '').filter(Boolean))].sort();
-
-  const rangeBtn = r => {
-    const labels = { '30d': '30 days', '3m': '3 months', 'year': 'This year', 'all': 'All time' };
-    const active = _finFilter.range === r ? ' active' : '';
-    return `<button class="filter-btn${active}" onclick="setFinFilter('range','${r}')">${labels[r]}</button>`;
-  };
-  const multiBtn = (key, val) => {
-    const active = _finFilter[key].includes(val) ? ' active' : '';
-    return `<button class="filter-btn${active}" onclick="setFinFilter('${key}','${esc(val)}')">${esc(val)}</button>`;
-  };
-
-  const filterBar = `
-    <div class="fin-filters">
-      <div class="fin-filter-row">
-        ${['30d','3m','year','all'].map(rangeBtn).join('')}
-      </div>
-      ${venues.length  > 1 ? `<div class="fin-filter-row">${venues.map(v  => multiBtn('venues',  v)).join('')}</div>` : ''}
-      ${coaches.length > 1 ? `<div class="fin-filter-row">${coaches.map(c => multiBtn('coaches', c)).join('')}</div>` : ''}
-      ${levels.length  > 1 ? `<div class="fin-filter-row">${levels.map(l  => multiBtn('levels',  l)).join('')}</div>` : ''}
-    </div>`;
-
-  const kpiTiles = `
-    <div class="kpi-tiles">
-      ${_kpi('Revenue',       fmt(totalRevenue), 'green')}
-      ${_kpi('Costs',         fmt(totalCosts),   'red')}
-      ${_kpi('Net income',    fmt(totalNet),      totalNet >= 0 ? 'green' : 'red')}
-      ${_kpi('Sessions',      visible.length,    'muted')}
-      ${_kpi('Avg players',   avgAttend,         'muted')}
-      ${_kpi('Avg net',       avgNet,            'muted')}
-      ${_kpi('Fill rate',     fillRate,          'amber')}
-    </div>`;
-
-  // Charts
-  const revenueChart  = _chartRevenue(visible);
-  const fillChart     = _chartFill(visible);
-  const venueChart    = _chartVenue(visible);
-
-  // Table rows
-  const rows = visible.map(s => {
-    const { revenue, coachFee, net, attendeeCount, playerPrice } = computeSessionFinancials(s);
-    return `<tr>
-      <td>${esc(_formatDate(s.date))}</td>
-      <td>${esc(s.venue || '—')}</td>
-      <td class="fin-num">${attendeeCount}</td>
-      <td class="fin-num">${playerPrice > 0 ? fmt(playerPrice) : 'Free'}</td>
-      <td class="fin-num">${fmt(revenue)}</td>
-      <td class="fin-num">${coachFee > 0 ? fmt(coachFee) : '—'}</td>
-      <td class="fin-num ${net < 0 ? 'fin-neg' : 'fin-pos'}">${fmt(net)}</td>
-    </tr>`;
-  }).join('');
-
-  container.innerHTML = `
-    ${filterBar}
-    ${kpiTiles}
-    <div class="fin-charts">
-      ${revenueChart}
-      ${visible.length > 1 ? fillChart : ''}
-      ${venues.length > 1 ? venueChart : ''}
-    </div>
-    <div class="finances-table-wrap">
-      <table class="finances-table">
-        <thead>
-          <tr>
+    let totalRevenue = 0, totalCosts = 0, totalNet = 0;
+    const fmt  = n => `£${n.toFixed(2)}`;
+    const rows = sessions.map(s => {
+      const { revenue, coachFee, net, attendeeCount, playerPrice } = computeSessionFinancials(s);
+      totalRevenue += revenue; totalCosts += coachFee; totalNet += net;
+      return `<tr>
+        <td>${esc(_formatDate(s.date))}</td>
+        <td>${esc(s.venue || '—')}</td>
+        <td class="fin-num">${attendeeCount}</td>
+        <td class="fin-num">${playerPrice > 0 ? fmt(playerPrice) : 'Free'}</td>
+        <td class="fin-num">${fmt(revenue)}</td>
+        <td class="fin-num">${coachFee > 0 ? fmt(coachFee) : '—'}</td>
+        <td class="fin-num ${net < 0 ? 'fin-neg' : 'fin-pos'}">${fmt(net)}</td>
+      </tr>`;
+    }).join('');
+    container.innerHTML = `
+      <div class="finances-table-wrap">
+        <table class="finances-table">
+          <thead><tr>
             <th>Date</th><th>Venue</th><th class="fin-num">Players</th>
             <th class="fin-num">Price</th><th class="fin-num">Revenue</th>
             <th class="fin-num">Coach fee</th><th class="fin-num">Net</th>
-          </tr>
-        </thead>
-        <tbody>${rows || '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">No sessions match this filter</td></tr>'}</tbody>
-        ${visible.length ? `<tfoot>
-          <tr class="fin-total">
-            <td colspan="4">Total (${visible.length} sessions)</td>
+          </tr></thead>
+          <tbody>${rows}</tbody>
+          <tfoot><tr class="fin-total">
+            <td colspan="4">Total (${sessions.length} sessions)</td>
             <td class="fin-num">${fmt(totalRevenue)}</td>
             <td class="fin-num">${fmt(totalCosts)}</td>
             <td class="fin-num ${totalNet < 0 ? 'fin-neg' : 'fin-pos'}">${fmt(totalNet)}</td>
-          </tr>
-        </tfoot>` : ''}
-      </table>
-    </div>`;
+          </tr></tfoot>
+        </table>
+      </div>`;
+  } catch(e) {
+    container.innerHTML = '<div class="home-empty">Couldn\'t load finances.</div>';
+    console.error(e);
+  }
 }
 
 function _kpi(label, value, color) {
@@ -2358,7 +2281,6 @@ function _kpi(label, value, color) {
 
 function _chartRevenue(sessions) {
   if (sessions.length < 2) return '';
-  // Group by month
   const byMonth = {};
   sessions.forEach(s => {
     const d   = s.date?.toDate ? s.date.toDate() : new Date(s.date);
@@ -2371,87 +2293,71 @@ function _chartRevenue(sessions) {
   const months = Object.keys(byMonth).sort();
   if (months.length < 2) return '';
 
-  const W = 400, H = 120, PAD = { t: 10, r: 10, b: 30, l: 44 };
+  // Fixed 160px tall SVG; scale text to match
+  const W = 560, H = 160, PAD = { t: 12, r: 80, b: 32, l: 48 };
   const cw = W - PAD.l - PAD.r, ch = H - PAD.t - PAD.b;
   const maxVal = Math.max(...months.map(m => byMonth[m].revenue), 1);
-  const x  = i  => PAD.l + (i / (months.length - 1)) * cw;
-  const yr = m  => PAD.t + ch - (byMonth[m].revenue / maxVal) * ch;
-  const yc = m  => PAD.t + ch - (byMonth[m].costs   / maxVal) * ch;
-  const yn = m  => PAD.t + ch - (Math.max(0, byMonth[m].revenue - byMonth[m].costs) / maxVal) * ch;
+  const x  = i => PAD.l + (i / (months.length - 1)) * cw;
+  const yr = m => PAD.t + ch - (byMonth[m].revenue / maxVal) * ch;
+  const yc = m => PAD.t + ch - (byMonth[m].costs   / maxVal) * ch;
+  const yn = m => PAD.t + ch - (Math.max(0, byMonth[m].revenue - byMonth[m].costs) / maxVal) * ch;
 
   const line = (pts, color) =>
-    `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+    `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round"/>`;
 
-  const revPts  = months.map((m,i) => `${x(i)},${yr(m)}`).join(' ');
-  const costPts = months.map((m,i) => `${x(i)},${yc(m)}`).join(' ');
-  const netPts  = months.map((m,i) => `${x(i)},${yn(m)}`).join(' ');
+  const revPts  = months.map((m,i) => `${x(i).toFixed(1)},${yr(m).toFixed(1)}`).join(' ');
+  const costPts = months.map((m,i) => `${x(i).toFixed(1)},${yc(m).toFixed(1)}`).join(' ');
+  const netPts  = months.map((m,i) => `${x(i).toFixed(1)},${yn(m).toFixed(1)}`).join(' ');
 
-  const yTick = v => {
-    const yy = PAD.t + ch - (v / maxVal) * ch;
-    return `<line x1="${PAD.l-4}" y1="${yy}" x2="${PAD.l}" y2="${yy}" stroke="var(--border2)"/>
-            <text x="${PAD.l-6}" y="${yy+4}" text-anchor="end" fill="var(--muted)" font-size="9">£${v}</text>`;
-  };
-  const ticks = [0, Math.round(maxVal/2), Math.round(maxVal)].map(yTick).join('');
+  const ticks = [0, Math.round(maxVal/2), Math.round(maxVal)].map(v => {
+    const yy = (PAD.t + ch - (v / maxVal) * ch).toFixed(1);
+    return `<line x1="${PAD.l-4}" y1="${yy}" x2="${PAD.l+cw}" y2="${yy}" stroke="var(--border)" stroke-dasharray="4,4"/>
+            <text x="${PAD.l-8}" y="${yy}" text-anchor="end" dominant-baseline="middle" fill="var(--muted)" font-size="11">£${v}</text>`;
+  }).join('');
+
   const xLabels = months.map((m, i) => {
     const [y, mo] = m.split('-');
-    const label   = new Date(+y, +mo-1).toLocaleString('en-GB', { month: 'short' });
-    return `<text x="${x(i)}" y="${H-6}" text-anchor="middle" fill="var(--muted)" font-size="9">${label}</text>`;
+    const label   = new Date(+y, +mo-1).toLocaleString('en-GB', { month: 'short', year: '2-digit' });
+    return `<text x="${x(i).toFixed(1)}" y="${H-6}" text-anchor="middle" fill="var(--muted)" font-size="11">${label}</text>`;
   }).join('');
 
   const legend = `
-    <text x="${W-10}" y="18" text-anchor="end" fill="var(--green)"  font-size="9">Revenue</text>
-    <text x="${W-10}" y="30" text-anchor="end" fill="var(--red)"    font-size="9">Costs</text>
-    <text x="${W-10}" y="42" text-anchor="end" fill="var(--amber)"  font-size="9">Net</text>`;
+    <text x="${W-4}" y="${PAD.t+8}"  text-anchor="end" fill="var(--green)"  font-size="11">● Revenue</text>
+    <text x="${W-4}" y="${PAD.t+22}" text-anchor="end" fill="var(--red)"    font-size="11">● Costs</text>
+    <text x="${W-4}" y="${PAD.t+36}" text-anchor="end" fill="var(--amber)"  font-size="11">● Net</text>`;
 
   return `<div class="fin-chart">
     <div class="fin-chart-title">Revenue over time</div>
-    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" style="width:100%;height:auto">
+    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" style="width:100%;height:160px;display:block">
       <line x1="${PAD.l}" y1="${PAD.t}" x2="${PAD.l}" y2="${PAD.t+ch}" stroke="var(--border2)"/>
       <line x1="${PAD.l}" y1="${PAD.t+ch}" x2="${PAD.l+cw}" y2="${PAD.t+ch}" stroke="var(--border2)"/>
-      ${ticks}${xLabels}
+      ${ticks}${xLabels}${legend}
       ${line(revPts, 'var(--green)')}
       ${line(costPts,'var(--red)')}
       ${line(netPts, 'var(--amber)')}
-      ${legend}
     </svg>
   </div>`;
 }
 
 function _chartFill(sessions) {
-  // Last 20 sessions, bar = fill rate (attendeeCount / maxPlayers)
-  const data = sessions
-    .filter(s => s.maxPlayers > 0)
-    .slice(0, 20)
-    .reverse();
+  const data = sessions.filter(s => s.maxPlayers > 0).slice(0, 20).reverse();
   if (data.length < 2) return '';
-
-  const W = 400, H = 100, PAD = { t: 8, r: 10, b: 24, l: 36 };
-  const cw = W - PAD.l - PAD.r, ch = H - PAD.t - PAD.b;
-  const bw = Math.max(2, Math.floor(cw / data.length) - 2);
-
-  const bars = data.map((s, i) => {
+  const bars = data.map(s => {
     const rate  = Math.min(1, (s.attendeeCount || 0) / s.maxPlayers);
-    const bh    = Math.max(2, rate * ch);
-    const bx    = PAD.l + (i / data.length) * cw + (cw / data.length - bw) / 2;
-    const by    = PAD.t + ch - bh;
+    const pct   = Math.round(rate * 100);
     const color = rate >= 0.8 ? 'var(--green)' : rate >= 0.5 ? 'var(--amber)' : 'var(--red)';
-    return `<rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${bw}" height="${bh.toFixed(1)}" rx="2" fill="${color}" opacity="0.85"/>`;
+    const label = _formatDate(s.date)?.split(' ').slice(0,2).join(' ') || '';
+    return `<div class="bar-col" title="${esc(label)} — ${pct}%">
+      <div class="bar-fill" style="height:${pct}%;background:${color}"></div>
+      <div class="bar-tip">${pct}%</div>
+    </div>`;
   }).join('');
-
-  const yLine = (pct, label) => {
-    const yy = PAD.t + ch - pct * ch;
-    return `<line x1="${PAD.l}" y1="${yy}" x2="${PAD.l+cw}" y2="${yy}" stroke="var(--border)" stroke-dasharray="3,3"/>
-            <text x="${PAD.l-4}" y="${yy+4}" text-anchor="end" fill="var(--muted)" font-size="9">${label}</text>`;
-  };
-
   return `<div class="fin-chart">
     <div class="fin-chart-title">Session fill rate (last ${data.length})</div>
-    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" style="width:100%;height:auto">
-      ${yLine(1, '100%')}${yLine(0.5, '50%')}
-      <line x1="${PAD.l}" y1="${PAD.t}" x2="${PAD.l}" y2="${PAD.t+ch}" stroke="var(--border2)"/>
-      <line x1="${PAD.l}" y1="${PAD.t+ch}" x2="${PAD.l+cw}" y2="${PAD.t+ch}" stroke="var(--border2)"/>
-      ${bars}
-    </svg>
+    <div class="bar-chart-wrap">
+      <div class="bar-y-labels"><span>100%</span><span>50%</span><span>0%</span></div>
+      <div class="bar-chart">${bars}</div>
+    </div>
   </div>`;
 }
 
@@ -2464,111 +2370,353 @@ function _chartVenue(sessions) {
   });
   const entries = Object.entries(byVenue).sort((a,b) => b[1]-a[1]).slice(0, 6);
   if (entries.length < 2) return '';
-
-  const W = 400, H = entries.length * 28 + 20, PAD = { t: 6, r: 10, b: 10, l: 110 };
-  const cw = W - PAD.l - PAD.r;
   const maxVal = entries[0][1] || 1;
-
-  const bars = entries.map(([venue, rev], i) => {
-    const bw = Math.max(2, (rev / maxVal) * cw);
-    const by = PAD.t + i * 28;
-    return `
-      <text x="${PAD.l-6}" y="${by+14}" text-anchor="end" fill="var(--muted)" font-size="10" dominant-baseline="middle">${esc(venue.slice(0,14))}</text>
-      <rect x="${PAD.l}" y="${by+4}" width="${bw.toFixed(1)}" height="18" rx="3" fill="var(--amber)" opacity="0.75"/>
-      <text x="${PAD.l + bw + 4}" y="${by+14}" fill="var(--text)" font-size="9" dominant-baseline="middle">£${rev.toFixed(0)}</text>`;
-  }).join('');
-
+  const rows = entries.map(([venue, rev]) => `
+    <div class="hbar-row">
+      <span class="hbar-label">${esc(venue)}</span>
+      <div class="hbar-track"><div class="hbar-fill" style="width:${Math.round(rev/maxVal*100)}%"></div></div>
+      <span class="hbar-val">£${rev.toFixed(0)}</span>
+    </div>`).join('');
   return `<div class="fin-chart">
     <div class="fin-chart-title">Revenue by venue</div>
-    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" style="width:100%;height:auto">
-      ${bars}
-    </svg>
+    <div class="hbar-chart">${rows}</div>
   </div>`;
 }
 
-// ─── Stats screen ─────────────────────────────────────────────────────────────
-
-function openStatsScreen() {
-  if (!_isAdmin) return;
-  _setHash('stats');
-  showScreen('stats');
-  renderStats();
+function _chartFunnel(sessions) {
+  const withReport = sessions.filter(s => s.report?.attendance);
+  if (withReport.length < 2) return '';
+  let cap = 0, registered = 0, present = 0, noShows = 0, cancels = 0;
+  withReport.forEach(s => {
+    cap        += s.maxPlayers || 0;
+    registered += s.report.attendance.registered || 0;
+    present    += s.report.attendance.present    || 0;
+    noShows    += s.report.attendance.noShows    || 0;
+    cancels    += s.cancellationCount            || 0;
+  });
+  const base = Math.max(cap, registered + cancels, 1);
+  const row  = (label, val, color, note) => `
+    <div class="hbar-row">
+      <span class="hbar-label">${label}</span>
+      <div class="hbar-track">
+        <div class="hbar-fill" style="width:${Math.round(val/base*100)}%;background:${color}"></div>
+      </div>
+      <span class="hbar-val">${val}${note ? `<span class="hbar-note">${note}</span>` : ''}</span>
+    </div>`;
+  return `<div class="fin-chart">
+    <div class="fin-chart-title">Capacity funnel</div>
+    <div class="hbar-chart">
+      ${cap        > 0  ? row('Capacity',    cap,        'var(--border2)',  '')                                          : ''}
+      ${cancels    > 0  ? row('Cancelled',   cancels,    'var(--red)',      ` (${Math.round(cancels/(registered+cancels||1)*100)}%)`) : ''}
+      ${row('Registered', registered, 'var(--amber)',  ` (${Math.round(registered/base*100)}%)`)}
+      ${row('Present',    present,    'var(--green)',  ` (${Math.round(present/base*100)}%)`)}
+      ${noShows > 0 ? row('No-shows', noShows, 'var(--muted)', ` (${Math.round(noShows/registered*100)}%)`) : ''}
+    </div>
+  </div>`;
 }
 
-async function renderStats() {
-  const container = document.getElementById('stats-content');
+function _chartCoachCosts(sessions) {
+  const byCoach = {};
+  sessions.forEach(s => {
+    if (!s.coach || !s.coachFee) return;
+    byCoach[s.coach] = (byCoach[s.coach] || 0) + s.coachFee;
+  });
+  const entries = Object.entries(byCoach).sort((a,b) => b[1]-a[1]);
+  if (entries.length < 2) return '';
+  const total  = entries.reduce((s, [,v]) => s + v, 0) || 1;
+  const rows   = entries.map(([coach, fee]) => `
+    <div class="hbar-row">
+      <span class="hbar-label">${esc(coach)}</span>
+      <div class="hbar-track">
+        <div class="hbar-fill" style="width:${Math.round(fee/total*100)}%;background:var(--purple)"></div>
+      </div>
+      <span class="hbar-val">£${fee.toFixed(0)} <span class="hbar-note">${Math.round(fee/total*100)}%</span></span>
+    </div>`).join('');
+  return `<div class="fin-chart">
+    <div class="fin-chart-title">Coach cost breakdown</div>
+    <div class="hbar-chart">${rows}</div>
+  </div>`;
+}
+
+// ─── Insights screen ───────────────────────────────────────────────────────────
+
+let _insightFilter = { range: 'all', venues: [], coaches: [], levels: [] };
+
+function openInsightsScreen() {
+  if (!_isAdmin) return;
+  _setHash('insights');
+  showScreen('insights');
+  renderInsights();
+}
+
+function _applyInsightFilter(sessions) {
+  const now = new Date();
+  const cut = { '30d': 30, '3m': 90, 'year': 365 }[_insightFilter.range];
+  return sessions.filter(s => {
+    if (cut) {
+      const d = s.date?.toDate ? s.date.toDate() : new Date(s.date);
+      if ((now - d) / 86400000 > cut) return false;
+    }
+    if (_insightFilter.venues.length  && !_insightFilter.venues.includes(s.venue  || '')) return false;
+    if (_insightFilter.coaches.length && !_insightFilter.coaches.includes(s.coach || '')) return false;
+    if (_insightFilter.levels.length  && !_insightFilter.levels.includes(s.level  || '')) return false;
+    return true;
+  });
+}
+
+function setInsightFilter(key, value) {
+  if (key === 'range') {
+    _insightFilter.range = value;
+  } else {
+    const arr = _insightFilter[key];
+    const i   = arr.indexOf(value);
+    if (i > -1) arr.splice(i, 1); else arr.push(value);
+  }
+  _renderInsightsUI(document.getElementById('insights-content'));
+}
+
+async function renderInsights() {
+  const container = document.getElementById('insights-content');
   container.innerHTML = '<div class="home-empty">Loading…</div>';
   try {
-    if (!_allSessions.length) {
-      const snap = await _sessionsRef().orderBy('date', 'desc').get();
-      _allSessions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    }
-    const usersSnap = await getDb().collection('users').orderBy('sessionCount', 'desc').limit(20).get();
-    const topUsers  = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-
-    const closed = _allSessions.filter(s => s.status === 'closed');
-
-    // Fill rate trend (last 12 closed sessions with capacity)
-    const fillData = closed.filter(s => s.maxPlayers > 0).slice(0, 12).reverse();
-
-    // No-show rate from reports
-    let totalPresent = 0, totalRegistered = 0;
-    closed.forEach(s => {
-      const att = s.report?.attendance;
-      if (att) { totalPresent += att.present || 0; totalRegistered += att.registered || 0; }
-    });
-    const noShowRate = totalRegistered > 0
-      ? Math.round((1 - totalPresent / totalRegistered) * 100) + '%'
-      : '—';
-
-    // Sessions by level
-    const byLevel = {};
-    closed.forEach(s => { const l = s.level || 'unset'; byLevel[l] = (byLevel[l] || 0) + 1; });
-
-    const topUsersHtml = topUsers.length ? `
-      <div class="detail-section">
-        <div class="detail-section-title">Top attendees</div>
-        ${topUsers.map((u, i) => `
-          <div class="stats-user-row" onclick="openProfileScreen('${u.id}')">
-            <span class="stats-rank">${i+1}</span>
-            <span class="stats-name">${esc(u.displayName || u.email || 'Unknown')}</span>
-            <span class="stats-count">${u.sessionCount || 0} sessions</span>
-          </div>`).join('')}
-      </div>` : '';
-
-    const fillChartHtml = fillData.length > 1 ? `
-      <div class="detail-section">
-        <div class="detail-section-title">Fill rate trend</div>
-        ${_chartFill(fillData)}
-      </div>` : '';
-
-    const levelRows = Object.entries(byLevel)
-      .sort((a,b) => b[1]-a[1])
-      .map(([l,n]) => `<div class="history-row">
-        <span class="history-venue">${esc(l)}</span>
-        <span class="history-cost">${n} session${n!==1?'s':''}</span>
-      </div>`).join('');
-
-    container.innerHTML = `
-      <div class="kpi-tiles" style="padding:16px 16px 0">
-        ${_kpi('Closed sessions', closed.length, 'muted')}
-        ${_kpi('No-show rate', noShowRate, 'amber')}
-        ${_kpi('Avg fill', closed.filter(s=>s.maxPlayers>0).length
-            ? Math.round(closed.filter(s=>s.maxPlayers>0).reduce((a,s)=>a+(s.attendeeCount||0)/s.maxPlayers,0)/closed.filter(s=>s.maxPlayers>0).length*100)+'%'
-            : '—', 'green')}
-      </div>
-      <div style="padding:16px;display:flex;flex-direction:column;gap:16px">
-        ${topUsersHtml}
-        ${fillChartHtml}
-        ${levelRows ? `<div class="detail-section">
-          <div class="detail-section-title">Sessions by level</div>
-          ${levelRows}
-        </div>` : ''}
-      </div>`;
+    const [, usersSnap] = await Promise.all([
+      _loadAllSessions(),
+      getDb().collection('users').orderBy('sessionCount', 'desc').limit(20).get(),
+    ]);
+    _insightsTopUsers = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    _renderInsightsUI(container);
   } catch(e) {
-    container.innerHTML = '<div class="home-empty">Couldn\'t load stats.</div>';
+    container.innerHTML = '<div class="home-empty">Couldn\'t load insights.</div>';
     console.error(e);
   }
+}
+
+let _insightsTopUsers = [];
+
+function _renderInsightsUI(container) {
+  const closed  = _allSessions.filter(s => s.status === 'closed');
+  const visible = _applyInsightFilter(closed);
+  const fmt     = n => `£${n.toFixed(2)}`;
+
+  // Distinct values for filters
+  const venues  = [...new Set(closed.map(s => s.venue  || '').filter(Boolean))].sort();
+  const coaches = [...new Set(closed.map(s => s.coach  || '').filter(Boolean))].sort();
+  const levels  = [...new Set(closed.map(s => s.level  || '').filter(Boolean))].sort();
+
+  const rangeBtn = r => {
+    const labels = { '30d': '30 days', '3m': '3 months', 'year': 'This year', 'all': 'All time' };
+    const active  = _insightFilter.range === r ? ' active' : '';
+    return `<button class="filter-btn${active}" onclick="setInsightFilter('range','${r}')">${labels[r]}</button>`;
+  };
+  const multiBtn = (key, val) => {
+    const active = _insightFilter[key].includes(val) ? ' active' : '';
+    return `<button class="filter-btn${active}" onclick="setInsightFilter('${key}','${esc(val)}')">${esc(val)}</button>`;
+  };
+
+  // ── Money KPIs ──
+  let totalRevenue = 0, totalCosts = 0, totalAttendees = 0, totalCapacity = 0;
+  let totalCancellations = 0, totalEverRegistered = 0;
+  visible.forEach(s => {
+    const f = computeSessionFinancials(s);
+    totalRevenue   += f.revenue;
+    totalCosts     += f.coachFee;
+    totalAttendees += f.attendeeCount;
+    totalCapacity  += (s.maxPlayers || 0);
+    const cancels   = s.cancellationCount || 0;
+    const atClose   = s.report?.attendance?.registered || s.attendeeCount || 0;
+    totalCancellations  += cancels;
+    totalEverRegistered += atClose + cancels;
+  });
+  const totalNet   = totalRevenue - totalCosts;
+  const avgNet     = visible.length ? fmt(totalNet / visible.length) : '—';
+  const avgAttend  = visible.length ? (totalAttendees / visible.length).toFixed(1) : '—';
+  const cancelRate = totalEverRegistered > 0
+    ? Math.round(totalCancellations / totalEverRegistered * 100) + '%' : '—';
+
+  // ── Sessions KPIs ──
+  const withCap  = visible.filter(s => s.maxPlayers > 0);
+  const fillRate = withCap.length
+    ? Math.round(withCap.reduce((a,s) => a + (s.attendeeCount||0)/s.maxPlayers, 0) / withCap.length * 100) + '%'
+    : '—';
+  let totalPresent = 0, totalRegistered = 0;
+  visible.forEach(s => {
+    const att = s.report?.attendance;
+    if (att) { totalPresent += att.present || 0; totalRegistered += att.registered || 0; }
+  });
+  const noShowRate = totalRegistered > 0
+    ? Math.round((1 - totalPresent / totalRegistered) * 100) + '%' : '—';
+
+  container.innerHTML = `
+    <div class="fin-filters">
+      <div class="fin-filter-row">${['30d','3m','year','all'].map(rangeBtn).join('')}</div>
+      ${venues.length  > 1 ? `<div class="fin-filter-row">${venues.map(v  => multiBtn('venues',  v)).join('')}</div>` : ''}
+      ${coaches.length > 1 ? `<div class="fin-filter-row">${coaches.map(c => multiBtn('coaches', c)).join('')}</div>` : ''}
+      ${levels.length  > 1 ? `<div class="fin-filter-row">${levels.map(l  => multiBtn('levels',  l)).join('')}</div>` : ''}
+    </div>
+
+    <div class="insights-body">
+
+      <div class="insights-section-label">Money</div>
+      <div class="kpi-tiles">
+        ${_kpi('Revenue',       fmt(totalRevenue),            'green')}
+        ${_kpi('Costs',         fmt(totalCosts),              'red')}
+        ${_kpi('Net income',    fmt(totalNet),                totalNet >= 0 ? 'green' : 'red')}
+        ${_kpi('Sessions run',  visible.length,               'muted')}
+        ${_kpi('Avg attendance',avgAttend,                    'muted')}
+        ${_kpi('Avg net/session',avgNet,                      'muted')}
+      </div>
+      ${_chartRevenue(visible)}
+      ${_chartVenue(visible)}
+      ${coaches.length > 1 ? _chartCoachCosts(visible) : ''}
+
+      <div class="insights-section-label">Sessions</div>
+      <div class="kpi-tiles">
+        ${_kpi('Avg fill rate',    fillRate,   'amber')}
+        ${_kpi('No-show rate',     noShowRate, 'amber')}
+        ${_kpi('Cancellation rate',cancelRate, totalCancellations > 0 ? 'red' : 'muted')}
+      </div>
+      ${_chartFill(visible)}
+      ${_chartFunnel(visible)}
+
+      <div class="insights-section-label">Players</div>
+      ${_insightsTopUsers.length ? `
+        <div class="detail-section">
+          ${_insightsTopUsers.map((u, i) => `
+            <div class="stats-user-row" onclick="openProfileScreen('${u.id}')">
+              <span class="stats-rank">${i+1}</span>
+              <span class="stats-name">${esc(u.displayName || u.email || 'Unknown')}</span>
+              <span class="stats-count">${u.sessionCount || 0} sessions</span>
+            </div>`).join('')}
+        </div>` : '<div class="home-empty" style="padding:12px 0">No attendance data yet.</div>'}
+
+    </div>`;
+}
+
+// ─── Venues ────────────────────────────────────────────────────────────────────
+
+function _venuesRef() { return getDb().collection('venues'); }
+
+let _allVenues    = [];   // cached list
+let _editingVenueId = null;
+
+async function _loadVenues() {
+  const snap  = await _venuesRef().orderBy('name').get();
+  _allVenues  = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  return _allVenues;
+}
+
+// ── Nav / routing ──
+
+function openVenuesScreen() {
+  if (!_isAdmin) return;
+  _setHash('venues');
+  showScreen('venues');
+  renderVenues();
+}
+
+async function renderVenues() {
+  const list = document.getElementById('venues-list');
+  list.innerHTML = '<div class="home-empty">Loading…</div>';
+  try {
+    await _loadVenues();
+    if (!_allVenues.length) {
+      list.innerHTML = '<div class="home-empty">No venues yet. Add one below.</div>'; return;
+    }
+    list.innerHTML = _allVenues.map(v => `
+      <div class="venue-card" onclick="openVenueForm('${v.id}')">
+        <div class="venue-card-name">${esc(v.name)}</div>
+        ${v.address    ? `<div class="venue-card-meta">${esc(v.address)}</div>` : ''}
+        ${v.costPerHour > 0 ? `<div class="venue-card-meta">£${v.costPerHour}/hr</div>` : ''}
+        ${v.contact    ? `<div class="venue-card-meta">${esc(v.contact)}</div>` : ''}
+      </div>`).join('');
+  } catch(e) {
+    list.innerHTML = '<div class="home-empty">Couldn\'t load venues.</div>';
+    console.error(e);
+  }
+}
+
+// ── Venue form (create / edit) ──
+
+function openVenueForm(id) {
+  _editingVenueId = id || null;
+  const v = id ? _allVenues.find(x => x.id === id) : null;
+  document.getElementById('venue-form-title').textContent = v ? 'Edit venue' : 'New venue';
+  document.getElementById('vf-name').value    = v?.name        || '';
+  document.getElementById('vf-address').value = v?.address     || '';
+  document.getElementById('vf-maps').value    = v?.mapsUrl     || '';
+  document.getElementById('vf-cost').value    = v?.costPerHour || '';
+  document.getElementById('vf-contact').value = v?.contact     || '';
+  document.getElementById('venue-form-error').textContent = '';
+  document.getElementById('venue-delete-btn').style.display = v ? '' : 'none';
+  document.getElementById('venue-form-overlay').classList.add('open');
+}
+
+function closeVenueForm() {
+  document.getElementById('venue-form-overlay').classList.remove('open');
+  _editingVenueId = null;
+}
+
+async function submitVenueForm() {
+  const name    = document.getElementById('vf-name').value.trim();
+  const errorEl = document.getElementById('venue-form-error');
+  if (!name) { errorEl.textContent = 'Name is required.'; return; }
+
+  const btn  = document.getElementById('venue-submit-btn');
+  btn.disabled = true;
+  const data = {
+    name,
+    address:     document.getElementById('vf-address').value.trim(),
+    mapsUrl:     document.getElementById('vf-maps').value.trim(),
+    costPerHour: parseFloat(document.getElementById('vf-cost').value) || 0,
+    contact:     document.getElementById('vf-contact').value.trim(),
+  };
+
+  try {
+    if (_editingVenueId) {
+      await _venuesRef().doc(_editingVenueId).update(data);
+    } else {
+      data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+      await _venuesRef().add(data);
+    }
+    closeVenueForm();
+    await renderVenues();
+    await _populateVenueSelect();
+  } catch(e) {
+    errorEl.textContent = 'Couldn\'t save venue. Try again.';
+    console.error(e);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+async function deleteVenue() {
+  if (!_editingVenueId) return;
+  if (!confirm('Delete this venue? Sessions using it will keep the venue name.')) return;
+  try {
+    await _venuesRef().doc(_editingVenueId).delete();
+    closeVenueForm();
+    await renderVenues();
+    await _populateVenueSelect();
+  } catch(e) {
+    document.getElementById('venue-form-error').textContent = 'Couldn\'t delete venue.';
+  }
+}
+
+// ── Session form integration ──
+
+async function _populateVenueSelect(selectedId) {
+  const sel = document.getElementById('form-venue-select');
+  if (!sel) return;
+  if (!_allVenues.length) await _loadVenues();
+  const current = selectedId || sel.value;
+  sel.innerHTML = '<option value="">Select a venue…</option>' +
+    _allVenues.map(v =>
+      `<option value="${v.id}" ${v.id === current ? 'selected' : ''}>${esc(v.name)}${v.address ? ' — ' + esc(v.address) : ''}</option>`
+    ).join('');
+}
+
+function onVenueSelectChange() {
+  // venueId and name resolved at form submit time — nothing extra needed here
 }
 
 // ─── Service worker ────────────────────────────────────────────────────────────
