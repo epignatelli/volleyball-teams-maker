@@ -35,7 +35,7 @@
     <div style="margin-left:auto;display:flex;align-items:center;gap:8px">
       <button class="nav-btn" id="home-finances-btn" onclick="openFinancesScreen()" style="display:none">Finances</button>
       <button class="nav-btn" id="home-users-btn" onclick="openUsersScreen()" style="display:none">Users</button>
-      <button class="nav-btn" id="home-profile-btn" onclick="openEditProfile()" style="display:none">Profile</button>
+      <button class="nav-btn" id="home-profile-btn" onclick="openProfileScreen()" style="display:none">Profile</button>
       <button class="auth-btn" id="auth-btn" onclick="handleAuthClick()">Sign in</button>
     </div>
   </header>
@@ -187,7 +187,42 @@
     <button class="back-btn" onclick="goHome()">← Sessions</button>
   </header>
 
+  <div class="users-toolbar">
+    <input class="field-input users-search" id="users-search" type="search" placeholder="Search name or email…" oninput="filterUsers()" />
+    <div class="users-filters" id="users-filters">
+      <button class="filter-btn active" data-filter="all"    onclick="setUserFilter('all')">All</button>
+      <button class="filter-btn"        data-filter="coach"  onclick="setUserFilter('coach')">Coaches</button>
+      <button class="filter-btn"        data-filter="admin"  onclick="setUserFilter('admin')">Admins</button>
+      <button class="filter-btn"        data-filter="pending" onclick="setUserFilter('pending')">Pending</button>
+      <button class="filter-btn"        data-filter="incomplete" onclick="setUserFilter('incomplete')">Incomplete</button>
+    </div>
+  </div>
+
   <div class="users-content" id="users-content">
+    <div class="home-empty">Loading…</div>
+  </div>
+
+</div>
+
+<!-- ══════════════════════════════════════════════════
+     SCREEN — PROFILE
+══════════════════════════════════════════════════ -->
+<div class="screen" id="screen-profile">
+
+  <header class="app-header">
+    <div class="logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#0f1117" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="8" r="4"/><path d="M4 20c0-4 3.6-7 8-7s8 3 8 7"/>
+      </svg>
+    </div>
+    <div>
+      <h1>Profile</h1>
+      <div class="subtitle" id="profile-screen-subtitle"></div>
+    </div>
+    <button class="back-btn" id="profile-back-btn" onclick="goHome()">← Sessions</button>
+  </header>
+
+  <div class="profile-screen-body" id="profile-screen-body">
     <div class="home-empty">Loading…</div>
   </div>
 
@@ -366,6 +401,10 @@
           <label class="pos-toggle middle"><input type="checkbox" value="middle" />M · Middle</label>
           <label class="pos-toggle libero"><input type="checkbox" value="libero" />L · Libero</label>
         </div>
+      </div>
+      <div class="field" id="coach-request-field">
+        <button class="coach-request-btn" id="coach-request-btn" onclick="requestCoachStatus()">Request coach status →</button>
+        <div class="field-hint">An admin will review your request.</div>
       </div>
     </div>
     <div class="form-error" id="edit-profile-error"></div>

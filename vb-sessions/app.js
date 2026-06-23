@@ -3,6 +3,7 @@ let _currentUser  = null;
 let _currentRoles = [];
 let _isAdmin      = false;
 let _isCoach      = false;
+let _isOwner      = false;
 let _legacyAdmin  = false;   // cached check against admins/{email} collection
 let _userDocUnsub = null;    // unsubscribe fn for own user doc listener
 let _editingId              = null;   // session ID being edited, null when creating
@@ -70,6 +71,7 @@ async function _upsertUserDoc(user) {
     // Sync legacy admin status into roles (bootstrap path)
     let roles = currentRoles.length ? currentRoles : ['player'];
     if (_legacyAdmin && !roles.includes('admin')) roles = [...roles, 'admin'];
+    if (_legacyAdmin && !roles.includes('owner')) roles = [...roles, 'owner'];
 
     if (doc.exists) {
       await ref.update({
@@ -92,11 +94,22 @@ async function _upsertUserDoc(user) {
   } catch(e) { console.error('Upsert user doc failed:', e); }
 }
 
+async function _maybeShowOnboarding(user) {
+  try {
+    const doc  = await _userRef(user.uid).get();
+    const data = doc.data() || {};
+    if (!data.name && !data.gender) {
+      await openEditProfile();
+    }
+  } catch(e) {}
+}
+
 function _subscribeToUserDoc(user) {
   if (_userDocUnsub) { _userDocUnsub(); _userDocUnsub = null; }
   _userDocUnsub = _userRef(user.uid).onSnapshot(doc => {
     _currentRoles = (doc.data()?.roles) || ['player'];
-    _isAdmin = _legacyAdmin || _currentRoles.includes('admin');
+    _isOwner = _currentRoles.includes('owner');
+    _isAdmin = _legacyAdmin || _isOwner || _currentRoles.includes('admin');
     _isCoach = _currentRoles.includes('coach');
     _updateAuthUI();
     renderHome();
@@ -164,6 +177,7 @@ getAuth().onAuthStateChanged(async user => {
 
     await _upsertUserDoc(user);
     _subscribeToUserDoc(user);
+    _maybeShowOnboarding(user);
 
     if (_pendingJoinSessionId) {
       const sid = _pendingJoinSessionId;
@@ -172,8 +186,9 @@ getAuth().onAuthStateChanged(async user => {
     }
   } else {
     _currentRoles = [];
-    _isAdmin = false;
-    _isCoach = false;
+    _isAdmin  = false;
+    _isCoach  = false;
+    _isOwner  = false;
     _legacyAdmin = false;
     _updateAuthUI();
     if (!_initialRouted) { _initialRouted = true; await _routeFromHash(); }
@@ -200,12 +215,13 @@ async function _routeFromHash() {
   if (!hash || hash === 'home') { renderHome(); return; }
   if (hash === 'users')         { if (_isAdmin) openUsersScreen();    else renderHome(); return; }
   if (hash === 'finances')      { if (_isAdmin) openFinancesScreen(); else renderHome(); return; }
-  const slash = hash.indexOf('/');
+  const slash   = hash.indexOf('/');
   const section = slash > -1 ? hash.slice(0, slash) : hash;
   const id      = slash > -1 ? hash.slice(slash + 1) : '';
-  if (section === 'session' && id)  { await openSession(id); }
-  else if (section === 'run'  && id)  { await openSessionRun(id); }
-  else if (section === 'end'  && id)  {
+  if (section === 'profile')         { if (_currentUser) await openProfileScreen(id || undefined); else renderHome(); }
+  else if (section === 'session' && id)  { await openSession(id); }
+  else if (section === 'run'     && id)  { await openSessionRun(id); }
+  else if (section === 'end'     && id)  {
     try {
       await _loadRunSessionData(id);
       document.getElementById('end-subtitle').textContent =
@@ -495,7 +511,7 @@ function _renderDetail(session, attendees, isAttending, waitingList, myWaitingLi
               <div class="attendee-row">
                 <span class="attendee-num">${i + 1}</span>
                 ${genderSym ? `<span class="attendee-gender ${genderClass}">${genderSym}</span>` : ''}
-                <span class="attendee-name">${esc(a.name)}</span>
+                <button class="attendee-name-btn" onclick="openProfileScreen('${a.id}')">${esc(a.name)}</button>
                 ${posChips ? `<div class="att-chips">${posChips}</div>` : ''}
                 ${canSee && session.cost > 0 ? `<span class="att-chip ${a.feeWaived ? 'waived-chip' : a.paid ? 'paid-chip' : 'unpaid-chip'}">${a.feeWaived ? '£–' : a.paid ? '£✓' : '£?'}</span>` : ''}
                 ${_isAdmin ? `<span class="attendee-email">${esc(a.email || '')}</span>` : ''}
@@ -513,7 +529,7 @@ function _renderDetail(session, attendees, isAttending, waitingList, myWaitingLi
         ${waitingList.map((w, i) => `
           <div class="attendee-row">
             <span class="attendee-num">${i + 1}</span>
-            <span class="attendee-name">${esc(w.name)}</span>
+            <button class="attendee-name-btn" onclick="openProfileScreen('${w.id || ''}')">${esc(w.name)}</button>
             <span class="attendee-email">${esc(w.email || '')}</span>
           </div>`).join('')}
       </div>
@@ -754,67 +770,292 @@ function openUsersScreen() {
   renderUsers();
 }
 
+let _allUsers = [];
+let _userFilter = 'all';
+
 async function renderUsers() {
   const container = document.getElementById('users-content');
   container.innerHTML = '<div class="home-empty">Loading…</div>';
   try {
     const snap  = await _usersRef().orderBy('name', 'asc').get();
-    const users = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    if (!users.length) {
-      container.innerHTML = '<div class="home-empty">No users yet.</div>';
-      return;
-    }
-    container.innerHTML = users.map(_renderUserRow).join('');
+    _allUsers   = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    _applyUserFilter();
   } catch(e) {
     container.innerHTML = '<div class="home-empty">Couldn\'t load users. Check your connection.</div>';
     console.error(e);
   }
 }
 
+function setUserFilter(f) {
+  _userFilter = f;
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.toggle('active', b.dataset.filter === f));
+  _applyUserFilter();
+}
+
+function filterUsers() { _applyUserFilter(); }
+
+function _applyUserFilter() {
+  const q         = (document.getElementById('users-search')?.value || '').toLowerCase();
+  const container = document.getElementById('users-content');
+  let users = _allUsers.filter(u => {
+    if (q && !((u.name||'').toLowerCase().includes(q)) && !((u.email||'').toLowerCase().includes(q))) return false;
+    if (_userFilter === 'coach')      return (u.roles||[]).includes('coach');
+    if (_userFilter === 'admin')      return (u.roles||[]).includes('admin');
+    if (_userFilter === 'pending')    return !!u.coachRequest && !(u.roles||[]).includes('coach');
+    if (_userFilter === 'incomplete') return !u.gender || !(u.positions||[]).length;
+    return true;
+  });
+  if (!users.length) { container.innerHTML = '<div class="home-empty">No users match.</div>'; return; }
+  container.innerHTML = users.map(_renderUserRow).join('');
+}
+
 function _renderUserRow(u) {
-  const roles      = u.roles || ['player'];
-  const isMe       = _currentUser && u.id === _currentUser.uid;
-  const hasAdmin   = roles.includes('admin');
-  const hasCoach   = roles.includes('coach');
-  const initials   = (u.name || u.email || '?')[0].toUpperCase();
+  const roles           = u.roles || ['player'];
+  const isMe            = _currentUser && u.id === _currentUser.uid;
+  const hasOwner        = roles.includes('owner');
+  const hasAdmin        = roles.includes('admin');
+  const hasCoach        = roles.includes('coach');
+  const hasPendingCoach = !!u.coachRequest && !hasCoach;
+  const hasPendingAdmin = !!u.adminRequest && !hasAdmin;
+  const initials        = (u.name || u.email || '?')[0].toUpperCase();
+  const incomplete      = !u.gender || !(u.positions||[]).length;
+  const posLabels       = { setter:'S', hitter:'H', middle:'M', libero:'L' };
+  const posStr          = (u.positions||[]).map(p => posLabels[p]||p).join(' · ');
+  const genderSym       = { man:'♂', woman:'♀', nonbinary:'⚧' }[u.gender] || '';
+  const joined          = u.createdAt ? _formatDate(u.createdAt) : '';
+  const safeName        = esc(u.name || u.email || '');
+
+  // What the current user can do to this row:
+  const canManageOwner  = _isOwner && !isMe && !hasOwner;
+  const canManageAdmin  = _isOwner && !isMe;
+  const canManageCoach  = _isAdmin && !isMe;
+  const canNominate     = _isAdmin && !_isOwner && !hasAdmin && !hasOwner && !hasPendingAdmin;
+  const canRemove       = _isOwner ? (!isMe && !hasOwner) : (_isAdmin && !hasAdmin && !hasOwner);
+
+  let actions = '';
+  if (_isAdmin) {
+    if (hasPendingCoach) {
+      actions += `<button class="role-toggle active coach" onclick="approveCoach('${u.id}','${safeName}')">Approve coach</button>
+                  <button class="role-toggle" onclick="rejectCoach('${u.id}')">Reject</button>`;
+    } else if (hasPendingAdmin) {
+      actions += _isOwner
+        ? `<button class="role-toggle active admin" onclick="approveAdmin('${u.id}','${safeName}')">Approve admin</button>
+           <button class="role-toggle" onclick="rejectAdmin('${u.id}')">Reject</button>`
+        : `<span class="role-toggle active admin" style="cursor:default">Admin pending</span>`;
+    } else {
+      if (canManageOwner)  actions += `<button class="role-toggle${hasOwner ? ' active owner' : ''}" onclick="toggleRole('${u.id}','owner','${safeName}')">Owner</button>`;
+      if (canManageAdmin)  actions += `<button class="role-toggle${hasAdmin ? ' active admin' : ''}" onclick="toggleRole('${u.id}','admin','${safeName}')">Admin</button>`;
+      if (canManageCoach)  actions += `<button class="role-toggle${hasCoach ? ' active coach' : ''}" onclick="toggleRole('${u.id}','coach','${safeName}')">Coach</button>`;
+      if (canNominate)     actions += `<button class="role-toggle" onclick="nominateForAdmin('${u.id}','${safeName}')">Nominate admin</button>`;
+    }
+    if (canRemove) actions += `<button class="role-toggle danger" onclick="banUser('${u.id}','${safeName}')">Remove</button>`;
+  }
 
   return `
-    <div class="user-row">
+    <div class="user-row" onclick="openProfileScreen('${u.id}')">
       ${u.photoURL
         ? `<img class="user-avatar" src="${esc(u.photoURL)}" alt="" referrerpolicy="no-referrer" />`
         : `<div class="user-avatar user-avatar--initials">${esc(initials)}</div>`}
       <div class="user-info">
-        <div class="user-name">${esc(u.name || '—')}${isMe ? ' <span class="user-you">you</span>' : ''}</div>
-        <div class="user-email">${esc(u.email || '')}</div>
+        <div class="user-name">
+          ${esc(u.name || '—')}${isMe ? ' <span class="user-you">you</span>' : ''}
+          ${hasOwner ? '<span class="user-flag owner-badge">owner</span>' : ''}
+          ${incomplete ? '<span class="user-flag">incomplete</span>' : ''}
+          ${hasPendingCoach ? '<span class="user-flag coach-req">coach request</span>' : ''}
+          ${hasPendingAdmin ? '<span class="user-flag admin-req">admin pending</span>' : ''}
+        </div>
+        <div class="user-meta">${esc(u.email || '')}${genderSym ? ` · ${genderSym}` : ''}${posStr ? ` · ${posStr}` : ''}${joined ? ` · joined ${joined}` : ''}</div>
       </div>
-      <div class="user-roles">
-        <button class="role-toggle${hasAdmin ? ' active admin' : ''}"
-          onclick="toggleRole('${u.id}', 'admin')"
-          ${isMe ? 'disabled' : ''}>Admin</button>
-        <button class="role-toggle${hasCoach ? ' active coach' : ''}"
-          onclick="toggleRole('${u.id}', 'coach')">Coach</button>
-        <span class="role-toggle active player" style="cursor:default">Player</span>
-      </div>
+      ${actions ? `<div class="user-actions" onclick="event.stopPropagation()">${actions}</div>` : ''}
     </div>`;
 }
 
-async function toggleRole(uid, role) {
+async function toggleRole(uid, role, displayName) {
   if (!_isAdmin) return;
-  if (role === 'admin' && _currentUser && uid === _currentUser.uid) return;
+  if ((role === 'admin' || role === 'owner') && !_isOwner) {
+    showToast('Only owners can change admin or owner roles.', 'error');
+    return;
+  }
   try {
     const doc      = await _userRef(uid).get();
     const roles    = doc.data()?.roles || ['player'];
-    const newRoles = roles.includes(role)
-      ? roles.filter(r => r !== role)
-      : [...roles, role];
+    const isAdding = !roles.includes(role);
+    const label    = displayName || uid;
+    const verb     = isAdding ? 'grant' : 'remove';
+    const roleStr  = role.charAt(0).toUpperCase() + role.slice(1);
+    if (!confirm(`${verb === 'grant' ? 'Grant' : 'Remove'} ${roleStr} role ${verb === 'grant' ? 'to' : 'from'} ${label}?`)) return;
+    const newRoles = isAdding ? [...roles, role] : roles.filter(r => r !== role);
     if (!newRoles.includes('player')) newRoles.push('player');
     await _userRef(uid).set({ roles: newRoles }, { merge: true });
     renderUsers();
   } catch(e) {
     console.error('Toggle role failed:', e);
     showToast(e.code === 'permission-denied'
-      ? 'Permission denied — check Firestore rules for users/.'
+      ? 'Only owners can change admin or owner roles.'
       : 'Couldn\'t update role. Try again.', 'error');
+  }
+}
+
+async function nominateForAdmin(uid, displayName) {
+  if (!_isAdmin) return;
+  const label = displayName || uid;
+  if (!confirm(`Nominate ${label} for Admin? An owner will be asked to approve.`)) return;
+  try {
+    await _userRef(uid).update({ adminRequest: true });
+    await callFn('notifyAdminRequest', { uid, name: displayName });
+    showToast('Nomination sent — owners have been notified.');
+    renderUsers();
+  } catch(e) {
+    showToast('Couldn\'t send nomination. Try again.', 'error');
+  }
+}
+
+async function approveAdmin(uid, displayName) {
+  if (!_isOwner) return;
+  const label = displayName || uid;
+  if (!confirm(`Approve ${label} as Admin?`)) return;
+  try {
+    const doc   = await _userRef(uid).get();
+    const roles = doc.data()?.roles || ['player'];
+    if (!roles.includes('admin')) roles.push('admin');
+    await _userRef(uid).update({ roles, adminRequest: false });
+    showToast('Admin approved.');
+    renderUsers();
+  } catch(e) { showToast('Couldn\'t approve. Try again.', 'error'); }
+}
+
+async function rejectAdmin(uid) {
+  if (!_isOwner) return;
+  if (!confirm('Reject this admin nomination?')) return;
+  try {
+    await _userRef(uid).update({ adminRequest: false });
+    showToast('Nomination rejected.');
+    renderUsers();
+  } catch(e) { showToast('Couldn\'t reject. Try again.', 'error'); }
+}
+
+async function approveCoach(uid, displayName) {
+  if (!_isAdmin) return;
+  const label = displayName || uid;
+  if (!confirm(`Approve ${label} as Coach?`)) return;
+  try {
+    const doc   = await _userRef(uid).get();
+    const roles = doc.data()?.roles || ['player'];
+    if (!roles.includes('coach')) roles.push('coach');
+    await _userRef(uid).update({ roles, coachRequest: false });
+    showToast('Coach approved.');
+    renderUsers();
+  } catch(e) { showToast('Couldn\'t approve. Try again.', 'error'); }
+}
+
+async function rejectCoach(uid) {
+  if (!_isAdmin) return;
+  if (!confirm('Reject this coach request?')) return;
+  try {
+    await _userRef(uid).update({ coachRequest: false });
+    showToast('Coach request rejected.');
+    renderUsers();
+  } catch(e) { showToast('Couldn\'t reject. Try again.', 'error'); }
+}
+
+async function banUser(uid, name) {
+  if (!_isAdmin) return;
+  if (!confirm(`Remove ${name || 'this user'}? This will permanently delete their account.`)) return;
+  try {
+    await callFn('removeUser', { uid });
+    showToast('User removed.');
+    renderUsers();
+  } catch(e) { showToast(e.message || 'Couldn\'t remove user. Try again.', 'error'); }
+}
+
+// ─── Profile screen ────────────────────────────────────────────────────────────
+let _profileBackDest = 'home'; // where the back button should go
+
+async function openProfileScreen(uid) {
+  const targetUid = uid || (_currentUser && _currentUser.uid);
+  if (!targetUid) return;
+
+  // Determine where "back" should go
+  const currentScreen = document.querySelector('.screen.active');
+  _profileBackDest = currentScreen?.id === 'screen-users' ? 'users'
+                   : currentScreen?.id === 'screen-detail' ? ('session/' + (_currentSession?.id || ''))
+                   : 'home';
+
+  _setHash('profile/' + targetUid);
+  showScreen('profile');
+
+  const body     = document.getElementById('profile-screen-body');
+  const subtitle = document.getElementById('profile-screen-subtitle');
+  const backBtn  = document.getElementById('profile-back-btn');
+  body.innerHTML = '<div class="home-empty">Loading…</div>';
+
+  backBtn.onclick = () => {
+    if (_profileBackDest === 'users') {
+      openUsersScreen();
+    } else if (_profileBackDest.startsWith('session/')) {
+      const sid = _profileBackDest.slice(8);
+      if (sid) openSession(sid); else goHome();
+    } else {
+      goHome();
+    }
+  };
+  backBtn.textContent = _profileBackDest === 'users' ? '← Users'
+    : _profileBackDest.startsWith('session/') ? '← Session'
+    : '← Sessions';
+
+  try {
+    const doc    = await _userRef(targetUid).get();
+    const u      = doc.exists ? { id: doc.id, ...doc.data() } : {};
+    const isOwn  = _currentUser && targetUid === _currentUser.uid;
+    const roles  = u.roles || ['player'];
+    const hasCoach   = roles.includes('coach');
+    const hasPending = !!u.coachRequest && !hasCoach;
+
+    subtitle.textContent = isOwn ? 'Your profile' : '';
+
+    const posLabels   = { setter: 'Setter', hitter: 'Hitter', middle: 'Middle', libero: 'Libero' };
+    const genderLabel = { man: 'Man', woman: 'Woman', nonbinary: 'Non-binary' }[u.gender] || '';
+    const initials    = (u.name || u.email || '?')[0].toUpperCase();
+    const roleOrder   = ['owner', 'admin', 'coach'];
+    const displayRoles = roleOrder.filter(r => roles.includes(r));
+
+    const roleBadges = displayRoles.map(r => {
+      const cls = r === 'owner' ? 'level owner-badge-lg' : r === 'admin' ? 'level admin-badge-lg' : 'level';
+      return `<span class="session-badge ${cls}">${r}</span>`;
+    }).join(' ');
+
+    const metaRows = [
+      genderLabel ? `<div class="detail-meta-row"><span class="detail-meta-label">Gender</span><span>${esc(genderLabel)}</span></div>` : '',
+      (u.positions||[]).length ? `<div class="detail-meta-row"><span class="detail-meta-label">Positions</span><span>${(u.positions||[]).map(p => posLabels[p]||p).join(', ')}</span></div>` : '',
+      u.email && (isOwn || _isAdmin) ? `<div class="detail-meta-row"><span class="detail-meta-label">Email</span><span>${esc(u.email)}</span></div>` : '',
+      u.createdAt ? `<div class="detail-meta-row"><span class="detail-meta-label">Joined</span><span>${_formatDate(u.createdAt)}</span></div>` : '',
+    ].filter(Boolean).join('');
+
+    const ownActions = isOwn ? `
+      <div class="profile-actions">
+        <button class="cta-btn secondary-btn" onclick="openEditProfile()">Edit profile →</button>
+        ${!hasCoach ? `
+          <button class="coach-request-btn${hasPending ? ' pending' : ''}" id="coach-request-btn"
+            onclick="requestCoachStatus()" ${hasPending ? 'disabled' : ''}>
+            ${hasPending ? 'Coach request pending' : 'Request coach status →'}
+          </button>` : ''}
+      </div>` : '';
+
+    body.innerHTML = `
+      <div class="profile-screen-card">
+        <div class="profile-hero">
+          ${u.photoURL
+            ? `<img class="profile-avatar-xl" src="${esc(u.photoURL)}" alt="" referrerpolicy="no-referrer" />`
+            : `<div class="profile-avatar-xl profile-avatar-initials">${esc(initials)}</div>`}
+          <div class="profile-hero-name">${esc(u.name || '—')}</div>
+          ${roleBadges ? `<div class="profile-role-badges">${roleBadges}</div>` : ''}
+        </div>
+        ${metaRows ? `<div class="detail-section"><div class="detail-meta-grid">${metaRows}</div></div>` : ''}
+        ${ownActions}
+      </div>`;
+  } catch(e) {
+    console.error('Load profile failed:', e);
+    body.innerHTML = '<div class="home-empty">Couldn\'t load profile.</div>';
   }
 }
 
@@ -1686,6 +1927,7 @@ async function openEditProfile() {
     document.querySelectorAll('#edit-profile-positions input').forEach(cb => {
       cb.checked = posSet.has(cb.value);
     });
+    _updateCoachRequestBtn(data);
   } catch(e) {
     console.error('Load profile failed:', e);
   }
@@ -1698,9 +1940,9 @@ function closeEditProfile() {
 }
 
 async function saveProfile() {
-  const errorEl = document.getElementById('edit-profile-error');
-  const name    = document.getElementById('edit-profile-name').value.trim();
-  const gender  = document.getElementById('edit-profile-gender').value;
+  const errorEl   = document.getElementById('edit-profile-error');
+  const name      = document.getElementById('edit-profile-name').value.trim();
+  const gender    = document.getElementById('edit-profile-gender').value;
   const positions = Array.from(
     document.querySelectorAll('#edit-profile-positions input:checked')
   ).map(el => el.value);
@@ -1724,6 +1966,47 @@ async function saveProfile() {
     console.error('Save profile failed:', e);
     errorEl.textContent = 'Couldn\'t save profile. Try again.';
     btn.disabled = false;
+  }
+}
+
+async function requestCoachStatus() {
+  if (!_currentUser) return;
+  const btn = document.getElementById('coach-request-btn');
+  if (btn) btn.disabled = true;
+  try {
+    await _userRef(_currentUser.uid).update({
+      coachRequest: true,
+      updatedAt:    firebase.firestore.FieldValue.serverTimestamp(),
+    });
+    await callFn('notifyCoachRequest', { uid: _currentUser.uid, name: _currentUser.displayName || '' });
+    showToast('Coach request sent — an admin will review it.');
+    closeEditProfile();
+  } catch(e) {
+    console.error('Coach request failed:', e);
+    if (btn) btn.disabled = false;
+    showToast('Couldn\'t send request. Try again.', 'error');
+  }
+}
+
+function _updateCoachRequestBtn(data) {
+  const field  = document.getElementById('coach-request-field');
+  const btn    = document.getElementById('coach-request-btn');
+  if (!field || !btn) return;
+  const isCoach   = (data.roles || []).includes('coach');
+  const isPending = !!data.coachRequest;
+  if (isCoach) {
+    field.style.display = 'none';
+    return;
+  }
+  field.style.display = '';
+  if (isPending) {
+    btn.textContent = 'Coach request pending';
+    btn.disabled    = true;
+    btn.className   = 'coach-request-btn pending';
+  } else {
+    btn.textContent = 'Request coach status →';
+    btn.disabled    = false;
+    btn.className   = 'coach-request-btn';
   }
 }
 

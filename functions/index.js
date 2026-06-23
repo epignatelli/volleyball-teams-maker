@@ -922,6 +922,119 @@ exports.messageSessionAttendees = functions
     return res.json({ ok: true, sent: attendeesSnap.size });
   });
 
+// ── notifyCoachRequest ───────────────────────────────────────────────────────
+exports.notifyCoachRequest = functions
+  .region(REGION)
+  .runWith({ secrets: [GMAIL_APP_PASSWORD] })
+  .https.onRequest(async (req, res) => {
+    setCors(res);
+    if (req.method === 'OPTIONS') return res.status(204).end();
+    if (req.method !== 'POST')    return res.status(405).end();
+
+    let decoded;
+    try { decoded = await verifyAuth(req); }
+    catch (e) { return res.status(401).json({ error: e.message }); }
+
+    const { uid, name } = req.body;
+    if (!uid) return res.status(400).json({ error: 'Missing uid.' });
+
+    const db         = getFirestore();
+    const adminsSnap = await db.collection('admins').get();
+    const appUrl     = 'https://epignatelli.github.io/apps/vb-sessions/#users';
+
+    const safeName = (name || uid || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    await Promise.all(adminsSnap.docs.map(doc =>
+      sendEmail(doc.id,
+        `Coach request from ${safeName}`,
+        _emailHtml('Hi,', [
+          `<strong>${safeName}</strong> has requested to be listed as a coach.`,
+          'Review and approve or reject the request from the Users screen.',
+        ], null, appUrl, 'Go to Users →')
+      )
+    ));
+
+    return res.json({ ok: true });
+  });
+
+// ── notifyAdminRequest ───────────────────────────────────────────────────────
+exports.notifyAdminRequest = functions
+  .region(REGION)
+  .runWith({ secrets: [GMAIL_APP_PASSWORD] })
+  .https.onRequest(async (req, res) => {
+    setCors(res);
+    if (req.method === 'OPTIONS') return res.status(204).end();
+    if (req.method !== 'POST')    return res.status(405).end();
+
+    let decoded;
+    try { decoded = await verifyAuth(req); }
+    catch (e) { return res.status(401).json({ error: e.message }); }
+
+    const { uid, name } = req.body;
+    if (!uid) return res.status(400).json({ error: 'Missing uid.' });
+
+    const db          = getFirestore();
+    const usersSnap   = await db.collection('users').get();
+    const ownerEmails = usersSnap.docs
+      .filter(d => (d.data().roles || []).includes('owner'))
+      .map(d => d.data().email)
+      .filter(Boolean);
+
+    const nominator  = decoded.email || 'An admin';
+    const safeName   = (name || uid || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+    const appUrl     = 'https://epignatelli.github.io/apps/vb-sessions/#users';
+
+    await Promise.all(ownerEmails.map(email =>
+      sendEmail(email,
+        `Admin nomination: ${safeName}`,
+        _emailHtml('Hi,', [
+          `${nominator} has nominated <strong>${safeName}</strong> to become an Admin.`,
+          'As an Owner, you can approve or reject this from the Users screen.',
+        ], null, appUrl, 'Go to Users →')
+      )
+    ));
+
+    return res.json({ ok: true });
+  });
+
+// ── removeUser ───────────────────────────────────────────────────────────────
+exports.removeUser = functions
+  .region(REGION)
+  .https.onRequest(async (req, res) => {
+    setCors(res);
+    if (req.method === 'OPTIONS') return res.status(204).end();
+    if (req.method !== 'POST')    return res.status(405).end();
+
+    let decoded;
+    try { decoded = await verifyAuth(req); }
+    catch (e) { return res.status(401).json({ error: e.message }); }
+
+    const db         = getFirestore();
+    const callerDoc  = await db.collection('users').doc(decoded.uid).get();
+    const callerData = callerDoc.data() || {};
+    const callerRoles = callerData.roles || [];
+    const isAdmin    = callerRoles.includes('admin') || callerRoles.includes('owner')
+                       || (await db.collection('admins').doc(decoded.email || '').get()).exists;
+    if (!isAdmin) return res.status(403).json({ error: 'Admins only.' });
+
+    const { uid } = req.body;
+    if (!uid)                return res.status(400).json({ error: 'Missing uid.' });
+    if (uid === decoded.uid) return res.status(400).json({ error: 'Cannot remove yourself.' });
+
+    // Owners can remove anyone except other owners; admins cannot remove admins/owners.
+    const targetDoc   = await db.collection('users').doc(uid).get();
+    const targetRoles = targetDoc.data()?.roles || [];
+    const callerIsOwner = callerRoles.includes('owner');
+    if (targetRoles.includes('owner')) return res.status(403).json({ error: 'Cannot remove an owner.' });
+    if (!callerIsOwner && (targetRoles.includes('admin'))) {
+      return res.status(403).json({ error: 'Only owners can remove admins.' });
+    }
+
+    await db.collection('users').doc(uid).delete();
+    try { await getAuth().deleteUser(uid); } catch(_) {}
+
+    return res.json({ ok: true });
+  });
+
 // ── Helpers ─────────────────────────────────────────────────────────────────
 function _playerPrice(adminPrice) {
   if (!adminPrice || adminPrice <= 0) return 0;

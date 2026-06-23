@@ -81,7 +81,7 @@ service cloud.firestore {
                             && request.resource.data.diff(resource.data)
                                  .affectedKeys().hasOnly([
                                    'name','email','photoURL','updatedAt',
-                                   'gender','positions'
+                                   'gender','positions','coachRequest','adminRequest'
                                  ])));
       allow delete: if isAdmin();
     }
