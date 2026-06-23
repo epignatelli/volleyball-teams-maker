@@ -903,9 +903,10 @@ function _emailHtml(greeting, paragraphs, calendarUrl = null, ctaUrl = null, cta
   const cta  = ctaUrl
     ? `<p style="margin:20px 0 0"><a href="${ctaUrl}" style="display:inline-block;padding:10px 18px;background:#4f46e5;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:13px">${ctaLabel || 'Open →'}</a></p>`
     : '';
+  const policyUrl = 'https://epignatelli.github.io/volleyball-teams-maker/vb-sessions/';
   return `<!DOCTYPE html><html><body style="font-family:sans-serif;color:#111;max-width:480px;margin:0 auto;padding:24px">
 <p style="margin:0 0 12px">${greeting}</p>
 ${body}${cal}${cta}
-<p style="margin:24px 0 0;font-size:12px;color:#888">Roots Volleyball</p>
+<p style="margin:24px 0 0;font-size:12px;color:#888">Roots Volleyball · <a href="${policyUrl}" style="color:#888">Terms &amp; cancellation policy</a></p>
 </body></html>`;
 }

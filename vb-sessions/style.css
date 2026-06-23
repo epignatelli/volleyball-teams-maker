@@ -526,6 +526,22 @@ body {
 .pos-toggle:has(input[value="libero"]:checked) { background: var(--green-bg);          border-color: rgba(34,201,122,.35);  color: var(--green);  }
 .form-error  { font-size: 13px; color: var(--red); min-height: 16px; }
 
+/* ─── Policy overlay ────────────────────────────────────────────────────────── */
+.policy-panel { max-height: 85dvh; }
+.policy-body { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; font-size: 14px; line-height: 1.6; }
+.policy-body h2 { font-family: var(--sport); font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
+.policy-body p  { color: var(--text); }
+.policy-updated { font-size: 11px; color: var(--muted); margin-top: 8px; }
+
+.policy-link-row { display: flex; justify-content: center; padding: 4px 0 8px; }
+.policy-link {
+  background: none; border: none;
+  font-size: 12px; color: var(--muted); text-decoration: underline;
+  cursor: pointer; padding: 4px;
+  transition: color .15s;
+}
+.policy-link:hover { color: var(--text); }
+
 /* ─── Finances screen ────────────────────────────────────────────────────────── */
 .finances-content { flex: 1; overflow: auto; padding: 16px 20px; }
 

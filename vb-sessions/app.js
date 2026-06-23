@@ -528,7 +528,11 @@ function _renderDetail(session, attendees, isAttending, waitingList, myWaitingLi
             <span class="att-chip paid-chip">£${((r.amountPence || 0) / 100).toFixed(2)}</span>
           </div>`).join('')}
       </div>
-    </div>` : ''}`;
+    </div>` : ''}
+
+    <div class="policy-link-row">
+      <button class="policy-link" onclick="openPolicy()">Terms &amp; cancellation policy</button>
+    </div>`;
 
   const hasWaitingList = waitingList.length > 0;
   const cancelLabel    = isAttending && hasWaitingList && !isCancelled && !isClosed
@@ -1609,6 +1613,14 @@ async function openSessionEndReport(sessionId) {
     console.error(e);
     showToast('Couldn\'t load report.', 'error');
   }
+}
+
+// ─── Policy overlay ────────────────────────────────────────────────────────────
+function openPolicy() {
+  document.getElementById('policy-overlay').classList.add('open');
+}
+function closePolicy() {
+  document.getElementById('policy-overlay').classList.remove('open');
 }
 
 // ─── Finances screen ────────────────────────────────────────────────────────────
