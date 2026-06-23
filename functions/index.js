@@ -366,6 +366,17 @@ exports.cancelAttendeeAndRefund = functions
     await db.runTransaction(async t => {
       t.delete(attendeeRef);
       t.update(sessionRef, { attendeeCount: FieldValue.increment(-1) });
+      if (refunded) {
+        t.update(sessionRef, {
+          refunds: FieldValue.arrayUnion({
+            uid,
+            name:         attendee.name  || '',
+            email:        attendee.email || '',
+            amountPence:  attendee.refundAmountPence || 0,
+            refundedAt:   new Date().toISOString(),
+          }),
+        });
+      }
     });
 
     const email   = decoded.email || attendee.email;

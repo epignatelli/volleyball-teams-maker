@@ -512,6 +512,19 @@ function _renderDetail(session, attendees, isAttending, waitingList, myWaitingLi
             <span class="attendee-email">${esc(w.email || '')}</span>
           </div>`).join('')}
       </div>
+    </div>` : ''}
+
+    ${_isAdmin && session.refunds && session.refunds.length ? `
+    <div class="detail-section">
+      <div class="detail-section-title">Refunds (${session.refunds.length})</div>
+      <div class="attendee-list">
+        ${session.refunds.map(r => `
+          <div class="attendee-row">
+            <span class="attendee-name">${esc(r.name || r.email || r.uid)}</span>
+            <span class="attendee-email">${esc(r.email || '')}</span>
+            <span class="att-chip paid-chip">£${((r.amountPence || 0) / 100).toFixed(2)}</span>
+          </div>`).join('')}
+      </div>
     </div>` : ''}`;
 
   const hasWaitingList = waitingList.length > 0;
