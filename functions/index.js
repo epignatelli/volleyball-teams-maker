@@ -285,7 +285,7 @@ exports.stripeWebhook = functions
         if (isNew) t.update(sessionRef, { attendeeCount: FieldValue.increment(1) });
       });
 
-      // Write session history entry for the user
+      // Write session history entry and increment session count for the user
       await db.collection('users').doc(uid).collection('sessions').doc(sessionId).set({
         sessionId,
         date:     session.date   || null,
@@ -296,6 +296,9 @@ exports.stripeWebhook = functions
         feeWaived: false,
         joinedAt: FieldValue.serverTimestamp(),
       }, { merge: true });
+      if (isNew) {
+        await db.collection('users').doc(uid).update({ sessionCount: FieldValue.increment(1) }).catch(() => {});
+      }
 
       // Remove from waiting list if they paid after being on it
       const wlRef = sessionRef.collection('waitingList').doc(uid);
@@ -391,8 +394,9 @@ exports.cancelAttendeeAndRefund = functions
       }
     });
 
-    // Remove session history entry
+    // Remove session history entry and decrement session count
     await db.collection('users').doc(uid).collection('sessions').doc(sessionId).delete();
+    await db.collection('users').doc(uid).update({ sessionCount: FieldValue.increment(-1) }).catch(() => {});
 
     const email   = decoded.email || attendee.email;
     const name    = attendee.name || 'there';
@@ -541,8 +545,9 @@ exports.removeAttendeeAdmin = functions
       t.update(sessionRef, { attendeeCount: FieldValue.increment(-1) });
     });
 
-    // Remove session history entry
+    // Remove session history entry and decrement session count
     await db.collection('users').doc(uid).collection('sessions').doc(sessionId).delete();
+    await db.collection('users').doc(uid).update({ sessionCount: FieldValue.increment(-1) }).catch(() => {});
 
     const venue   = session.venue || 'the session';
     const dateStr = _formatDate(session.date);

@@ -711,3 +711,53 @@ body {
   .end-diff.ok  { color: #1a7a40; }
   .end-diff.bad { color: #c0392b; }
 }
+
+/* ── Finances filters ────────────────────────────────────────────────────── */
+.fin-filters { padding: 12px 16px 0; display: flex; flex-direction: column; gap: 6px; }
+.fin-filter-row { display: flex; flex-wrap: wrap; gap: 6px; }
+
+/* ── KPI tiles ───────────────────────────────────────────────────────────── */
+.kpi-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 10px;
+  padding: 12px 16px;
+}
+.kpi-tile {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+  display: flex; flex-direction: column; gap: 4px;
+}
+.kpi-value        { font-family: var(--sport); font-size: 22px; font-weight: 700; line-height: 1; }
+.kpi-label        { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.kpi-green        { color: var(--green); }
+.kpi-red          { color: var(--red); }
+.kpi-amber        { color: var(--amber); }
+.kpi-muted        { color: var(--text); }
+
+/* ── Charts ──────────────────────────────────────────────────────────────── */
+.fin-charts { display: flex; flex-direction: column; gap: 12px; padding: 0 16px 4px; }
+.fin-chart {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 14px 16px;
+}
+.fin-chart-title {
+  font-family: var(--sport); font-size: 12px; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+  margin-bottom: 10px;
+}
+
+/* ── Stats screen ────────────────────────────────────────────────────────── */
+.stats-user-row {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 0; border-bottom: 1px solid var(--border);
+  cursor: pointer; font-size: 13px;
+}
+.stats-user-row:last-child { border-bottom: none; }
+.stats-rank  { font-family: var(--sport); font-size: 12px; font-weight: 700; color: var(--amber); min-width: 20px; }
+.stats-name  { flex: 1; }
+.stats-count { font-size: 12px; color: var(--muted); white-space: nowrap; }

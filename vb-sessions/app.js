@@ -134,6 +134,7 @@ function _updateAuthUI() {
   const newBtn       = document.getElementById('home-new-btn');
   const usersBtn     = document.getElementById('home-users-btn');
   const financesBtn  = document.getElementById('home-finances-btn');
+  const statsBtn     = document.getElementById('home-stats-btn');
   const profileBtn   = document.getElementById('home-profile-btn');
   if (_currentUser) {
     const label = _currentUser.displayName?.split(' ')[0] || _currentUser.email;
@@ -146,6 +147,7 @@ function _updateAuthUI() {
   if (newBtn)      newBtn.style.display      = _isAdmin     ? '' : 'none';
   if (usersBtn)    usersBtn.style.display    = _isAdmin     ? '' : 'none';
   if (financesBtn) financesBtn.style.display = _isAdmin     ? '' : 'none';
+  if (statsBtn)    statsBtn.style.display    = _isAdmin     ? '' : 'none';
   if (profileBtn)  profileBtn.style.display  = _currentUser ? '' : 'none';
 }
 
@@ -217,6 +219,7 @@ async function _routeFromHash() {
   if (!hash || hash === 'home') { renderHome(); return; }
   if (hash === 'users')         { if (_isAdmin) openUsersScreen();    else renderHome(); return; }
   if (hash === 'finances')      { if (_isAdmin) openFinancesScreen(); else renderHome(); return; }
+  if (hash === 'stats')         { if (_isAdmin) openStatsScreen();    else renderHome(); return; }
   const slash   = hash.indexOf('/');
   const section = slash > -1 ? hash.slice(0, slash) : hash;
   const id      = slash > -1 ? hash.slice(slash + 1) : '';
@@ -684,6 +687,9 @@ async function _doRegister(sessionId, extra = {}) {
     await _sessionRef(sessionId).update({
       attendeeCount: firebase.firestore.FieldValue.increment(1),
     });
+    _userRef(_currentUser.uid).update({
+      sessionCount: firebase.firestore.FieldValue.increment(1),
+    }).catch(() => {});
     // Write session history entry for this user
     _sessionHistoryRef(_currentUser.uid).doc(sessionId).set({
       sessionId,
@@ -2181,6 +2187,11 @@ function computeSessionFinancials(session) {
   return { revenue, coachFee, net, attendeeCount, playerPrice };
 }
 
+// ─── Finances screen ──────────────────────────────────────────────────────────
+
+let _allSessions = [];   // cached after first load
+let _finFilter   = { range: 'all', venues: [], coaches: [], levels: [] };
+
 function openFinancesScreen() {
   if (!_isAdmin) return;
   _setHash('finances');
@@ -2190,57 +2201,372 @@ function openFinancesScreen() {
 
 async function renderFinances() {
   const container = document.getElementById('finances-content');
+  if (!_allSessions.length) {
+    container.innerHTML = '<div class="home-empty">Loading…</div>';
+    try {
+      const snap = await _sessionsRef().orderBy('date', 'desc').get();
+      _allSessions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch(e) {
+      container.innerHTML = '<div class="home-empty">Couldn\'t load finances.</div>';
+      console.error(e); return;
+    }
+  }
+  if (!_allSessions.length) {
+    container.innerHTML = '<div class="home-empty">No sessions yet.</div>'; return;
+  }
+  _renderFinancesUI(container);
+}
+
+function _applyFinFilter(sessions) {
+  const now  = new Date();
+  const cut  = { '30d': 30, '3m': 90, 'year': 365 }[_finFilter.range];
+  return sessions.filter(s => {
+    if (cut) {
+      const d = s.date?.toDate ? s.date.toDate() : new Date(s.date);
+      if ((now - d) / 86400000 > cut) return false;
+    }
+    if (_finFilter.venues.length  && !_finFilter.venues.includes(s.venue  || '')) return false;
+    if (_finFilter.coaches.length && !_finFilter.coaches.includes(s.coach || '')) return false;
+    if (_finFilter.levels.length  && !_finFilter.levels.includes(s.level  || '')) return false;
+    return true;
+  });
+}
+
+function setFinFilter(key, value) {
+  if (key === 'range') {
+    _finFilter.range = value;
+  } else {
+    const arr = _finFilter[key];
+    const i   = arr.indexOf(value);
+    if (i > -1) arr.splice(i, 1); else arr.push(value);
+  }
+  _renderFinancesUI(document.getElementById('finances-content'));
+}
+
+function _renderFinancesUI(container) {
+  const closed  = _allSessions.filter(s => s.status === 'closed');
+  const visible = _applyFinFilter(closed);
+  const fmt     = n => `£${n.toFixed(2)}`;
+
+  // KPIs
+  let totalRevenue = 0, totalCosts = 0, totalAttendees = 0, totalCapacity = 0;
+  visible.forEach(s => {
+    const f = computeSessionFinancials(s);
+    totalRevenue   += f.revenue;
+    totalCosts     += f.coachFee;
+    totalAttendees += f.attendeeCount;
+    totalCapacity  += (s.maxPlayers || 0);
+  });
+  const totalNet     = totalRevenue - totalCosts;
+  const avgAttend    = visible.length ? (totalAttendees / visible.length).toFixed(1) : '—';
+  const avgNet       = visible.length ? fmt(totalNet / visible.length) : '—';
+  const fillRate     = totalCapacity  ? Math.round(totalAttendees / totalCapacity * 100) + '%' : '—';
+
+  // Distinct values for filter dropdowns
+  const venues  = [...new Set(_allSessions.map(s => s.venue  || '').filter(Boolean))].sort();
+  const coaches = [...new Set(_allSessions.map(s => s.coach  || '').filter(Boolean))].sort();
+  const levels  = [...new Set(_allSessions.map(s => s.level  || '').filter(Boolean))].sort();
+
+  const rangeBtn = r => {
+    const labels = { '30d': '30 days', '3m': '3 months', 'year': 'This year', 'all': 'All time' };
+    const active = _finFilter.range === r ? ' active' : '';
+    return `<button class="filter-btn${active}" onclick="setFinFilter('range','${r}')">${labels[r]}</button>`;
+  };
+  const multiBtn = (key, val) => {
+    const active = _finFilter[key].includes(val) ? ' active' : '';
+    return `<button class="filter-btn${active}" onclick="setFinFilter('${key}','${esc(val)}')">${esc(val)}</button>`;
+  };
+
+  const filterBar = `
+    <div class="fin-filters">
+      <div class="fin-filter-row">
+        ${['30d','3m','year','all'].map(rangeBtn).join('')}
+      </div>
+      ${venues.length  > 1 ? `<div class="fin-filter-row">${venues.map(v  => multiBtn('venues',  v)).join('')}</div>` : ''}
+      ${coaches.length > 1 ? `<div class="fin-filter-row">${coaches.map(c => multiBtn('coaches', c)).join('')}</div>` : ''}
+      ${levels.length  > 1 ? `<div class="fin-filter-row">${levels.map(l  => multiBtn('levels',  l)).join('')}</div>` : ''}
+    </div>`;
+
+  const kpiTiles = `
+    <div class="kpi-tiles">
+      ${_kpi('Revenue',       fmt(totalRevenue), 'green')}
+      ${_kpi('Costs',         fmt(totalCosts),   'red')}
+      ${_kpi('Net income',    fmt(totalNet),      totalNet >= 0 ? 'green' : 'red')}
+      ${_kpi('Sessions',      visible.length,    'muted')}
+      ${_kpi('Avg players',   avgAttend,         'muted')}
+      ${_kpi('Avg net',       avgNet,            'muted')}
+      ${_kpi('Fill rate',     fillRate,          'amber')}
+    </div>`;
+
+  // Charts
+  const revenueChart  = _chartRevenue(visible);
+  const fillChart     = _chartFill(visible);
+  const venueChart    = _chartVenue(visible);
+
+  // Table rows
+  const rows = visible.map(s => {
+    const { revenue, coachFee, net, attendeeCount, playerPrice } = computeSessionFinancials(s);
+    return `<tr>
+      <td>${esc(_formatDate(s.date))}</td>
+      <td>${esc(s.venue || '—')}</td>
+      <td class="fin-num">${attendeeCount}</td>
+      <td class="fin-num">${playerPrice > 0 ? fmt(playerPrice) : 'Free'}</td>
+      <td class="fin-num">${fmt(revenue)}</td>
+      <td class="fin-num">${coachFee > 0 ? fmt(coachFee) : '—'}</td>
+      <td class="fin-num ${net < 0 ? 'fin-neg' : 'fin-pos'}">${fmt(net)}</td>
+    </tr>`;
+  }).join('');
+
+  container.innerHTML = `
+    ${filterBar}
+    ${kpiTiles}
+    <div class="fin-charts">
+      ${revenueChart}
+      ${visible.length > 1 ? fillChart : ''}
+      ${venues.length > 1 ? venueChart : ''}
+    </div>
+    <div class="finances-table-wrap">
+      <table class="finances-table">
+        <thead>
+          <tr>
+            <th>Date</th><th>Venue</th><th class="fin-num">Players</th>
+            <th class="fin-num">Price</th><th class="fin-num">Revenue</th>
+            <th class="fin-num">Coach fee</th><th class="fin-num">Net</th>
+          </tr>
+        </thead>
+        <tbody>${rows || '<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:20px">No sessions match this filter</td></tr>'}</tbody>
+        ${visible.length ? `<tfoot>
+          <tr class="fin-total">
+            <td colspan="4">Total (${visible.length} sessions)</td>
+            <td class="fin-num">${fmt(totalRevenue)}</td>
+            <td class="fin-num">${fmt(totalCosts)}</td>
+            <td class="fin-num ${totalNet < 0 ? 'fin-neg' : 'fin-pos'}">${fmt(totalNet)}</td>
+          </tr>
+        </tfoot>` : ''}
+      </table>
+    </div>`;
+}
+
+function _kpi(label, value, color) {
+  return `<div class="kpi-tile">
+    <div class="kpi-value kpi-${color}">${value}</div>
+    <div class="kpi-label">${label}</div>
+  </div>`;
+}
+
+// ─── Inline SVG charts ────────────────────────────────────────────────────────
+
+function _chartRevenue(sessions) {
+  if (sessions.length < 2) return '';
+  // Group by month
+  const byMonth = {};
+  sessions.forEach(s => {
+    const d   = s.date?.toDate ? s.date.toDate() : new Date(s.date);
+    const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
+    if (!byMonth[key]) byMonth[key] = { revenue: 0, costs: 0 };
+    const f = computeSessionFinancials(s);
+    byMonth[key].revenue += f.revenue;
+    byMonth[key].costs   += f.coachFee;
+  });
+  const months = Object.keys(byMonth).sort();
+  if (months.length < 2) return '';
+
+  const W = 400, H = 120, PAD = { t: 10, r: 10, b: 30, l: 44 };
+  const cw = W - PAD.l - PAD.r, ch = H - PAD.t - PAD.b;
+  const maxVal = Math.max(...months.map(m => byMonth[m].revenue), 1);
+  const x  = i  => PAD.l + (i / (months.length - 1)) * cw;
+  const yr = m  => PAD.t + ch - (byMonth[m].revenue / maxVal) * ch;
+  const yc = m  => PAD.t + ch - (byMonth[m].costs   / maxVal) * ch;
+  const yn = m  => PAD.t + ch - (Math.max(0, byMonth[m].revenue - byMonth[m].costs) / maxVal) * ch;
+
+  const line = (pts, color) =>
+    `<polyline points="${pts}" fill="none" stroke="${color}" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>`;
+
+  const revPts  = months.map((m,i) => `${x(i)},${yr(m)}`).join(' ');
+  const costPts = months.map((m,i) => `${x(i)},${yc(m)}`).join(' ');
+  const netPts  = months.map((m,i) => `${x(i)},${yn(m)}`).join(' ');
+
+  const yTick = v => {
+    const yy = PAD.t + ch - (v / maxVal) * ch;
+    return `<line x1="${PAD.l-4}" y1="${yy}" x2="${PAD.l}" y2="${yy}" stroke="var(--border2)"/>
+            <text x="${PAD.l-6}" y="${yy+4}" text-anchor="end" fill="var(--muted)" font-size="9">£${v}</text>`;
+  };
+  const ticks = [0, Math.round(maxVal/2), Math.round(maxVal)].map(yTick).join('');
+  const xLabels = months.map((m, i) => {
+    const [y, mo] = m.split('-');
+    const label   = new Date(+y, +mo-1).toLocaleString('en-GB', { month: 'short' });
+    return `<text x="${x(i)}" y="${H-6}" text-anchor="middle" fill="var(--muted)" font-size="9">${label}</text>`;
+  }).join('');
+
+  const legend = `
+    <text x="${W-10}" y="18" text-anchor="end" fill="var(--green)"  font-size="9">Revenue</text>
+    <text x="${W-10}" y="30" text-anchor="end" fill="var(--red)"    font-size="9">Costs</text>
+    <text x="${W-10}" y="42" text-anchor="end" fill="var(--amber)"  font-size="9">Net</text>`;
+
+  return `<div class="fin-chart">
+    <div class="fin-chart-title">Revenue over time</div>
+    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" style="width:100%;height:auto">
+      <line x1="${PAD.l}" y1="${PAD.t}" x2="${PAD.l}" y2="${PAD.t+ch}" stroke="var(--border2)"/>
+      <line x1="${PAD.l}" y1="${PAD.t+ch}" x2="${PAD.l+cw}" y2="${PAD.t+ch}" stroke="var(--border2)"/>
+      ${ticks}${xLabels}
+      ${line(revPts, 'var(--green)')}
+      ${line(costPts,'var(--red)')}
+      ${line(netPts, 'var(--amber)')}
+      ${legend}
+    </svg>
+  </div>`;
+}
+
+function _chartFill(sessions) {
+  // Last 20 sessions, bar = fill rate (attendeeCount / maxPlayers)
+  const data = sessions
+    .filter(s => s.maxPlayers > 0)
+    .slice(0, 20)
+    .reverse();
+  if (data.length < 2) return '';
+
+  const W = 400, H = 100, PAD = { t: 8, r: 10, b: 24, l: 36 };
+  const cw = W - PAD.l - PAD.r, ch = H - PAD.t - PAD.b;
+  const bw = Math.max(2, Math.floor(cw / data.length) - 2);
+
+  const bars = data.map((s, i) => {
+    const rate  = Math.min(1, (s.attendeeCount || 0) / s.maxPlayers);
+    const bh    = Math.max(2, rate * ch);
+    const bx    = PAD.l + (i / data.length) * cw + (cw / data.length - bw) / 2;
+    const by    = PAD.t + ch - bh;
+    const color = rate >= 0.8 ? 'var(--green)' : rate >= 0.5 ? 'var(--amber)' : 'var(--red)';
+    return `<rect x="${bx.toFixed(1)}" y="${by.toFixed(1)}" width="${bw}" height="${bh.toFixed(1)}" rx="2" fill="${color}" opacity="0.85"/>`;
+  }).join('');
+
+  const yLine = (pct, label) => {
+    const yy = PAD.t + ch - pct * ch;
+    return `<line x1="${PAD.l}" y1="${yy}" x2="${PAD.l+cw}" y2="${yy}" stroke="var(--border)" stroke-dasharray="3,3"/>
+            <text x="${PAD.l-4}" y="${yy+4}" text-anchor="end" fill="var(--muted)" font-size="9">${label}</text>`;
+  };
+
+  return `<div class="fin-chart">
+    <div class="fin-chart-title">Session fill rate (last ${data.length})</div>
+    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" style="width:100%;height:auto">
+      ${yLine(1, '100%')}${yLine(0.5, '50%')}
+      <line x1="${PAD.l}" y1="${PAD.t}" x2="${PAD.l}" y2="${PAD.t+ch}" stroke="var(--border2)"/>
+      <line x1="${PAD.l}" y1="${PAD.t+ch}" x2="${PAD.l+cw}" y2="${PAD.t+ch}" stroke="var(--border2)"/>
+      ${bars}
+    </svg>
+  </div>`;
+}
+
+function _chartVenue(sessions) {
+  const byVenue = {};
+  sessions.forEach(s => {
+    const v = s.venue || 'Unknown';
+    if (!byVenue[v]) byVenue[v] = 0;
+    byVenue[v] += computeSessionFinancials(s).revenue;
+  });
+  const entries = Object.entries(byVenue).sort((a,b) => b[1]-a[1]).slice(0, 6);
+  if (entries.length < 2) return '';
+
+  const W = 400, H = entries.length * 28 + 20, PAD = { t: 6, r: 10, b: 10, l: 110 };
+  const cw = W - PAD.l - PAD.r;
+  const maxVal = entries[0][1] || 1;
+
+  const bars = entries.map(([venue, rev], i) => {
+    const bw = Math.max(2, (rev / maxVal) * cw);
+    const by = PAD.t + i * 28;
+    return `
+      <text x="${PAD.l-6}" y="${by+14}" text-anchor="end" fill="var(--muted)" font-size="10" dominant-baseline="middle">${esc(venue.slice(0,14))}</text>
+      <rect x="${PAD.l}" y="${by+4}" width="${bw.toFixed(1)}" height="18" rx="3" fill="var(--amber)" opacity="0.75"/>
+      <text x="${PAD.l + bw + 4}" y="${by+14}" fill="var(--text)" font-size="9" dominant-baseline="middle">£${rev.toFixed(0)}</text>`;
+  }).join('');
+
+  return `<div class="fin-chart">
+    <div class="fin-chart-title">Revenue by venue</div>
+    <svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="xMidYMid meet" style="width:100%;height:auto">
+      ${bars}
+    </svg>
+  </div>`;
+}
+
+// ─── Stats screen ─────────────────────────────────────────────────────────────
+
+function openStatsScreen() {
+  if (!_isAdmin) return;
+  _setHash('stats');
+  showScreen('stats');
+  renderStats();
+}
+
+async function renderStats() {
+  const container = document.getElementById('stats-content');
   container.innerHTML = '<div class="home-empty">Loading…</div>';
   try {
-    const snap     = await _sessionsRef().orderBy('date', 'desc').get();
-    const sessions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
-    if (!sessions.length) {
-      container.innerHTML = '<div class="home-empty">No sessions yet.</div>';
-      return;
+    if (!_allSessions.length) {
+      const snap = await _sessionsRef().orderBy('date', 'desc').get();
+      _allSessions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     }
+    const usersSnap = await getDb().collection('users').orderBy('sessionCount', 'desc').limit(20).get();
+    const topUsers  = usersSnap.docs.map(d => ({ id: d.id, ...d.data() }));
 
-    let totalRevenue = 0, totalCoach = 0, totalNet = 0;
-    const rows = sessions.map(s => {
-      const { revenue, coachFee, net, attendeeCount, playerPrice } = computeSessionFinancials(s);
-      totalRevenue += revenue;
-      totalCoach   += coachFee;
-      totalNet     += net;
-      const fmt = n => `£${n.toFixed(2)}`;
-      return `<tr>
-        <td>${esc(_formatDate(s.date))}</td>
-        <td>${esc(s.venue || '—')}</td>
-        <td class="fin-num">${attendeeCount}</td>
-        <td class="fin-num">${playerPrice > 0 ? fmt(playerPrice) : 'Free'}</td>
-        <td class="fin-num">${fmt(revenue)}</td>
-        <td class="fin-num">${coachFee > 0 ? fmt(coachFee) : '—'}</td>
-        <td class="fin-num ${net < 0 ? 'fin-neg' : 'fin-pos'}">${fmt(net)}</td>
-      </tr>`;
-    }).join('');
+    const closed = _allSessions.filter(s => s.status === 'closed');
 
-    const fmt = n => `£${n.toFixed(2)}`;
+    // Fill rate trend (last 12 closed sessions with capacity)
+    const fillData = closed.filter(s => s.maxPlayers > 0).slice(0, 12).reverse();
+
+    // No-show rate from reports
+    let totalPresent = 0, totalRegistered = 0;
+    closed.forEach(s => {
+      const att = s.report?.attendance;
+      if (att) { totalPresent += att.present || 0; totalRegistered += att.registered || 0; }
+    });
+    const noShowRate = totalRegistered > 0
+      ? Math.round((1 - totalPresent / totalRegistered) * 100) + '%'
+      : '—';
+
+    // Sessions by level
+    const byLevel = {};
+    closed.forEach(s => { const l = s.level || 'unset'; byLevel[l] = (byLevel[l] || 0) + 1; });
+
+    const topUsersHtml = topUsers.length ? `
+      <div class="detail-section">
+        <div class="detail-section-title">Top attendees</div>
+        ${topUsers.map((u, i) => `
+          <div class="stats-user-row" onclick="openProfileScreen('${u.id}')">
+            <span class="stats-rank">${i+1}</span>
+            <span class="stats-name">${esc(u.displayName || u.email || 'Unknown')}</span>
+            <span class="stats-count">${u.sessionCount || 0} sessions</span>
+          </div>`).join('')}
+      </div>` : '';
+
+    const fillChartHtml = fillData.length > 1 ? `
+      <div class="detail-section">
+        <div class="detail-section-title">Fill rate trend</div>
+        ${_chartFill(fillData)}
+      </div>` : '';
+
+    const levelRows = Object.entries(byLevel)
+      .sort((a,b) => b[1]-a[1])
+      .map(([l,n]) => `<div class="history-row">
+        <span class="history-venue">${esc(l)}</span>
+        <span class="history-cost">${n} session${n!==1?'s':''}</span>
+      </div>`).join('');
+
     container.innerHTML = `
-      <div class="finances-table-wrap">
-        <table class="finances-table">
-          <thead>
-            <tr>
-              <th>Date</th><th>Venue</th><th class="fin-num">Players</th>
-              <th class="fin-num">Price</th><th class="fin-num">Revenue</th>
-              <th class="fin-num">Coach fee</th><th class="fin-num">Net</th>
-            </tr>
-          </thead>
-          <tbody>${rows}</tbody>
-          <tfoot>
-            <tr class="fin-total">
-              <td colspan="4">Total (${sessions.length} sessions)</td>
-              <td class="fin-num">${fmt(totalRevenue)}</td>
-              <td class="fin-num">${fmt(totalCoach)}</td>
-              <td class="fin-num ${totalNet < 0 ? 'fin-neg' : 'fin-pos'}">${fmt(totalNet)}</td>
-            </tr>
-          </tfoot>
-        </table>
+      <div class="kpi-tiles" style="padding:16px 16px 0">
+        ${_kpi('Closed sessions', closed.length, 'muted')}
+        ${_kpi('No-show rate', noShowRate, 'amber')}
+        ${_kpi('Avg fill', closed.filter(s=>s.maxPlayers>0).length
+            ? Math.round(closed.filter(s=>s.maxPlayers>0).reduce((a,s)=>a+(s.attendeeCount||0)/s.maxPlayers,0)/closed.filter(s=>s.maxPlayers>0).length*100)+'%'
+            : '—', 'green')}
+      </div>
+      <div style="padding:16px;display:flex;flex-direction:column;gap:16px">
+        ${topUsersHtml}
+        ${fillChartHtml}
+        ${levelRows ? `<div class="detail-section">
+          <div class="detail-section-title">Sessions by level</div>
+          ${levelRows}
+        </div>` : ''}
       </div>`;
   } catch(e) {
-    container.innerHTML = '<div class="home-empty">Couldn\'t load finances.</div>';
+    container.innerHTML = '<div class="home-empty">Couldn\'t load stats.</div>';
     console.error(e);
   }
 }
