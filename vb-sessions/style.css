@@ -38,35 +38,14 @@ body {
 .screen { display: none; flex-direction: column; min-height: 100dvh; padding-top: var(--header-h); }
 .screen.active { display: flex; }
 
-/* ─── Global header ──────────────────────────────────────────────────────── */
+/* ─── Global header (sessions-specific: fixed position) ─────────────────── */
 #app-header {
   position: fixed; top: 0; left: 0; right: 0;
   background: var(--bg);
   border-bottom: 1px solid var(--border);
   z-index: 20;
 }
-.topbar-row {
-  display: flex; align-items: center;
-  padding: 0 20px; height: 54px; gap: 10px;
-}
-.topbar-left  { display: flex; align-items: center; gap: 10px; }
-.topbar-right { margin-left: auto; display: flex; align-items: center; gap: 8px; }
-
-.nav-home {
-  font-family: var(--sport); font-size: 13px; font-weight: 800;
-  letter-spacing: .16em; text-transform: uppercase;
-  color: var(--amber); text-decoration: none; flex-shrink: 0;
-}
-.nav-back {
-  background: none; border: none; cursor: pointer;
-  color: var(--muted); font-size: 20px; line-height: 1;
-  padding: 4px 2px; transition: color .15s;
-}
-.nav-back:hover { color: var(--text); }
-.nav-screen-title {
-  font-family: var(--sport); font-size: 13px; font-weight: 700;
-  letter-spacing: .06em; text-transform: uppercase; color: var(--muted);
-}
+/* .topbar-row / .nav-home / .nav-back / .nav-screen-title → shared.css */
 
 .nav-tabs-row {
   display: flex; border-top: 1px solid var(--border); height: 40px;

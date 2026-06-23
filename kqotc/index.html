@@ -12,6 +12,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="./style.css" />
+  <link rel="stylesheet" href="../shared.css" />
   <link rel="apple-touch-icon" href="icons/icon-192.png" />
 </head>
 <body>
@@ -21,19 +22,17 @@
 ══════════════════════════════════════════════════ -->
 <div class="screen active" id="screen-home">
 
-  <header class="app-header">
-    <div class="logo">
-      <svg viewBox="0 0 24 24" fill="none" stroke="#0f1117" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M3 20h18"/>
-        <path d="M5 20 3 11l5 3.5L12 6l4 8.5L21 11l-2 9"/>
-      </svg>
+  <div class="app-topbar">
+    <div class="topbar-row">
+      <div class="topbar-left">
+        <a class="nav-home" href="../">Roots</a>
+        <span class="nav-screen-title">KQOTC</span>
+      </div>
+      <div class="topbar-right">
+        <button class="auth-btn" id="auth-btn" onclick="handleAuthClick()">Sign in</button>
+      </div>
     </div>
-    <div>
-      <h1>KQOTC</h1>
-      <div class="subtitle">King / Queen of the Court</div>
-    </div>
-    <button class="auth-btn" id="auth-btn" onclick="handleAuthClick()">Sign in</button>
-  </header>
+  </div>
 
   <div class="home-content" id="home-content">
     <div class="home-empty">Loading…</div>
@@ -42,6 +41,13 @@
   <div class="footer">
     <button class="cta-btn" id="home-new-event-btn" onclick="showCreateForm()" style="display:none">+ New event</button>
   </div>
+  <footer class="roots-footer">
+    <a class="roots-footer-link" href="../">Roots</a>
+    <span class="roots-footer-dot">·</span>
+    <span class="roots-footer-link dim">About</span>
+    <span class="roots-footer-dot">·</span>
+    <span class="roots-footer-link dim">Policy</span>
+  </footer>
 
   <!-- Create event slide-up panel -->
   <div class="qr-overlay" id="create-overlay">
@@ -67,19 +73,15 @@
 ══════════════════════════════════════════════════ -->
 <div class="screen" id="screen-checkin">
 
-  <header class="app-header">
-    <div class="logo">
-      <svg viewBox="0 0 24 24" fill="none" stroke="#0f1117" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M3 20h18"/>
-        <path d="M5 20 3 11l5 3.5L12 6l4 8.5L21 11l-2 9"/>
-      </svg>
+  <div class="app-topbar">
+    <div class="topbar-row">
+      <div class="topbar-left">
+        <a class="nav-home" href="../">Roots</a>
+        <button class="nav-back" onclick="goHome()">←</button>
+        <span class="nav-screen-title" id="checkin-tournament-name"></span>
+      </div>
     </div>
-    <div>
-      <h1>KQOTC</h1>
-      <div class="subtitle" id="checkin-tournament-name"></div>
-    </div>
-    <button class="back-btn" onclick="goHome()">← Events</button>
-  </header>
+  </div>
 
   <div class="checkin-content">
 
@@ -125,6 +127,13 @@
     </div>
     <button class="cta-btn" id="start-btn" onclick="startEvent()" style="display:none" disabled>Start event</button>
   </div>
+  <footer class="roots-footer">
+    <a class="roots-footer-link" href="../">Roots</a>
+    <span class="roots-footer-dot">·</span>
+    <span class="roots-footer-link dim">About</span>
+    <span class="roots-footer-dot">·</span>
+    <span class="roots-footer-link dim">Policy</span>
+  </footer>
 
   <!-- QR check-in overlay -->
   <div class="qr-overlay" id="qr-overlay">
@@ -152,20 +161,21 @@
 ══════════════════════════════════════════════════ -->
 <div class="screen" id="screen-round">
 
-  <header class="app-header">
-    <div class="logo">
-      <svg viewBox="0 0 24 24" fill="none" stroke="#0f1117" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M3 20h18"/>
-        <path d="M5 20 3 11l5 3.5L12 6l4 8.5L21 11l-2 9"/>
-      </svg>
+  <div class="app-topbar">
+    <div class="topbar-row">
+      <div class="topbar-left">
+        <a class="nav-home" href="../">Roots</a>
+        <button class="nav-back" onclick="goHome()">←</button>
+        <div>
+          <div class="nav-screen-title" id="round-title">Round 1</div>
+          <div class="nav-subtitle" id="round-subtitle"></div>
+        </div>
+      </div>
+      <div class="topbar-right">
+        <button class="end-event-btn" onclick="endEvent()">End event</button>
+      </div>
     </div>
-    <div>
-      <h1 id="round-title">Round 1</h1>
-      <div class="subtitle" id="round-subtitle"></div>
-    </div>
-    <button class="back-btn" onclick="goHome()">← Events</button>
-    <button class="end-event-btn" onclick="endEvent()">End event</button>
-  </header>
+  </div>
 
   <div class="round-content" id="round-content"></div>
 
@@ -177,6 +187,13 @@
   <div class="footer">
     <button class="cta-btn" onclick="endRound()">End round →</button>
   </div>
+  <footer class="roots-footer">
+    <a class="roots-footer-link" href="../">Roots</a>
+    <span class="roots-footer-dot">·</span>
+    <span class="roots-footer-link dim">About</span>
+    <span class="roots-footer-dot">·</span>
+    <span class="roots-footer-link dim">Policy</span>
+  </footer>
 </div>
 
 
@@ -185,19 +202,15 @@
 ══════════════════════════════════════════════════ -->
 <div class="screen" id="screen-transition">
 
-  <header class="app-header">
-    <div class="logo">
-      <svg viewBox="0 0 24 24" fill="none" stroke="#0f1117" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M3 20h18"/>
-        <path d="M5 20 3 11l5 3.5L12 6l4 8.5L21 11l-2 9"/>
-      </svg>
+  <div class="app-topbar">
+    <div class="topbar-row">
+      <div class="topbar-left">
+        <a class="nav-home" href="../">Roots</a>
+        <button class="nav-back" onclick="goHome()">←</button>
+        <span class="nav-screen-title" id="transition-title">Round 1 done</span>
+      </div>
     </div>
-    <div>
-      <h1 id="transition-title">Round 1 done</h1>
-      <div class="subtitle">Review and start next round</div>
-    </div>
-    <button class="back-btn" onclick="goHome()">← Events</button>
-  </header>
+  </div>
 
   <div class="round-content" id="transition-content"></div>
 
@@ -208,6 +221,13 @@
     </div>
     <button class="end-tourney-btn" onclick="endEvent()">End tournament &amp; see results</button>
   </div>
+  <footer class="roots-footer">
+    <a class="roots-footer-link" href="../">Roots</a>
+    <span class="roots-footer-dot">·</span>
+    <span class="roots-footer-link dim">About</span>
+    <span class="roots-footer-dot">·</span>
+    <span class="roots-footer-link dim">Policy</span>
+  </footer>
 </div>
 
 
@@ -216,21 +236,24 @@
 ══════════════════════════════════════════════════ -->
 <div class="screen" id="screen-leaderboard">
 
-  <header class="app-header">
-    <div class="logo">
-      <svg viewBox="0 0 24 24" fill="none" stroke="#0f1117" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M3 20h18"/>
-        <path d="M5 20 3 11l5 3.5L12 6l4 8.5L21 11l-2 9"/>
-      </svg>
+  <div class="app-topbar">
+    <div class="topbar-row">
+      <div class="topbar-left">
+        <a class="nav-home" href="../">Roots</a>
+        <button class="nav-back" onclick="goHome()">←</button>
+        <span class="nav-screen-title">Results</span>
+      </div>
     </div>
-    <div>
-      <h1>Results</h1>
-      <div class="subtitle">Final leaderboard</div>
-    </div>
-    <button class="back-btn" onclick="goHome()">← Events</button>
-  </header>
+  </div>
 
   <div class="round-content" id="leaderboard-content"></div>
+  <footer class="roots-footer">
+    <a class="roots-footer-link" href="../">Roots</a>
+    <span class="roots-footer-dot">·</span>
+    <span class="roots-footer-link dim">About</span>
+    <span class="roots-footer-dot">·</span>
+    <span class="roots-footer-link dim">Policy</span>
+  </footer>
 
 </div>
 
