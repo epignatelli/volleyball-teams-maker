@@ -282,6 +282,9 @@ getAuth().onAuthStateChanged(async user => {
   }
 });
 
+// Browser back/forward → route within the app instead of exiting
+window.addEventListener('popstate', () => { _routeFromHash(); });
+
 // ─── Helpers ───────────────────────────────────────────────────────────────────
 function esc(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -304,7 +307,9 @@ function showScreen(id) {
 }
 
 function _setHash(hash) {
-  history.replaceState(null, '', '#' + hash);
+  const next = '#' + hash;
+  if (location.hash === next) return; // already here — avoid duplicate history entry
+  history.pushState(null, '', next);
 }
 
 async function _routeFromHash() {
