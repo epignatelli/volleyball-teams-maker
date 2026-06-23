@@ -297,7 +297,7 @@ function showScreen(id) {
   if (!screen.querySelector('.roots-footer')) {
     screen.insertAdjacentHTML('beforeend',
       `<footer class="roots-footer">
-        <a class="roots-footer-link" href="/">Roots</a>
+        <a class="roots-footer-link" href="../">Roots</a>
         <span class="roots-footer-dot">·</span>
         <span class="roots-footer-link dim">About</span>
         <span class="roots-footer-dot">·</span>
