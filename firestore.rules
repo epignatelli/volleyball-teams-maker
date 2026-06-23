@@ -84,6 +84,12 @@ service cloud.firestore {
                                    'gender','positions','coachRequest','adminRequest'
                                  ])));
       allow delete: if isAdmin();
+
+      match /sessions/{sessionId} {
+        allow read:   if request.auth != null && (request.auth.uid == uid || isAdmin());
+        allow write:  if request.auth != null && request.auth.uid == uid;
+        allow delete: if request.auth != null && (request.auth.uid == uid || isAdmin());
+      }
     }
   }
 }

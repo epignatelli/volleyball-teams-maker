@@ -683,3 +683,31 @@ body {
 .profile-actions {
   display: flex; flex-direction: column; gap: 10px; margin-top: 4px;
 }
+
+/* ── Session / coach payment history rows ────────────────────────────────── */
+.profile-history-list { display: flex; flex-direction: column; gap: 4px; }
+.history-row {
+  display: flex; align-items: center; gap: 10px;
+  font-size: 13px; padding: 6px 0;
+  border-bottom: 1px solid var(--border);
+}
+.history-row:last-child { border-bottom: none; }
+.history-date   { font-family: var(--sport); font-size: 12px; font-weight: 700; color: var(--amber); flex-shrink: 0; min-width: 80px; }
+.history-venue  { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.history-cost   { font-size: 12px; color: var(--muted); flex-shrink: 0; }
+.history-status { font-size: 11px; color: var(--muted); flex-shrink: 0; }
+
+/* ── Print styles (session report) ──────────────────────────────────────── */
+@media print {
+  .app-header, .footer, .back-btn, .nav-btn, .auth-btn { display: none !important; }
+  body { background: #fff; color: #000; }
+  .screen { display: block !important; min-height: unset; }
+  .screen:not(.active) { display: none !important; }
+  #screen-session-end .detail-content, #screen-session-end .end-content { overflow: visible; }
+  .run-section { break-inside: avoid; background: #fff; border: 1px solid #ccc; }
+  .run-section-title { color: #444; }
+  .report-row, .report-equip-row, .detail-meta-row { color: #000; }
+  .detail-meta-label { color: #555; }
+  .end-diff.ok  { color: #1a7a40; }
+  .end-diff.bad { color: #c0392b; }
+}

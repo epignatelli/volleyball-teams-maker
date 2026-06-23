@@ -11,6 +11,7 @@ let _pendingJoinSessionId   = null;   // session to join after sign-in completes
 let _pendingProfileNeeds    = {};     // { needsGender, needsPositions } for profile overlay
 let _editingAttendeeSession = null;   // sessionId when editing own attendee entry (positions)
 let _currentSession         = null;   // session data for the open detail panel
+let _currentAttendees       = [];     // attendee list for the open session (used for CSV export)
 
 // Handle return from Stripe Checkout before Firebase initialises.
 // Stripe appends ?checkout=success|cancelled&session=ID to the success/cancel URLs.
@@ -58,7 +59,8 @@ async function callFn(name, body) {
 
 function _sessionsRef()           { return getDb().collection('sessions'); }
 function _sessionRef(id)          { return _sessionsRef().doc(id); }
-function _attendeesRef(sessionId) { return _sessionRef(sessionId).collection('attendees'); }
+function _attendeesRef(sessionId)    { return _sessionRef(sessionId).collection('attendees'); }
+function _sessionHistoryRef(uid)     { return _userRef(uid).collection('sessions'); }
 function _usersRef()              { return getDb().collection('users'); }
 function _userRef(uid)            { return _usersRef().doc(uid); }
 
@@ -430,8 +432,9 @@ async function openSession(id) {
         _attendeesRef(id).orderBy('joinedAt', 'asc').get(),
         wlRef.doc(_currentUser.uid).get(),
       ]);
-      attendees   = attendeesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
-      isAttending = attendees.some(a => a.id === _currentUser.uid);
+      attendees         = attendeesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      _currentAttendees = attendees;
+      isAttending       = attendees.some(a => a.id === _currentUser.uid);
 
       try {
         const wlSnap = await wlRef.orderBy('joinedAt', 'asc').get();
@@ -563,12 +566,15 @@ function _renderDetail(session, attendees, isAttending, waitingList, myWaitingLi
     : '';
 
   if (isClosed) {
-    const coachPayBtn = _isAdmin && session.coach && session.coachFee > 0
-      ? _coachPayCtaBtn(session) : '';
+    const coachPayBtn  = _isAdmin && session.coach && session.coachFee > 0 ? _coachPayCtaBtn(session) : '';
+    const exportCsvBtn = _isAdmin
+      ? `<button class="cta-btn secondary-btn" onclick="exportAttendeesCsv('${session.id}')">⬇ Export attendees</button>`
+      : '';
     footer.innerHTML = `
       <button class="cta-btn" disabled>Session closed</button>
       ${canStart && session.report ? `<button class="cta-btn secondary-btn" onclick="openSessionEndReport('${session.id}')">View report</button>` : ''}
       ${_isAdmin ? coachPayBtn : ''}
+      ${exportCsvBtn}
       ${msgBtn}`;
   } else if (isCancelled) {
     footer.innerHTML = `<button class="cta-btn" disabled>Session cancelled</button>`;
@@ -579,9 +585,13 @@ function _renderDetail(session, attendees, isAttending, waitingList, myWaitingLi
            <button class="cta-btn secondary-btn" onclick="register('${session.id}')">Pay and join →</button>`
         : `<button class="cta-btn secondary-btn" onclick="register('${session.id}')">Join →</button>`
       : '';
+    const exportCsvBtn = _isAdmin
+      ? `<button class="cta-btn secondary-btn" onclick="exportAttendeesCsv('${session.id}')">⬇ Export attendees</button>`
+      : '';
     footer.innerHTML = `
       <button class="cta-btn" onclick="openSessionRun('${session.id}')">▶ Start session</button>
       ${isAttending ? `<button class="cta-btn secondary-btn" onclick="cancelRegistration('${session.id}')">${cancelLabel}</button>` : joinBtn}
+      ${exportCsvBtn}
       ${msgBtn}`;
   } else if (isAttending) {
     footer.innerHTML = `<button class="cta-btn secondary-btn" onclick="cancelRegistration('${session.id}')">${cancelLabel}</button>${msgBtn}`;
@@ -674,6 +684,17 @@ async function _doRegister(sessionId, extra = {}) {
     await _sessionRef(sessionId).update({
       attendeeCount: firebase.firestore.FieldValue.increment(1),
     });
+    // Write session history entry for this user
+    _sessionHistoryRef(_currentUser.uid).doc(sessionId).set({
+      sessionId,
+      date:      session.date   || null,
+      venue:     session.venue  || '',
+      level:     session.level  || '',
+      cost:      0,
+      paid:      false,
+      feeWaived: !!extra.feeWaived,
+      joinedAt:  firebase.firestore.FieldValue.serverTimestamp(),
+    }).catch(() => {});
     await openSession(sessionId);
   } catch(e) {
     console.error('Register failed:', e);
@@ -1041,6 +1062,57 @@ async function openProfileScreen(uid) {
           </button>` : ''}
       </div>` : '';
 
+    // Fetch session history and (for coaches) payment history in parallel
+    const [historySnap, coachSessionsSnap] = await Promise.all([
+      (isOwn || _isAdmin)
+        ? _sessionHistoryRef(targetUid).orderBy('date', 'desc').limit(25).get()
+        : Promise.resolve(null),
+      (hasCoach || roles.includes('admin') || roles.includes('owner')) && _isAdmin
+        ? _sessionsRef().where('coachUid', '==', targetUid).where('status', '==', 'closed').orderBy('date', 'desc').limit(25).get()
+        : Promise.resolve(null),
+    ]);
+
+    const historyRows = historySnap?.docs.length
+      ? historySnap.docs.map(d => {
+          const h = d.data();
+          const cost = h.feeWaived ? '£– (free)' : h.cost > 0 ? `£${h.cost}` : 'Free';
+          return `<div class="history-row">
+            <span class="history-date">${_formatDate(h.date)}</span>
+            <span class="history-venue">${esc(h.venue || '—')}</span>
+            <span class="history-cost">${cost}</span>
+          </div>`;
+        }).join('')
+      : '<div class="empty-note">No session history yet.</div>';
+
+    const coachPayRows = coachSessionsSnap?.docs.length
+      ? coachSessionsSnap.docs.map(d => {
+          const s      = d.data();
+          const status = s.coachPaymentStatus === 'paid' ? '✓ Paid'
+                       : s.coachPaymentStatus === 'pending' ? '⏳ Pending'
+                       : s.coachPaymentStatus === 'onboarding' ? '⏳ Onboarding'
+                       : '—';
+          const fee    = s.coachFee > 0 ? `£${s.coachFee}` : '—';
+          return `<div class="history-row">
+            <span class="history-date">${_formatDate(s.date)}</span>
+            <span class="history-venue">${esc(s.venue || '—')}</span>
+            <span class="history-cost">${fee}</span>
+            <span class="history-status">${status}</span>
+          </div>`;
+        }).join('')
+      : null;
+
+    const historySection = (isOwn || _isAdmin) ? `
+      <div class="detail-section">
+        <div class="detail-section-title">Session history</div>
+        <div class="profile-history-list">${historyRows}</div>
+      </div>` : '';
+
+    const coachPaySection = coachPayRows != null ? `
+      <div class="detail-section">
+        <div class="detail-section-title">Coach payments</div>
+        <div class="profile-history-list">${coachPayRows}</div>
+      </div>` : '';
+
     body.innerHTML = `
       <div class="profile-screen-card">
         <div class="profile-hero">
@@ -1052,6 +1124,8 @@ async function openProfileScreen(uid) {
         </div>
         ${metaRows ? `<div class="detail-section"><div class="detail-meta-grid">${metaRows}</div></div>` : ''}
         ${ownActions}
+        ${coachPaySection}
+        ${historySection}
       </div>`;
   } catch(e) {
     console.error('Load profile failed:', e);
@@ -1737,7 +1811,9 @@ function _renderReport(report, session) {
   const footer  = document.querySelector('#screen-session-end .footer');
   if (footer) footer.innerHTML =
     `<button class="cta-btn secondary-btn" onclick="openSession('${session.id}')">← Back to session</button>
-     ${_isAdmin && session.coach && session.coachFee > 0 ? _coachPayCtaBtn(session) : ''}`;
+     ${_isAdmin && session.coach && session.coachFee > 0 ? _coachPayCtaBtn(session) : ''}
+     ${_isAdmin ? `<button class="cta-btn secondary-btn" onclick="exportReportCsv(_runSession, _runSession.report)">⬇ Export CSV</button>` : ''}
+     ${_isAdmin ? `<button class="cta-btn secondary-btn" onclick="printReport()">🖨 Print report</button>` : ''}`;
 
   const gSym = { man: '♂', woman: '♀', nonbinary: '⚧' };
   const gCls = { man: 'gender-m', woman: 'gender-w', nonbinary: 'gender-nb' };
@@ -1849,6 +1925,83 @@ function _renderReport(report, session) {
         ${closedDate        ? meta('Closed',     `${closedDate} by ${esc(report.closedByName)}`) : ''}
       </div>
     </div>`;
+}
+
+// ─── CSV / print export ────────────────────────────────────────────────────────
+function _downloadCsv(filename, rows) {
+  const csv = rows.map(r =>
+    r.map(v => `"${String(v == null ? '' : v).replace(/"/g, '""')}"`).join(',')
+  ).join('\n');
+  const a   = Object.assign(document.createElement('a'), {
+    href:     'data:text/csv;charset=utf-8,' + encodeURIComponent(csv),
+    download: filename,
+  });
+  a.click();
+}
+
+async function exportAttendeesCsv(sessionId) {
+  if (!_isAdmin) return;
+  try {
+    const snap = await _attendeesRef(sessionId).orderBy('joinedAt', 'asc').get();
+    const rows = [
+      ['Name', 'Email', 'Gender', 'Positions', 'Paid', 'Present', 'Fee waived', 'Joined'],
+      ...snap.docs.map(d => {
+        const a = d.data();
+        return [
+          a.name, a.email,
+          a.gender || '',
+          (a.positions || []).join(';'),
+          a.paid      ? 'yes' : 'no',
+          a.present   ? 'yes' : 'no',
+          a.feeWaived ? 'yes' : 'no',
+          a.joinedAt  ? _formatDate(a.joinedAt) : '',
+        ];
+      }),
+    ];
+    const session = _currentSession || {};
+    const label   = [session.venue, _formatDate(session.date)].filter(Boolean).join(' ');
+    _downloadCsv(`attendees${label ? '-' + label.replace(/[^a-z0-9]/gi, '-') : ''}.csv`, rows);
+  } catch(e) {
+    showToast('Export failed. Try again.', 'error');
+  }
+}
+
+function exportReportCsv(session, report) {
+  const att  = report?.attendance || {};
+  const st   = report?.stats      || {};
+  const rev  = st.revenue         || {};
+  const fmt  = n => n != null ? `£${Number.isInteger(n) ? n : Number(n).toFixed(2)}` : '';
+
+  const info = [
+    ['Session report'],
+    [],
+    ['Venue',    session.venue || ''],
+    ['Date',     _formatDate(session.date)],
+    ['Time',     session.time || ''],
+    ['Coach',    report.coach || session.coach || ''],
+    ['Level',    session.level || ''],
+    ['Capacity', session.maxPlayers || ''],
+    ['Cost',     fmt(session.cost)],
+    [],
+    ['Attendance'],
+    ['Registered', att.registered ?? ''],
+    ['Present',    att.present    ?? ''],
+    ['No-shows',   att.noShows    ?? ''],
+  ];
+
+  if (rev.actual != null) {
+    info.push([], ['Revenue'], ['Expected', fmt(rev.expected)], ['Actual', fmt(rev.actual)]);
+  }
+
+  info.push([], ['Attendees'], ['Name', 'Present', 'Gender']);
+  (att.attendees || []).forEach(a => info.push([a.name, a.present ? 'yes' : 'no', a.gender || '']));
+
+  const label = [session.venue, _formatDate(session.date)].filter(Boolean).join(' ');
+  _downloadCsv(`report${label ? '-' + label.replace(/[^a-z0-9]/gi, '-') : ''}.csv`, info);
+}
+
+function printReport() {
+  window.print();
 }
 
 async function openSessionEndReport(sessionId) {
