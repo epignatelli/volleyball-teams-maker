@@ -162,12 +162,25 @@ body {
 
 /* ─── Home filters (lives inside #app-header, fixed at top) ─────────────── */
 .home-filters {
-  display: flex; gap: 8px; align-items: center;
-  padding: 6px 16px 8px;
-  overflow-x: auto; -webkit-overflow-scrolling: touch;
-  scrollbar-width: none;
+  display: flex; flex-direction: column;
+  padding: 4px 0 6px; gap: 2px;
+  border-top: 1px solid var(--border);
 }
-.home-filters::-webkit-scrollbar { display: none; }
+.filter-row {
+  display: flex; align-items: center; gap: 0;
+  min-height: 36px;
+}
+.filter-row-label {
+  flex-shrink: 0; width: 52px; padding: 0 10px 0 16px;
+  font-size: 10px; font-weight: 700; letter-spacing: .08em;
+  text-transform: uppercase; color: var(--muted);
+}
+.filter-row-pills {
+  display: flex; gap: 6px; align-items: center;
+  overflow-x: auto; -webkit-overflow-scrolling: touch;
+  scrollbar-width: none; padding-right: 16px;
+}
+.filter-row-pills::-webkit-scrollbar { display: none; }
 .level-pill {
   flex-shrink: 0;
   background: none; border: 1px solid var(--border2);

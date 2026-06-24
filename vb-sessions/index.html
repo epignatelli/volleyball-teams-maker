@@ -39,12 +39,32 @@
     <button class="nav-tab admin-tab"  data-tab="admin"    onclick="openAdminScreen()">Admin</button>
   </div>
   <div class="home-filters" id="home-filters" style="display:none">
-    <button class="level-pill active" data-level=""             onclick="setLevelFilter('')">All</button>
-    <button class="level-pill"        data-level="any"          onclick="setLevelFilter('any')">Any level</button>
-    <button class="level-pill"        data-level="beginner"     onclick="setLevelFilter('beginner')">Beginner</button>
-    <button class="level-pill"        data-level="intermediate" onclick="setLevelFilter('intermediate')">Intermediate</button>
-    <button class="level-pill"        data-level="advanced"     onclick="setLevelFilter('advanced')">Advanced</button>
-    <button class="level-pill"        data-level="competitive"  onclick="setLevelFilter('competitive')">Competitive</button>
+    <div class="filter-row">
+      <span class="filter-row-label">Host</span>
+      <div class="filter-row-pills" id="filter-host-pills">
+        <button class="level-pill active" data-host="" onclick="setHostFilter('')">All</button>
+      </div>
+    </div>
+    <div class="filter-row">
+      <span class="filter-row-label">Level</span>
+      <div class="filter-row-pills" id="filter-level-pills">
+        <button class="level-pill active" data-level=""             onclick="setLevelFilter('')">All</button>
+        <button class="level-pill"        data-level="any"          onclick="setLevelFilter('any')">Any</button>
+        <button class="level-pill"        data-level="beginner"     onclick="setLevelFilter('beginner')">Beginner</button>
+        <button class="level-pill"        data-level="intermediate" onclick="setLevelFilter('intermediate')">Intermediate</button>
+        <button class="level-pill"        data-level="advanced"     onclick="setLevelFilter('advanced')">Advanced</button>
+        <button class="level-pill"        data-level="competitive"  onclick="setLevelFilter('competitive')">Competitive</button>
+      </div>
+    </div>
+    <div class="filter-row">
+      <span class="filter-row-label">Gender</span>
+      <div class="filter-row-pills" id="filter-gender-pills">
+        <button class="level-pill active" data-gender=""       onclick="setGenderFilter('')">All</button>
+        <button class="level-pill"        data-gender="mixed"  onclick="setGenderFilter('mixed')">Mixed</button>
+        <button class="level-pill"        data-gender="women"  onclick="setGenderFilter('women')">Women</button>
+        <button class="level-pill"        data-gender="men"    onclick="setGenderFilter('men')">Men</button>
+      </div>
+    </div>
   </div>
 </div>
 

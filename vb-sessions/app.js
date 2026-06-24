@@ -179,8 +179,9 @@ let _backFn              = null;
 let _pendingCoachRequest    = false;
 let _pendingProviderRequest = false;
 let _activeSeriesFilter     = null; // { id, name } or null
-let _activeProviderFilter   = null; // uid to filter "my sessions", or null
+let _activeProviderFilter   = null; // uid or null
 let _activeLevelFilter      = null; // level string or null
+let _activeGenderFilter     = null; // gender string or null
 let _activeSeries        = null; // full series doc data when in filtered mode
 let _activeSeriesReg     = null; // user's paid registration for _activeSeries, or null
 let _activeSeriesMembers = []; // paid registrations for current series (admin view)
@@ -200,9 +201,11 @@ function _setNav(mode, activeTab) {
   if (tabsRow) tabsRow.style.display = showTabs ? 'flex' : 'none';
   if (backBtn) backBtn.style.display = isPrimary ? 'none' : '';
   const filtersRow = document.getElementById('home-filters');
+  const wasHidden  = filtersRow && filtersRow.style.display === 'none';
   if (filtersRow) filtersRow.style.display = showFilters ? 'flex' : 'none';
+  if (showFilters && wasHidden) _loadHostFilterPills();
   document.documentElement.style.setProperty(
-    '--header-h', showFilters ? '133px' : showTabs ? '95px' : '55px'
+    '--header-h', showFilters ? '172px' : showTabs ? '95px' : '55px'
   );
   document.querySelectorAll('.admin-tab').forEach(t => {
     t.style.display = _isAdmin ? '' : 'none';
@@ -409,12 +412,51 @@ async function _routeFromHash() {
   else { renderHome(); }
 }
 
+function _syncFilterPillsToState() {
+  document.querySelectorAll('#filter-host-pills  .level-pill').forEach(b => b.classList.toggle('active', (b.dataset.host   || '') === (_activeProviderFilter || '')));
+  document.querySelectorAll('#filter-level-pills .level-pill').forEach(b => b.classList.toggle('active', (b.dataset.level  || '') === (_activeLevelFilter    || '')));
+  document.querySelectorAll('#filter-gender-pills .level-pill').forEach(b => b.classList.toggle('active', (b.dataset.gender || '') === (_activeGenderFilter   || '')));
+}
+
+function setHostFilter(uid) {
+  _activeProviderFilter = uid || null;
+  document.querySelectorAll('#filter-host-pills .level-pill').forEach(btn => {
+    btn.classList.toggle('active', (btn.dataset.host || '') === (uid || ''));
+  });
+  renderHome();
+}
+
 function setLevelFilter(level) {
   _activeLevelFilter = level || null;
-  document.querySelectorAll('.level-pill').forEach(btn => {
+  document.querySelectorAll('#filter-level-pills .level-pill').forEach(btn => {
     btn.classList.toggle('active', (btn.dataset.level || '') === (level || ''));
   });
   renderHome();
+}
+
+function setGenderFilter(gender) {
+  _activeGenderFilter = gender || null;
+  document.querySelectorAll('#filter-gender-pills .level-pill').forEach(btn => {
+    btn.classList.toggle('active', (btn.dataset.gender || '') === (gender || ''));
+  });
+  renderHome();
+}
+
+async function _loadHostFilterPills() {
+  const container = document.getElementById('filter-host-pills');
+  if (!container) return;
+  try {
+    const snap = await _userRef && getDb().collection('users')
+      .where('roles', 'array-contains', 'provider').get();
+    if (!snap || snap.empty) return;
+    const hosts = snap.docs.map(d => ({ uid: d.id, name: d.data().name || d.id }));
+    const current = _activeProviderFilter || '';
+    container.innerHTML =
+      `<button class="level-pill${current === '' ? ' active' : ''}" data-host="" onclick="setHostFilter('')">All</button>` +
+      hosts.map(h =>
+        `<button class="level-pill${current === h.uid ? ' active' : ''}" data-host="${esc(h.uid)}" onclick="setHostFilter('${esc(h.uid)}')">${esc(h.name)}</button>`
+      ).join('');
+  } catch(e) { console.error('Load hosts failed:', e); }
 }
 
 function goHome() {
@@ -423,10 +465,14 @@ function goHome() {
   _activeSeriesReg      = null;
   _activeSeriesMembers  = [];
   _activeProviderFilter = null;
+  _activeLevelFilter    = null;
+  _activeGenderFilter   = null;
   _setHash('home');
   showScreen('home');
   _setNav('primary', 'home');
   _setTitle('Sessions');
+  _syncFilterPillsToState();
+  _loadHostFilterPills();
   renderHome();
 }
 
@@ -568,6 +614,9 @@ async function renderHome() {
       sessions = sessions.filter(s => !s.level);
     } else if (_activeLevelFilter) {
       sessions = sessions.filter(s => (s.level || '') === _activeLevelFilter);
+    }
+    if (_activeGenderFilter) {
+      sessions = sessions.filter(s => (s.gender || '') === _activeGenderFilter);
     }
     const providerBannerHtml = _activeProviderFilter
       ? `<div class="provider-banner"><span class="provider-banner-label">My sessions</span><button class="provider-banner-clear" onclick="goHome()">← All sessions</button></div>`
