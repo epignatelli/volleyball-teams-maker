@@ -725,7 +725,7 @@ async function openSession(id) {
   showScreen('detail');
   _setNav('sub', null);
   _setTitle('Session');
-  _setBack(() => goHome());
+  _setBack(() => history.back());
   const content = document.getElementById('detail-content');
   const footer  = document.getElementById('detail-footer');
   content.innerHTML = '<div class="home-empty">Loading…</div>';
@@ -1268,7 +1268,7 @@ function openUsersScreen() {
   showScreen('users');
   _setNav('sub', null);
   _setTitle('Users');
-  _setBack(() => openAdminScreen());
+  _setBack(() => history.back());
   renderUsers();
 }
 
@@ -3362,7 +3362,7 @@ function openVenuesScreen() {
   showScreen('venues');
   _setNav('sub', null);
   _setTitle('Venues');
-  _setBack(() => openAdminScreen());
+  _setBack(() => history.back());
   renderVenues();
 }
 
@@ -3599,7 +3599,7 @@ async function openSeriesDetail(seriesId) {
   showScreen('detail');
   _setNav('sub', null);
   _setTitle('Pass');
-  _setBack(() => openSeriesScreen());
+  _setBack(() => history.back());
   document.getElementById('detail-content').innerHTML = '<div class="home-empty">Loading…</div>';
 
   try {
