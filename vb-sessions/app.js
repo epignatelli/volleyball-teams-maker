@@ -180,6 +180,7 @@ let _pendingCoachRequest    = false;
 let _pendingProviderRequest = false;
 let _activeSeriesFilter     = null; // { id, name } or null
 let _activeProviderFilter   = null; // uid to filter "my sessions", or null
+let _activeLevelFilter      = null; // level string or null
 let _activeSeries        = null; // full series doc data when in filtered mode
 let _activeSeriesReg     = null; // user's paid registration for _activeSeries, or null
 let _activeSeriesMembers = []; // paid registrations for current series (admin view)
@@ -403,6 +404,14 @@ async function _routeFromHash() {
   else { renderHome(); }
 }
 
+function setLevelFilter(level) {
+  _activeLevelFilter = level || null;
+  document.querySelectorAll('.level-pill').forEach(btn => {
+    btn.classList.toggle('active', (btn.dataset.level || '') === (level || ''));
+  });
+  renderHome();
+}
+
 function goHome() {
   _activeSeriesFilter   = null;
   _activeSeries         = null;
@@ -549,6 +558,9 @@ async function renderHome() {
     }
     if (_activeProviderFilter) {
       sessions = sessions.filter(s => s.providerUid === _activeProviderFilter);
+    }
+    if (_activeLevelFilter) {
+      sessions = sessions.filter(s => (s.level || '') === _activeLevelFilter);
     }
     const providerBannerHtml = _activeProviderFilter
       ? `<div class="provider-banner"><span class="provider-banner-label">My sessions</span><button class="provider-banner-clear" onclick="goHome()">← All sessions</button></div>`
@@ -1542,6 +1554,7 @@ async function openProfileScreen(uid) {
 
     const posLabels   = { setter: 'Setter', hitter: 'Hitter', middle: 'Middle', libero: 'Libero' };
     const genderLabel = { man: 'Man', woman: 'Woman', nonbinary: 'Non-binary' }[u.gender] || '';
+    const levelLabel  = { beginner: 'Beginner', intermediate: 'Intermediate', advanced: 'Advanced', competitive: 'Competitive' }[u.level] || '';
     const initials    = (u.name || u.email || '?')[0].toUpperCase();
     const roleOrder   = ['owner', 'admin', 'provider', 'coach'];
     const displayRoles = roleOrder.filter(r => roles.includes(r));
@@ -1557,6 +1570,7 @@ async function openProfileScreen(uid) {
 
     const metaRows = [
       genderLabel ? `<div class="detail-meta-row"><span class="detail-meta-label">Gender</span><span>${esc(genderLabel)}</span></div>` : '',
+      levelLabel  ? `<div class="detail-meta-row"><span class="detail-meta-label">Level</span><span>${esc(levelLabel)}</span></div>` : '',
       (u.positions||[]).length ? `<div class="detail-meta-row"><span class="detail-meta-label">Positions</span><span>${(u.positions||[]).map(p => posLabels[p]||p).join(', ')}</span></div>` : '',
       u.email && (isOwn || _isAdmin) ? `<div class="detail-meta-row"><span class="detail-meta-label">Email</span><span>${esc(u.email)}</span></div>` : '',
       u.createdAt ? `<div class="detail-meta-row"><span class="detail-meta-label">Joined</span><span>${_formatDate(u.createdAt)}</span></div>` : '',
@@ -2833,6 +2847,7 @@ async function openEditProfile() {
     const data = doc.data() || {};
     document.getElementById('edit-profile-name').value    = data.name || _currentUser.displayName || '';
     document.getElementById('edit-profile-gender').value  = data.gender || '';
+    document.getElementById('edit-profile-level').value   = data.level  || '';
     const posSet = new Set(data.positions || []);
     document.querySelectorAll('#edit-profile-positions input').forEach(cb => {
       cb.checked = posSet.has(cb.value);
@@ -2854,6 +2869,7 @@ async function saveProfile() {
   const errorEl   = document.getElementById('edit-profile-error');
   const name      = document.getElementById('edit-profile-name').value.trim();
   const gender    = document.getElementById('edit-profile-gender').value;
+  const level     = document.getElementById('edit-profile-level').value;
   const positions = Array.from(
     document.querySelectorAll('#edit-profile-positions input:checked')
   ).map(el => el.value);
@@ -2868,6 +2884,7 @@ async function saveProfile() {
     await _userRef(_currentUser.uid).update({
       name,
       gender:    gender || null,
+      level:     level  || null,
       positions,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
     });

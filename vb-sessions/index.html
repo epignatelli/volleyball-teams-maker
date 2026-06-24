@@ -12,7 +12,8 @@
   <link rel="stylesheet" href="../fonts/barlow-condensed.css" />
   <link rel="stylesheet" href="./style.css" />
   <link rel="stylesheet" href="../shared.css" />
-  <link rel="apple-touch-icon" href="icons/icon-192.png" />
+  <link rel="icon" type="image/svg+xml" href="icons/icon.svg" />
+  <link rel="apple-touch-icon" href="icons/icon-180.png" />
 </head>
 <body>
 
@@ -43,6 +44,14 @@
      SCREEN — HOME (session list)
 ══════════════════════════════════════════════════ -->
 <div class="screen active" id="screen-home">
+
+  <div class="home-filters" id="home-filters">
+    <button class="level-pill active" data-level="" onclick="setLevelFilter('')">All</button>
+    <button class="level-pill" data-level="beginner"     onclick="setLevelFilter('beginner')">Beginner</button>
+    <button class="level-pill" data-level="intermediate" onclick="setLevelFilter('intermediate')">Intermediate</button>
+    <button class="level-pill" data-level="advanced"     onclick="setLevelFilter('advanced')">Advanced</button>
+    <button class="level-pill" data-level="competitive"  onclick="setLevelFilter('competitive')">Competitive</button>
+  </div>
 
   <div class="home-content" id="home-content">
     <div class="home-empty">Loading…</div>
@@ -522,6 +531,16 @@
           <option value="man">Man</option>
           <option value="woman">Woman</option>
           <option value="nonbinary">Non-binary</option>
+        </select>
+      </div>
+      <div class="field">
+        <label class="field-label">Level</label>
+        <select class="field-input field-select" id="edit-profile-level">
+          <option value="">Not set</option>
+          <option value="beginner">Beginner</option>
+          <option value="intermediate">Intermediate</option>
+          <option value="advanced">Advanced</option>
+          <option value="competitive">Competitive</option>
         </select>
       </div>
       <div class="field">

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <rect width="512" height="512" rx="96" fill="#0f1117"/>
+  <!-- Volleyball outline -->
+  <circle cx="256" cy="232" r="148" fill="none" stroke="#F0A500" stroke-width="20"/>
+  <!-- Three seam curves -->
+  <path d="M 108 232 Q 256 132 404 232" fill="none" stroke="#F0A500" stroke-width="20" stroke-linecap="round"/>
+  <path d="M 175 98  Q 256 260 175 382" fill="none" stroke="#F0A500" stroke-width="20" stroke-linecap="round"/>
+  <path d="M 337 98  Q 256 260 337 382" fill="none" stroke="#F0A500" stroke-width="20" stroke-linecap="round"/>
+  <!-- Net post line -->
+  <line x1="108" y1="400" x2="404" y2="400" stroke="#F0A500" stroke-width="20" stroke-linecap="round"/>
+  <!-- Wordmark -->
+  <text x="256" y="484" font-family="Arial Black,Arial,sans-serif" font-weight="900" font-size="56" fill="#F0A500" text-anchor="middle" letter-spacing="10">ROOTS</text>
+</svg>
