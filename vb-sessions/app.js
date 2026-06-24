@@ -153,7 +153,13 @@ function _subscribeToUserDoc(user) {
     _isProvider = _currentRoles.includes('provider');
     _providerOnboardingComplete = !!doc.data()?.providerOnboardingComplete;
     _updateAuthUI();
-    renderHome();
+    if (_pendingProviderRequest) {
+      _pendingProviderRequest = false;
+      if (_isProvider) _showProviderSessions(_currentUser?.uid);
+      else openProfileScreen();
+    } else {
+      renderHome();
+    }
   }, err => console.error('User doc listener error:', err));
 }
 
@@ -170,8 +176,10 @@ async function handleAuthClick() {
 
 // ─── Nav helpers ───────────────────────────────────────────────────────────────
 let _backFn              = null;
-let _pendingCoachRequest = false;
-let _activeSeriesFilter  = null; // { id, name } or null
+let _pendingCoachRequest    = false;
+let _pendingProviderRequest = false;
+let _activeSeriesFilter     = null; // { id, name } or null
+let _activeProviderFilter   = null; // uid to filter "my sessions", or null
 let _activeSeries        = null; // full series doc data when in filtered mode
 let _activeSeriesReg     = null; // user's paid registration for _activeSeries, or null
 let _activeSeriesMembers = []; // paid registrations for current series (admin view)
@@ -282,10 +290,11 @@ getAuth().onAuthStateChanged(async user => {
     _currentRoles = [];
     _isAdmin                   = false;
     _isCoach                   = false;
-    _isProvider                = false;
-    _isOwner                   = false;
-    _legacyAdmin               = false;
+    _isProvider                 = false;
+    _isOwner                    = false;
+    _legacyAdmin                = false;
     _providerOnboardingComplete = false;
+    _pendingProviderRequest     = false;
     _updateAuthUI();
     if (!_initialRouted) { _initialRouted = true; await _routeFromHash(); }
     else renderHome();
@@ -346,6 +355,22 @@ async function _routeFromHash() {
     else { _pendingCoachRequest = true; goHome(); showToast('Sign in to request coach status'); }
     return;
   }
+  if (hash === 'provider') {
+    if (!_currentUser) {
+      _pendingProviderRequest = true;
+      goHome();
+      showToast('Sign in to start hosting sessions on Roots');
+    } else if (_currentRoles.length > 0) {
+      // User doc already loaded — route immediately
+      if (_isProvider) _showProviderSessions(_currentUser.uid);
+      else openProfileScreen();
+    } else {
+      // User doc not yet loaded (page-load race) — let the first snapshot handle it
+      _pendingProviderRequest = true;
+      goHome();
+    }
+    return;
+  }
   const slash   = hash.indexOf('/');
   const section = slash > -1 ? hash.slice(0, slash) : hash;
   const id      = slash > -1 ? hash.slice(slash + 1) : '';
@@ -376,14 +401,28 @@ async function _routeFromHash() {
 }
 
 function goHome() {
-  _activeSeriesFilter  = null;
-  _activeSeries        = null;
-  _activeSeriesReg     = null;
-  _activeSeriesMembers = [];
+  _activeSeriesFilter   = null;
+  _activeSeries         = null;
+  _activeSeriesReg      = null;
+  _activeSeriesMembers  = [];
+  _activeProviderFilter = null;
   _setHash('home');
   showScreen('home');
   _setNav('primary', 'home');
   _setTitle('Sessions');
+  renderHome();
+}
+
+function _showProviderSessions(uid) {
+  _activeSeriesFilter   = null;
+  _activeSeries         = null;
+  _activeSeriesReg      = null;
+  _activeSeriesMembers  = [];
+  _activeProviderFilter = uid;
+  _setHash('home');
+  showScreen('home');
+  _setNav('primary', 'home');
+  _setTitle('My sessions');
   renderHome();
 }
 
@@ -505,9 +544,15 @@ async function renderHome() {
     if (_activeSeriesFilter) {
       sessions = sessions.filter(s => s.seriesId === _activeSeriesFilter.id);
     }
+    if (_activeProviderFilter) {
+      sessions = sessions.filter(s => s.providerUid === _activeProviderFilter);
+    }
+    const providerBannerHtml = _activeProviderFilter
+      ? `<div class="provider-banner"><span class="provider-banner-label">My sessions</span><button class="provider-banner-clear" onclick="goHome()">← All sessions</button></div>`
+      : '';
     if (!sessions.length) {
       const bannerHtml = _activeSeries ? _renderSeriesBanner(_activeSeries, _activeSeriesReg) : '';
-      container.innerHTML = bannerHtml + `<div class="home-empty">${_activeSeriesFilter ? 'No sessions in this series yet.' : 'No sessions yet.'}</div>`;
+      container.innerHTML = providerBannerHtml + bannerHtml + `<div class="home-empty">${_activeSeriesFilter ? 'No sessions in this series yet.' : _activeProviderFilter ? 'No sessions hosted yet.' : 'No sessions yet.'}</div>`;
       return;
     }
 
@@ -522,7 +567,7 @@ async function renderHome() {
     ].filter(g => g.items.length);
 
     const bannerHtml = _activeSeries ? _renderSeriesBanner(_activeSeries, _activeSeriesReg) : '';
-    container.innerHTML = bannerHtml + groups.map(g => `
+    container.innerHTML = providerBannerHtml + bannerHtml + groups.map(g => `
       <div class="session-group">
         <div class="session-group-label">${g.label}</div>
         ${g.items.map(_renderSessionCard).join('')}
