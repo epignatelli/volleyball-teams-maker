@@ -215,8 +215,8 @@ body {
 }
 .filter-active-label strong { color: var(--amber); font-weight: 700; }
 
-.home-content { flex: 1; overflow-y: auto; padding: 20px; padding-bottom: 72px; display: flex; flex-direction: column; gap: 24px; }
-#screen-home .footer { padding-bottom: 64px; }
+.home-content { flex: 1; overflow-y: auto; padding: 20px; padding-bottom: calc(60px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 24px; }
+#screen-home .footer { padding-bottom: calc(60px + env(safe-area-inset-bottom)); }
 .home-empty { color: var(--muted); font-size: 14px; text-align: center; padding: 40px 0; }
 .link-btn { background: none; border: none; color: var(--amber); font: inherit; cursor: pointer; text-decoration: underline; padding: 0; }
 
