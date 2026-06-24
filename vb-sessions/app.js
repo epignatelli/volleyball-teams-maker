@@ -17,10 +17,11 @@ const SESSION_GENDERS = [
 // ─── State ─────────────────────────────────────────────────────────────────────
 let _currentUser  = null;
 let _currentRoles = [];
-let _isAdmin      = false;
-let _isCoach      = false;
-let _isProvider   = false;
-let _isOwner      = false;
+let _isAdmin                  = false;
+let _isCoach                  = false;
+let _isProvider               = false;
+let _isOwner                  = false;
+let _providerOnboardingComplete = false;
 let _legacyAdmin  = false;   // cached check against admins/{email} collection
 let _userDocUnsub = null;    // unsubscribe fn for own user doc listener
 let _editingId              = null;   // session ID being edited, null when creating
@@ -150,6 +151,7 @@ function _subscribeToUserDoc(user) {
     _isAdmin    = _legacyAdmin || _isOwner || _currentRoles.includes('admin');
     _isCoach    = _currentRoles.includes('coach');
     _isProvider = _currentRoles.includes('provider');
+    _providerOnboardingComplete = !!doc.data()?.providerOnboardingComplete;
     _updateAuthUI();
     renderHome();
   }, err => console.error('User doc listener error:', err));
@@ -175,6 +177,10 @@ let _activeSeriesReg     = null; // user's paid registration for _activeSeries, 
 let _activeSeriesMembers = []; // paid registrations for current series (admin view)
 let _allSeries           = [];
 let _editingSeriesId     = null;
+
+function _canCreate() {
+  return (_isAdmin || _isProvider) && _providerOnboardingComplete;
+}
 
 function _setNav(mode, activeTab) {
   const tabsRow = document.getElementById('nav-tabs-row');
@@ -212,13 +218,13 @@ function _updateAuthUI() {
     }
   }
   const newBtn = document.getElementById('home-new-btn');
-  if (newBtn) newBtn.style.display = (_isAdmin || _isProvider) ? '' : 'none';
+  if (newBtn) newBtn.style.display = _canCreate() ? '' : 'none';
   // Refresh admin-only tabs and tab strip visibility
   document.querySelectorAll('.admin-tab').forEach(t => {
     t.style.display = _isAdmin ? '' : 'none';
   });
   const seriesFooter = document.getElementById('series-footer');
-  if (seriesFooter) seriesFooter.style.display = (_isAdmin || _isProvider) ? '' : 'none';
+  if (seriesFooter) seriesFooter.style.display = _canCreate() ? '' : 'none';
   const tabsRow = document.getElementById('nav-tabs-row');
   if (tabsRow && !_currentUser) {
     tabsRow.style.display = 'none';
@@ -274,11 +280,12 @@ getAuth().onAuthStateChanged(async user => {
     }
   } else {
     _currentRoles = [];
-    _isAdmin    = false;
-    _isCoach    = false;
-    _isProvider = false;
-    _isOwner    = false;
-    _legacyAdmin = false;
+    _isAdmin                   = false;
+    _isCoach                   = false;
+    _isProvider                = false;
+    _isOwner                   = false;
+    _legacyAdmin               = false;
+    _providerOnboardingComplete = false;
     _updateAuthUI();
     if (!_initialRouted) { _initialRouted = true; await _routeFromHash(); }
     else renderHome();
@@ -1772,6 +1779,10 @@ function onCoachSelectChange() {
 
 function openSessionForm(id = null) {
   if (!_isAdmin && !_isProvider) return;
+  if (!id && !_providerOnboardingComplete) {
+    showToast('Set up payments in your profile before creating sessions.', 'error');
+    return;
+  }
   _editingId = id;
 
   const titleEl  = document.getElementById('form-title');
@@ -2816,18 +2827,22 @@ function _updateCoachRequestBtn(data) {
 }
 
 function _updateProviderRequestBtn(data) {
-  const field     = document.getElementById('provider-request-field');
+  const field       = document.getElementById('provider-request-field');
   const stripeField = document.getElementById('provider-stripe-field');
-  const btn       = document.getElementById('provider-request-btn');
+  const btn         = document.getElementById('provider-request-btn');
   if (!field || !btn) return;
-  const isProvider   = (data.roles || []).includes('provider');
+  const roles        = data.roles || [];
+  const isProvider   = roles.includes('provider');
+  const isAdmin      = roles.includes('admin') || roles.includes('owner') || _legacyAdmin;
   const isPending    = !!data.providerRequest && !isProvider;
-  const needsStripe  = isProvider && !data.providerOnboardingComplete;
+  const canCreate    = isAdmin || isProvider;
+  const needsStripe  = canCreate && !data.providerOnboardingComplete;
 
-  field.style.display        = isProvider ? 'none' : '';
+  // Hide the "request provider" row for admins (they're implicitly allowed) and approved providers
+  field.style.display = (isAdmin || isProvider) ? 'none' : '';
   if (stripeField) stripeField.style.display = needsStripe ? '' : 'none';
 
-  if (!isProvider) {
+  if (!isAdmin && !isProvider) {
     if (isPending) {
       btn.textContent = 'Provider request pending';
       btn.disabled    = true;
@@ -3397,7 +3412,7 @@ function openSeriesScreen() {
   _setNav('primary', 'series');
   _setTitle('Sessions');
   const footer = document.getElementById('series-footer');
-  if (footer) footer.style.display = (_isAdmin || _isProvider) ? '' : 'none';
+  if (footer) footer.style.display = _canCreate() ? '' : 'none';
   renderSeries();
 }
 
@@ -3407,7 +3422,7 @@ async function renderSeries() {
   try {
     await _loadSeries();
     if (!_allSeries.length) {
-      list.innerHTML = '<div class="home-empty">No series yet.' + ((_isAdmin || _isProvider) ? ' Add one below.' : '') + '</div>';
+      list.innerHTML = '<div class="home-empty">No series yet.' + (_canCreate() ? ' Add one below.' : '') + '</div>';
       return;
     }
     // Load all user registrations in one batch so cards can show join/pass status
@@ -3642,6 +3657,10 @@ async function openSeriesSessions(seriesId, seriesName) {
 
 function openSeriesForm(id) {
   if (!_isAdmin && !_isProvider) return;
+  if (!id && !_providerOnboardingComplete) {
+    showToast('Set up payments in your profile before creating series.', 'error');
+    return;
+  }
   _editingSeriesId = id || null;
   const s = id ? _allSeries.find(x => x.id === id) : null;
   document.getElementById('series-form-title').textContent = s ? 'Edit series' : 'New series';
