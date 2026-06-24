@@ -559,15 +559,21 @@ async function renderHome() {
     if (_activeProviderFilter) {
       sessions = sessions.filter(s => s.providerUid === _activeProviderFilter);
     }
-    if (_activeLevelFilter) {
+    if (_activeLevelFilter === 'any') {
+      sessions = sessions.filter(s => !s.level);
+    } else if (_activeLevelFilter) {
       sessions = sessions.filter(s => (s.level || '') === _activeLevelFilter);
     }
     const providerBannerHtml = _activeProviderFilter
       ? `<div class="provider-banner"><span class="provider-banner-label">My sessions</span><button class="provider-banner-clear" onclick="goHome()">← All sessions</button></div>`
       : '';
+    const levelLabels = { any: 'Any level', beginner: 'Beginner', intermediate: 'Intermediate', advanced: 'Advanced', competitive: 'Competitive' };
+    const levelBannerHtml = _activeLevelFilter
+      ? `<div class="filter-active-label">Filtering by level: <strong>${levelLabels[_activeLevelFilter] || _activeLevelFilter}</strong></div>`
+      : '';
     if (!sessions.length) {
       const bannerHtml = _activeSeries ? _renderSeriesBanner(_activeSeries, _activeSeriesReg) : '';
-      container.innerHTML = providerBannerHtml + bannerHtml + `<div class="home-empty">${_activeSeriesFilter ? 'No sessions in this series yet.' : _activeProviderFilter ? 'No sessions hosted yet.' : 'No sessions yet.'}</div>`;
+      container.innerHTML = providerBannerHtml + levelBannerHtml + bannerHtml + `<div class="home-empty">${_activeSeriesFilter ? 'No sessions in this series yet.' : _activeProviderFilter ? 'No sessions hosted yet.' : 'No sessions matching this filter.'}</div>`;
       return;
     }
 
@@ -590,7 +596,7 @@ async function renderHome() {
     }
 
     const bannerHtml = _activeSeries ? _renderSeriesBanner(_activeSeries, _activeSeriesReg) : '';
-    const upcomingHtml = upcomingByDate.map(g => `
+    const upcomingHtml = levelBannerHtml + upcomingByDate.map(g => `
       <div class="session-group">
         <div class="session-group-label">${g.label}</div>
         ${g.items.map(_renderSessionCard).join('')}
@@ -1929,7 +1935,8 @@ function openSessionForm(id = null) {
   const titleEl  = document.getElementById('form-title');
   const submitEl = document.getElementById('form-submit-btn');
   const errorEl  = document.getElementById('form-error');
-  errorEl.textContent = '';
+  errorEl.textContent  = '';
+  submitEl.disabled    = false;
 
   // Recurrence only applies to new sessions
   document.getElementById('form-repeat-row').style.display     = id ? 'none' : '';
