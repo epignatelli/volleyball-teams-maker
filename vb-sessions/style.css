@@ -950,13 +950,13 @@ body {
 .venue-maps-link:hover { text-decoration: underline; }
 
 /* ─── Session type badges ─────────────────────────────────────────────── */
-.session-badge.type-game       { background: var(--surface2);              color: var(--muted);  }
-.session-badge.type-league     { background: rgba(96,165,250,.13);         color: #93c5fd;       }
+.session-badge.type-game       { background: rgba(239,68,68,.13);         color: #f87171;       }
+.session-badge.type-league     { background: rgba(34,197,94,.13);          color: #4ade80;       }
 .session-badge.type-clinic     { background: rgba(96,165,250,.13);         color: #93c5fd;       }
 .session-badge.type-kqotc      { background: var(--amber-bg);              color: var(--amber);  }
-.session-badge.type-tournament { background: var(--green-bg);              color: var(--green);  }
-.session-badge.type-tryout     { background: rgba(251,146,60,.13);         color: #fb923c;       }
-.session-badge.type-training   { background: var(--purple-bg);             color: var(--purple); }
+.session-badge.type-tournament { background: rgba(148,163,132,.15);        color: #a8b89a;       }
+.session-badge.type-tryout     { background: rgba(217,249,0,.12);          color: #d9f900;       }
+.session-badge.type-training   { background: rgba(255,255,255,.08);        color: #e2e8f0;       }
 
 /* ─── Session level badges ────────────────────────────────────────────── */
 .session-badge.level-any          { background: var(--surface2);           color: var(--muted);  }
