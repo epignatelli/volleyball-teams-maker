@@ -122,16 +122,12 @@ function _requestClosed(status) {
 async function _upsertUserDoc(user) {
   const ref = _userRef(user.uid);
   try {
-    const doc          = await ref.get();
-    const currentRoles = doc.data()?.roles || [];
-    let roles = currentRoles.length ? currentRoles : ['player'];
-
+    const doc = await ref.get();
     if (doc.exists) {
       await ref.update({
         name:      user.displayName || doc.data().name || '',
         email:     user.email || '',
         photoURL:  user.photoURL || '',
-        roles,
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
       });
     } else {
@@ -139,7 +135,7 @@ async function _upsertUserDoc(user) {
         name:      user.displayName || '',
         email:     user.email || '',
         photoURL:  user.photoURL || '',
-        roles,
+        roles:     ['player'],
         createdAt: firebase.firestore.FieldValue.serverTimestamp(),
         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
       });
@@ -149,16 +145,13 @@ async function _upsertUserDoc(user) {
 }
 
 async function _initMessaging(user) {
-  if (!VAPID_KEY) return;
+  if (!VAPID_KEY || !('serviceWorker' in navigator)) return;
   try {
     if (Notification.permission === 'denied') return;
-    const messaging = firebase.messaging();
-    const token = await messaging.getToken({ vapidKey: VAPID_KEY });
-    if (token) {
-      await _userRef(user.uid).update({ fcmToken: token });
-    }
+    const swReg   = await navigator.serviceWorker.register('./firebase-messaging-sw.js');
+    const token   = await firebase.messaging().getToken({ vapidKey: VAPID_KEY, serviceWorkerRegistration: swReg });
+    if (token) await _userRef(user.uid).update({ fcmToken: token });
   } catch (e) {
-    // User declined or browser doesn't support it — not an error
     console.log('Push notifications not available:', e.message);
   }
 }
@@ -291,8 +284,16 @@ getAuth().onAuthStateChanged(async user => {
   if (_userDocUnsub) { _userDocUnsub(); _userDocUnsub = null; }
 
   if (user) {
-    _updateAuthUI();
-
+    // Pre-fetch roles so admin routes work immediately on first load.
+    try {
+      const snap = await _userRef(user.uid).get();
+      _currentRoles = snap.data()?.roles || ['player'];
+      _isOwner    = _currentRoles.includes('owner');
+      _isAdmin    = _isOwner || _currentRoles.includes('admin');
+      _isCoach    = _currentRoles.includes('coach');
+      _isProvider = _currentRoles.includes('provider');
+      _providerOnboardingComplete = !!snap.data()?.providerOnboardingComplete;
+    } catch(e) {}
     _updateAuthUI();
 
     if (!_initialRouted) {
@@ -1684,7 +1685,7 @@ function _renderUserRow(u) {
            <button class="role-toggle" data-uid="${esc(u.id)}" onclick="rejectAdmin(this,this.dataset.uid)">Reject</button>`
         : `<span class="role-toggle active admin" style="cursor:default">Admin pending</span>`;
     } else {
-      if (canManageOwner)    actions += `<button class="role-toggle${hasOwner ? ' active owner' : ''}" data-uid="${esc(u.id)}" data-role="owner" onclick="toggleRole(this,this.dataset.uid,this.dataset.role)">Owner</button>`;
+      if (canManageOwner)    actions += `<button class="role-toggle${hasOwner ? ' active owner' : ''}" data-uid="${esc(u.id)}" data-role="owner" onclick="toggleRole(this,this.dataset.uid,this.dataset.role)">Sudo</button>`;
       if (canManageAdmin)    actions += `<button class="role-toggle${hasAdmin ? ' active admin' : ''}" data-uid="${esc(u.id)}" data-role="admin" onclick="toggleRole(this,this.dataset.uid,this.dataset.role)">Admin</button>`;
       if (canManageCoach)    actions += `<button class="role-toggle${hasCoach ? ' active coach' : ''}" data-uid="${esc(u.id)}" data-role="coach" onclick="toggleRole(this,this.dataset.uid,this.dataset.role)">Coach</button>`;
       if (canManageProvider) actions += `<button class="role-toggle${hasProvider ? ' active provider' : ''}" data-uid="${esc(u.id)}" data-role="provider" onclick="toggleRole(this,this.dataset.uid,this.dataset.role)">Host</button>`;
@@ -1701,7 +1702,7 @@ function _renderUserRow(u) {
       <div class="user-info">
         <div class="user-name">
           ${esc(u.name || '—')}${isMe ? ' <span class="user-you">you</span>' : ''}
-          ${hasOwner ? '<span class="user-flag owner-badge">owner</span>' : ''}
+          ${hasOwner ? '<span class="user-flag owner-badge">sudo</span>' : ''}
           ${incomplete ? '<span class="user-flag">incomplete</span>' : ''}
           ${hasPendingCoach    ? '<span class="user-flag coach-req">coach request</span>' : ''}
           ${hasPendingProvider ? '<span class="user-flag provider-req">host request</span>' : ''}
@@ -1716,7 +1717,7 @@ function _renderUserRow(u) {
 async function toggleRole(btn, uid, role) {
   if (!_isAdmin) return;
   if ((role === 'admin' || role === 'owner') && !_isOwner) {
-    showToast('Only owners can change admin or owner roles.', 'error');
+    showToast('Only sudo users can change admin or sudo roles.', 'error');
     return;
   }
   try {
@@ -1724,7 +1725,7 @@ async function toggleRole(btn, uid, role) {
     const roles    = doc.data()?.roles || ['player'];
     const isAdding = !roles.includes(role);
     const label    = _userDisplayNames[uid] || uid;
-    const roleStr  = role.charAt(0).toUpperCase() + role.slice(1);
+    const roleStr  = role === 'owner' ? 'Sudo' : role.charAt(0).toUpperCase() + role.slice(1);
     if (!confirm(`${isAdding ? 'Grant' : 'Remove'} ${roleStr} role ${isAdding ? 'to' : 'from'} ${label}?`)) return;
     const restore = _setBtnLoading(btn);
     try {
@@ -1737,7 +1738,7 @@ async function toggleRole(btn, uid, role) {
   } catch(e) {
     console.error('Toggle role failed:', e);
     showToast(e.code === 'permission-denied'
-      ? 'Only owners can change admin or owner roles.'
+      ? 'Only sudo users can change admin or sudo roles.'
       : 'Couldn\'t update role. Try again.', 'error');
   }
 }
@@ -1745,12 +1746,12 @@ async function toggleRole(btn, uid, role) {
 async function nominateForAdmin(btn, uid) {
   if (!_isAdmin) return;
   const label = _userDisplayNames[uid] || uid;
-  if (!confirm(`Nominate ${label} for Admin? An owner will be asked to approve.`)) return;
+  if (!confirm(`Nominate ${label} for Admin? A sudo user will be asked to approve.`)) return;
   const restore = _setBtnLoading(btn);
   try {
     await _userRef(uid).update({ adminRequest: true });
     await callFn('notifyAdminRequest', { uid, name: label });
-    showToast('Nomination sent — owners have been notified.');
+    showToast('Nomination sent — sudo users have been notified.');
     renderUsers();
   } catch(e) {
     restore();
@@ -1906,7 +1907,7 @@ async function openProfileScreen(uid) {
     const roleOrder   = ['owner', 'admin', 'provider', 'coach'];
     const displayRoles = roleOrder.filter(r => roles.includes(r));
 
-    const roleLabel = { owner: 'owner', admin: 'admin', provider: 'host', coach: 'coach' };
+    const roleLabel = { owner: 'sudo', admin: 'admin', provider: 'host', coach: 'coach' };
     const roleBadges = displayRoles.map(r => {
       const cls = r === 'owner' ? 'level owner-badge-lg'
                 : r === 'admin' ? 'level admin-badge-lg'
@@ -4307,7 +4308,4 @@ async function _populateSeriesSelect(selectedId) {
 // ─── Service worker ────────────────────────────────────────────────────────────
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').catch(console.error);
-  if (VAPID_KEY) {
-    navigator.serviceWorker.register('./firebase-messaging-sw.js').catch(console.error);
-  }
 }
