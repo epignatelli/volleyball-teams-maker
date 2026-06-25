@@ -1099,43 +1099,54 @@ function _buildPartitions(attendees, numTeams, maxResults = 30) {
     positions: new Set(a.positions || []),
   }));
 
-  const women     = players.filter(p => p.gender === 'f');
-  const men       = players.filter(p => p.gender !== 'f');
-  const total     = players.length;
-  const tFloor    = Math.floor(total        / numTeams);
-  const wFloor    = Math.floor(women.length / numTeams);
-  const tExtras   = total        % numTeams;
-  const wExtras   = women.length % numTeams;
-  // Spread total and women evenly; men fill the remainder per team.
-  const tSizes    = Array.from({length: numTeams}, (_, i) => tFloor + (i < tExtras ? 1 : 0));
-  const wSizes    = Array.from({length: numTeams}, (_, i) => wFloor + (i < wExtras ? 1 : 0));
-  const mSizes    = tSizes.map((t, i) => t - wSizes[i]);
+  const women   = players.filter(p => p.gender === 'f');
+  const men     = players.filter(p => p.gender !== 'f');
+  const total   = players.length;
+  const tFloor  = Math.floor(total        / numTeams);
+  const wFloor  = Math.floor(women.length / numTeams);
+  const tExtras = total        % numTeams;
+  const wExtras = women.length % numTeams;
+  const tSizes  = Array.from({length: numTeams}, (_, i) => tFloor + (i < tExtras ? 1 : 0));
+  const wSizes  = Array.from({length: numTeams}, (_, i) => wFloor + (i < wExtras ? 1 : 0));
+  const mSizes  = tSizes.map((t, i) => t - wSizes[i]);
 
-  const results = [];
-  const seen    = new Set();
-
-  function split(pool, sizes, idx, cur, done) {
-    if (results.length >= maxResults) return;
-    if (idx === sizes.length) { done([...cur]); return; }
-    for (const pick of _combos(pool, sizes[idx])) {
-      const ids = new Set(pick.map(p => p.id));
-      cur.push(pick);
-      split(pool.filter(p => !ids.has(p.id)), sizes, idx + 1, cur, done);
-      cur.pop();
-      if (results.length >= maxResults) return;
+  // Enumerate unique splits for one gender group independently.
+  function enumSplits(pool, sizes) {
+    const splits = [], seen = new Set();
+    function go(pool, idx, cur) {
+      if (splits.length >= maxResults) return;
+      if (idx === sizes.length) {
+        const k = _partitionKey(cur);
+        if (!seen.has(k)) { seen.add(k); splits.push(cur.map(t => [...t])); }
+        return;
+      }
+      for (const pick of _combos(pool, sizes[idx])) {
+        const ids = new Set(pick.map(p => p.id));
+        cur.push(pick);
+        go(pool.filter(p => !ids.has(p.id)), idx + 1, cur);
+        cur.pop();
+        if (splits.length >= maxResults) return;
+      }
     }
+    go(pool, 0, []);
+    return splits;
   }
 
-  split(women, wSizes, 0, [], wParts => {
-    if (results.length >= maxResults) return;
-    split(men, mSizes, 0, [], mParts => {
-      if (results.length >= maxResults) return;
-      const teams = wParts.map((wTeam, i) => [...wTeam, ...mParts[i]]);
-      const key   = _partitionKey(teams);
-      if (!seen.has(key)) { seen.add(key); results.push({ teams, key }); }
-    });
-  });
+  const wSplits = enumSplits(women, wSizes);
+  const mSplits = enumSplits(men,   mSizes);
+  if (!wSplits.length || !mSplits.length) return [];
 
+  // Pair women split i with men split i (cycling the shorter list).
+  // This ensures every card shows different women AND different men.
+  const seen    = new Set();
+  const results = [];
+  const steps   = Math.min(maxResults, Math.max(wSplits.length, mSplits.length));
+  for (let i = 0; i < steps && results.length < maxResults; i++) {
+    const teams = wSplits[i % wSplits.length].map((wTeam, j) =>
+      [...wTeam, ...mSplits[i % mSplits.length][j]]);
+    const key = _partitionKey(teams);
+    if (!seen.has(key)) { seen.add(key); results.push({ teams, key }); }
+  }
   return results;
 }
 
