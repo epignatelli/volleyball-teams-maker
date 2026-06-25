@@ -18,11 +18,17 @@ const GMAIL_APP_PASSWORD    = defineSecret('GMAIL_APP_PASSWORD');
 const REGION          = 'europe-west2'; // HTTP functions
 const REGION_FIRESTORE = 'europe-west1'; // must match Firestore eur3 multi-region
 
-const APP_ORIGIN = 'https://epignatelli.github.io';
+const APP_ORIGIN  = 'https://epignatelli.com';
+const APP_URL     = `${APP_ORIGIN}/apps/vb-sessions/`;
+// Also allow the raw GitHub Pages origin (it redirects to the custom domain,
+// but the browser Origin header reflects where the page was loaded from).
+const ALLOWED_ORIGINS = new Set([APP_ORIGIN, 'https://epignatelli.github.io']);
 function setCors(req, res) {
-  res.setHeader('Access-Control-Allow-Origin',  APP_ORIGIN);
+  const origin = req.headers.origin || '';
+  res.setHeader('Access-Control-Allow-Origin',  ALLOWED_ORIGINS.has(origin) ? origin : APP_ORIGIN);
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+  res.setHeader('Vary', 'Origin');
 }
 
 async function verifyAuth(req) {
@@ -949,7 +955,7 @@ exports.onSessionUpdated = onDocumentUpdated({
       const venue   = after.venue  || 'the session';
       const dateStr = _formatDate(after.date);
       const subject = `Coach payment pending — ${venue}${dateStr ? ` · ${dateStr}` : ''}`;
-      const appUrl  = `https://epignatelli.github.io/apps/vb-sessions/`;
+      const appUrl  = `https://epignatelli.com/apps/vb-sessions/`;
       await Promise.all(adminsSnap.docs.map(doc =>
         sendEmail(doc.id, subject,
           _emailHtml('Hi,', [
@@ -1245,8 +1251,8 @@ exports.approveCoachPayment = functions
 
       const accountLink = await stripe.accountLinks.create({
         account:     account.id,
-        refresh_url: `https://epignatelli.github.io/apps/vb-sessions/`,
-        return_url:  `https://epignatelli.github.io/apps/vb-sessions/`,
+        refresh_url: `https://epignatelli.com/apps/vb-sessions/`,
+        return_url:  `https://epignatelli.com/apps/vb-sessions/`,
         type:        'account_onboarding',
       });
       await db.collection('sessions').doc(sessionId)
@@ -1400,7 +1406,7 @@ exports.notifyAdminRequest = functions
     const targetSnap  = await db.collection('users').doc(uid).get();
     const safeName    = _hEsc(targetSnap.data()?.name || uid);
     const nominator   = _hEsc(decoded.email || 'An admin');
-    const appUrl      = 'https://epignatelli.github.io/apps/vb-sessions/#users';
+    const appUrl      = 'https://epignatelli.com/apps/vb-sessions/#users';
 
     const usersSnap   = await db.collection('users').get();
     const ownerEmails = usersSnap.docs
@@ -1451,7 +1457,7 @@ exports.notifyProviderRequest = functions
       return res.status(429).json({ error: 'Please wait 1 hour between notification emails.' });
 
     const adminsSnap = await db.collection('admins').get();
-    const appUrl     = 'https://epignatelli.github.io/apps/vb-sessions/#users';
+    const appUrl     = 'https://epignatelli.com/apps/vb-sessions/#users';
 
     const { approveUrl, rejectUrl } = await _createRequestTokens(db, uid, 'provider');
     const actionButtons = _requestActionButtons(approveUrl, rejectUrl);
@@ -1495,7 +1501,7 @@ exports.notifyHostRequestOutcome = functions
     const userSnap = await db.collection('users').doc(uid).get();
     const email    = userSnap.data()?.email;
     const name     = userSnap.data()?.name || 'there';
-    const appUrl   = 'https://epignatelli.github.io/apps/vb-sessions/';
+    const appUrl   = 'https://epignatelli.com/apps/vb-sessions/';
 
     if (!email) return res.json({ ok: true });
 
@@ -1545,7 +1551,7 @@ exports.notifyCoachRequestOutcome = functions
     const userSnap = await db.collection('users').doc(uid).get();
     const email    = userSnap.data()?.email;
     const name     = userSnap.data()?.name || 'there';
-    const appUrl   = 'https://epignatelli.github.io/apps/vb-sessions/';
+    const appUrl   = 'https://epignatelli.com/apps/vb-sessions/';
 
     if (!email) return res.json({ ok: true });
 
@@ -1646,7 +1652,7 @@ exports.handleRequestAction = functions
              'Head to your profile for next steps.'];
         await sendEmail(userEmail, subject,
           _emailHtml(`Hi ${userName},`, body, null,
-            'https://epignatelli.github.io/apps/vb-sessions/', 'Go to Roots →'));
+            'https://epignatelli.com/apps/vb-sessions/', 'Go to Roots →'));
       }
 
       return res.send(_actionHtml(
@@ -1698,7 +1704,7 @@ exports.providerOnboardingLink = functions
       return res.status(403).json({ error: 'Provider role required.' });
 
     const stripe  = getStripe();
-    const baseUrl = 'https://epignatelli.github.io/apps/vb-sessions/';
+    const baseUrl = 'https://epignatelli.com/apps/vb-sessions/';
 
     let accountId = userData.stripeAccountId;
     if (!accountId) {
@@ -1842,7 +1848,8 @@ function _hEsc(s) {
 }
 
 function _validateAppUrl(url) {
-  return typeof url === 'string' && url.startsWith(APP_ORIGIN + '/');
+  return typeof url === 'string'
+    && [...ALLOWED_ORIGINS].some(o => url.startsWith(o + '/'));
 }
 
 function _emailHtml(greeting, paragraphs, calendarUrl = null, ctaUrl = null, ctaLabel = null, actionsHtml = '') {
@@ -1853,7 +1860,7 @@ function _emailHtml(greeting, paragraphs, calendarUrl = null, ctaUrl = null, cta
   const cta  = ctaUrl
     ? `<p style="margin:20px 0 0"><a href="${ctaUrl}" style="display:inline-block;padding:10px 18px;background:#4f46e5;color:#fff;text-decoration:none;border-radius:8px;font-weight:700;font-size:13px">${ctaLabel || 'Open →'}</a></p>`
     : '';
-  const policyUrl = 'https://epignatelli.github.io/volleyball-teams-maker/vb-sessions/';
+  const policyUrl = 'https://epignatelli.com/apps/vb-sessions/';
   return `<!DOCTYPE html><html><body style="font-family:sans-serif;color:#111;max-width:480px;margin:0 auto;padding:24px">
 <p style="margin:0 0 12px">${_hEsc(greeting)}</p>
 ${body}${actionsHtml}${cal}${cta}
@@ -1895,7 +1902,7 @@ function _requestActionButtons(approveUrl, rejectUrl) {
 }
 
 function _actionHtml(title, message) {
-  const adminUrl = 'https://epignatelli.github.io/apps/vb-sessions/#users';
+  const adminUrl = 'https://epignatelli.com/apps/vb-sessions/#users';
   return `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:480px;margin:60px auto;padding:24px;color:#111">
 <h2 style="margin:0 0 12px">${title}</h2>
 <p style="margin:0 0 24px;color:#555">${message}</p>
