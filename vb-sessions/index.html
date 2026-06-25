@@ -27,8 +27,11 @@
       <button class="nav-back" id="nav-back-btn" onclick="_navBack()" style="display:none">←</button>
       <span class="nav-screen-title" id="nav-screen-title"></span>
     </div>
-    <div class="topbar-right" id="nav-avatar-wrap">
-      <button class="auth-btn" id="auth-btn" onclick="handleAuthClick()">Sign in</button>
+    <div class="topbar-right">
+      <button class="topbar-new-btn" id="home-new-btn" onclick="openSessionForm()" style="display:none">+ New</button>
+      <div id="nav-avatar-wrap">
+        <button class="auth-btn" id="auth-btn" onclick="handleAuthClick()">Sign in</button>
+      </div>
     </div>
   </div>
   <div class="nav-tabs-row" id="nav-tabs-row" style="display:none">
@@ -49,9 +52,6 @@
     <div class="home-empty">Loading…</div>
   </div>
 
-  <div class="footer">
-    <button class="cta-btn" id="home-new-btn" onclick="openSessionForm()" style="display:none">+ New session</button>
-  </div>
 
   <!-- Create / Edit session panel -->
   <div class="overlay" id="session-form-overlay">
@@ -612,7 +612,16 @@
 </script>
 <script src="./app.js"></script>
 
-<!-- ── Filter bar (fixed bottom, home screen only) ──────────────────────── -->
+<!-- ── Persistent footer ────────────────────────────────────────────────── -->
+<footer id="app-footer" class="roots-footer">
+  <a class="roots-footer-link" href="../">Roots</a>
+  <span class="roots-footer-dot">·</span>
+  <span class="roots-footer-link dim">About</span>
+  <span class="roots-footer-dot">·</span>
+  <a class="roots-footer-link" href="../policy/">Policy</a>
+</footer>
+
+<!-- ── Filter bar (fixed above footer, home screen only) ────────────────── -->
 <div class="fbar" id="filter-bar" style="display:none">
   <div class="fbar-item">
     <div class="fbar-pop" id="fpop-host">
