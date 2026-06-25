@@ -1102,32 +1102,54 @@ body {
 
 
 /* ── Team builder cards ───────────────────────────────────────────────────── */
-.tbuilder-count { font-size: 11px; font-weight: 600; color: var(--muted);
-                  background: var(--surface2); border-radius: 99px;
-                  padding: 1px 7px; margin-left: 6px; }
+/* team builder */
+.tbuilder-header { display: flex; align-items: center; gap: 8px; }
+.tbuilder-count  { font-size: 11px; font-weight: 600; color: var(--muted);
+                   background: var(--surface2); border-radius: 99px; padding: 1px 7px; }
+.tbuilder-n-row  { display: flex; gap: 4px; margin-left: auto; }
+.tbuilder-n-btn  { font-size: 11px; font-weight: 700; padding: 2px 9px;
+                   border: 1px solid var(--border2); border-radius: 99px;
+                   background: var(--surface2); color: var(--muted); cursor: pointer; }
+.tbuilder-n-btn.active { background: var(--amber); border-color: var(--amber);
+                         color: #000; }
 .tbuilder-scroll { display: flex; gap: 10px; overflow-x: auto;
                    padding-bottom: 6px; scroll-snap-type: x mandatory; }
 .tbuilder-scroll::-webkit-scrollbar { height: 4px; }
 .tbuilder-scroll::-webkit-scrollbar-track { background: transparent; }
 .tbuilder-scroll::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 99px; }
-.tbuilder-card { flex: 0 0 200px; scroll-snap-align: start;
-                 background: var(--surface2); border: 1px solid var(--border2);
-                 border-radius: var(--radius); padding: 10px 12px;
-                 display: flex; flex-direction: column; gap: 8px; }
-.tbuilder-card.tight { border-color: rgba(245,166,35,.5); background: rgba(245,166,35,.06); }
-.tbuilder-card-header { display: flex; align-items: center; gap: 6px; }
-.tbuilder-num  { font-size: 11px; color: var(--muted); font-weight: 700; }
-.tbuilder-wc   { font-size: 11px; color: var(--green); font-weight: 700;
-                 background: var(--green-bg); border-radius: 99px; padding: 1px 6px; }
-.tbuilder-tag  { font-size: 10px; color: var(--amber); font-weight: 700; }
-.tbuilder-court { display: flex; flex-direction: column; gap: 5px; }
-.tbuilder-slot { display: flex; align-items: baseline; gap: 6px; }
-.tbuilder-role { font-size: 9px; font-weight: 800; letter-spacing: .08em;
-                 color: var(--muted); text-transform: uppercase; width: 14px;
-                 flex-shrink: 0; }
-.tbuilder-pname { font-size: 13px; font-weight: 500; color: var(--text); }
-.tbuilder-pname.w { color: var(--green); }
-.tbuilder-bench { border-top: 1px solid var(--border2); padding-top: 7px;
-                  display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
-.tbuilder-bench-label { font-size: 9px; font-weight: 800; letter-spacing: .08em;
-                        text-transform: uppercase; color: var(--muted); width: 100%; }
+.tbuilder-card   { flex: 0 0 auto; scroll-snap-align: start;
+                   background: var(--surface2); border: 1px solid var(--border2);
+                   border-radius: var(--radius); padding: 10px 12px;
+                   display: flex; flex-direction: column; gap: 8px; min-width: 220px; }
+.tbuilder-num    { font-size: 10px; color: var(--muted); font-weight: 700; margin-bottom: 2px; }
+.tbuilder-cols   { display: flex; gap: 0; }
+.tbuilder-team-col { flex: 1; display: flex; flex-direction: column; gap: 3px;
+                     padding: 0 8px; }
+.tbuilder-team-col:first-child { padding-left: 0; }
+.tbuilder-team-col:last-child  { padding-right: 0; }
+.tbuilder-col-divider { width: 1px; background: var(--border2); flex-shrink: 0; margin: 0 2px; }
+.tbuilder-team-hdr { font-size: 10px; font-weight: 800; letter-spacing: .06em;
+                     text-transform: uppercase; color: var(--muted);
+                     display: flex; align-items: center; justify-content: space-between;
+                     margin-bottom: 4px; }
+.tbuilder-wc-inline { color: var(--green); font-weight: 700; font-size: 10px; }
+.tbuilder-player { font-size: 12px; font-weight: 500; color: var(--text);
+                   display: flex; align-items: baseline; justify-content: space-between;
+                   gap: 4px; line-height: 1.5; }
+.tbuilder-player.w .tbuilder-pname { color: var(--green); }
+.tbuilder-pname  { flex: 1; min-width: 0; overflow: hidden;
+                   text-overflow: ellipsis; white-space: nowrap; }
+.tbuilder-pos    { font-size: 9px; font-weight: 800; letter-spacing: .06em;
+                   text-transform: uppercase; color: var(--muted); flex-shrink: 0; }
+.tbuilder-card-top { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
+.tbuilder-vote-count { font-size: 10px; font-weight: 700; color: var(--amber);
+                       background: rgba(240,165,0,.12); border-radius: 99px;
+                       padding: 1px 7px; }
+.tbuilder-vote-btn { margin-left: auto; font-size: 11px; font-weight: 700;
+                     padding: 2px 10px; border-radius: 99px; cursor: pointer;
+                     border: 1px solid var(--border2); background: var(--surface2);
+                     color: var(--muted); }
+.tbuilder-vote-btn.voted { background: var(--amber); border-color: var(--amber);
+                            color: #000; }
+.tbuilder-card.my-vote { border-color: rgba(240,165,0,.5);
+                          background: rgba(240,165,0,.06); }

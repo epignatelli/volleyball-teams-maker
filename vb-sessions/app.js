@@ -34,6 +34,8 @@ let _pendingProfileNeeds    = {};     // { needsGender, needsPositions } for pro
 let _editingAttendeeSession = null;   // sessionId when editing own attendee entry (positions)
 let _currentSession         = null;   // session data for the open detail panel
 let _currentAttendees       = [];     // attendee list for the open session (used for CSV export)
+let _teamVoteMap            = {};     // partitionKey → vote count (for open session)
+let _myTeamVote             = '';     // partition key the current user voted for
 
 // Handle return from Stripe Checkout before Firebase initialises.
 // Stripe appends ?checkout=success|cancelled&session=ID to the success/cancel URLs.
@@ -1004,6 +1006,9 @@ async function openSession(id) {
 
     const session = { id: sessionDoc.id, ...sessionDoc.data() };
     _currentSession = session;
+    _activeTeamCount = 0; // reset so default is re-derived from player count
+    _teamVoteMap = {};
+    _myTeamVote  = '';
     let attendees   = [];
     let isAttending = false;
 
@@ -1011,14 +1016,26 @@ async function openSession(id) {
     let myWaitingListPos    = 0; // 0 = not on list
 
     if (_currentUser) {
-      const wlRef = getDb().collection('sessions').doc(id).collection('waitingList');
-      const [attendeesSnap, ownWlSnap] = await Promise.all([
+      const wlRef    = getDb().collection('sessions').doc(id).collection('waitingList');
+      const votesRef = getDb().collection('sessions').doc(id).collection('teamVotes');
+      const [attendeesSnap, ownWlSnap, votesSnap] = await Promise.all([
         _fsGet(_attendeesRef(id).orderBy('joinedAt', 'asc')),
         _fsGet(wlRef.doc(_currentUser.uid)),
+        _fsGet(votesRef),
       ]);
       attendees         = attendeesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
       _currentAttendees = attendees;
       isAttending       = attendees.some(a => a.id === _currentUser.uid);
+
+      _teamVoteMap = {};
+      _myTeamVote  = '';
+      for (const d of votesSnap.docs) {
+        const k = d.data().partition;
+        if (k) {
+          _teamVoteMap[k] = (_teamVoteMap[k] || 0) + 1;
+          if (d.id === _currentUser.uid) _myTeamVote = k;
+        }
+      }
 
       try {
         const wlSnap = await _fsGet(wlRef.orderBy('joinedAt', 'asc'));
@@ -1050,7 +1067,10 @@ async function openSession(id) {
 }
 
 // ─── Team builder ──────────────────────────────────────────────────────────────
+let _activeTeamCount = 0; // 0 = use default derived from player count
+
 function _combos(arr, k) {
+  if (k === 0) return [[]];
   const res = [];
   function bt(start, cur) {
     if (cur.length === k) { res.push([...cur]); return; }
@@ -1060,94 +1080,174 @@ function _combos(arr, k) {
   return res;
 }
 
-function _buildLineups(attendees, minWomen) {
-  // Map session attendees → vb-lineups player format
-  const players = attendees
-    .filter(a => (a.positions || []).length)
-    .map(a => ({
-      id:        a.id,
-      name:      a.name,
-      gender:    a.gender === 'woman' ? 'f' : 'm',
-      positions: new Set(a.positions || []),
-    }));
+// Stable canonical key for a partition: sort each team's IDs, then sort teams.
+// Used for deduplication and as the Firestore vote field value.
+function _partitionKey(teams) {
+  return teams
+    .map(team => team.map(p => p.id).sort().join(','))
+    .sort()
+    .join('|');
+}
 
-  const isW      = p => p.gender === 'f';
-  const setters  = players.filter(p => p.positions.has('setter'));
-  const middles  = players.filter(p => p.positions.has('middle'));
-  const liberos  = players.filter(p => p.positions.has('libero'));
-  const hitters  = players.filter(p => p.positions.has('hitter'));
-  const out      = [];
+// Partition attendees into numTeams balanced teams, women spread equally.
+// Returns Array<{teams: Player[][], key: string}>, deduplicated by canonical key.
+function _buildPartitions(attendees, numTeams, maxResults = 30) {
+  const players = attendees.map(a => ({
+    id:        a.id,
+    name:      a.name,
+    gender:    a.gender === 'woman' ? 'f' : 'm',
+    positions: new Set(a.positions || []),
+  }));
 
-  for (const s of setters) {
-    for (const h of _combos(hitters.filter(p => p.id !== s.id), 3)) {
-      const used = new Set([s.id, ...h.map(p => p.id)]);
-      for (const m of _combos(middles.filter(p => !used.has(p.id)), 2)) {
-        const used2 = new Set([...used, ...m.map(p => p.id)]);
-        for (const l of liberos.filter(p => !used2.has(p.id))) {
-          let ok = true, minW = 9;
-          for (const sit of m) {
-            const act    = m.find(x => x.id !== sit.id);
-            const active = [s, ...h, act, l];
-            const wc     = active.filter(isW).length;
-            if (wc < minWomen) { ok = false; break; }
-            if (wc < minW) minW = wc;
-          }
-          const all7 = [s, ...h, ...m, l];
-          if (all7.filter(isW).length < minWomen) ok = false;
-          if (ok) out.push({ setter: s, hitters: h, middles: m, libero: l,
-            wc: all7.filter(isW).length, tight: minW === minWomen,
-            ids: new Set(all7.map(p => p.id)) });
-        }
-      }
+  const women     = players.filter(p => p.gender === 'f');
+  const men       = players.filter(p => p.gender !== 'f');
+  const total     = players.length;
+  const tFloor    = Math.floor(total        / numTeams);
+  const wFloor    = Math.floor(women.length / numTeams);
+  const tExtras   = total        % numTeams;
+  const wExtras   = women.length % numTeams;
+  // Spread total and women evenly; men fill the remainder per team.
+  const tSizes    = Array.from({length: numTeams}, (_, i) => tFloor + (i < tExtras ? 1 : 0));
+  const wSizes    = Array.from({length: numTeams}, (_, i) => wFloor + (i < wExtras ? 1 : 0));
+  const mSizes    = tSizes.map((t, i) => t - wSizes[i]);
+
+  const results = [];
+  const seen    = new Set();
+
+  function split(pool, sizes, idx, cur, done) {
+    if (results.length >= maxResults) return;
+    if (idx === sizes.length) { done([...cur]); return; }
+    for (const pick of _combos(pool, sizes[idx])) {
+      const ids = new Set(pick.map(p => p.id));
+      cur.push(pick);
+      split(pool.filter(p => !ids.has(p.id)), sizes, idx + 1, cur, done);
+      cur.pop();
+      if (results.length >= maxResults) return;
     }
   }
-  return out;
+
+  split(women, wSizes, 0, [], wParts => {
+    if (results.length >= maxResults) return;
+    split(men, mSizes, 0, [], mParts => {
+      if (results.length >= maxResults) return;
+      const teams = wParts.map((wTeam, i) => [...wTeam, ...mParts[i]]);
+      const key   = _partitionKey(teams);
+      if (!seen.has(key)) { seen.add(key); results.push({ teams, key }); }
+    });
+  });
+
+  return results;
 }
 
 function _renderTeamsSection(session, attendees) {
   if (session.type !== 'game') return '';
-  if (!session.askPositions) return '';
-  const withPos = attendees.filter(a => (a.positions || []).length);
-  if (withPos.length < 7) return '';
+  if (!attendees.length) return '';
 
-  const minW     = session.gender === 'men' ? 0 : session.gender === 'women' ? 6 : 2;
-  const lineups  = _buildLineups(attendees, minW);
-  if (!lineups.length) return '';
+  const total    = attendees.length;
+  const defaultN = total > 12 ? 3 : 2;
+  const n        = _activeTeamCount || defaultN;
+  if (total < n * 4) return '';
 
-  const pname = (p, allPlayers) => {
-    const isW = (allPlayers.find(a => a.id === p.id)?.gender === 'woman');
-    return `<span class="tbuilder-pname${isW ? ' w' : ''}">${esc(p.name)}</span>`;
-  };
+  let partitions = _buildPartitions(attendees, n);
+  if (!partitions.length) return '';
 
-  const cards = lineups.map((t, i) => {
-    const benchIds = new Set(attendees.filter(a => !t.ids.has(a.id)).map(a => a.id));
-    const bench    = attendees.filter(a => benchIds.has(a.id));
-    return `
-      <div class="tbuilder-card${t.tight ? ' tight' : ''}">
-        <div class="tbuilder-card-header">
-          <span class="tbuilder-num">#${i + 1}</span>
-          <span class="tbuilder-wc">${t.wc}♀</span>
-          ${t.tight ? '<span class="tbuilder-tag">⚠ tight</span>' : ''}
-        </div>
-        <div class="tbuilder-court">
-          <div class="tbuilder-slot"><span class="tbuilder-role">S</span>${pname(t.setter, attendees)}</div>
-          <div class="tbuilder-slot"><span class="tbuilder-role">H</span>${t.hitters.map(p => pname(p, attendees)).join('')}</div>
-          <div class="tbuilder-slot"><span class="tbuilder-role">M</span>${t.middles.map(p => pname(p, attendees)).join('')}</div>
-          <div class="tbuilder-slot"><span class="tbuilder-role">L</span>${pname(t.libero, attendees)}</div>
-        </div>
-        ${bench.length ? `<div class="tbuilder-bench">
-          <span class="tbuilder-bench-label">Bench</span>
-          ${bench.map(a => `<span class="tbuilder-pname${a.gender === 'woman' ? ' w' : ''}">${esc(a.name)}</span>`).join('')}
-        </div>` : ''}
+  // Sort most-voted first; stable (preserves original order within same vote count).
+  partitions = [...partitions].sort((a, b) => (_teamVoteMap[b.key] || 0) - (_teamVoteMap[a.key] || 0));
+
+  const isAttending = !!(_currentUser && attendees.some(a => a.id === _currentUser.uid));
+  const POS = { setter: 'S', hitter: 'H', outside: 'OH', opposite: 'OPP', middle: 'M', libero: 'L' };
+  const maxN = Math.min(Math.floor(total / 4), 5);
+  const nBtns = Array.from({length: maxN - 1}, (_, i) => i + 2)
+    .map(k => `<button class="tbuilder-n-btn${k === n ? ' active' : ''}" onclick="setTeamCount(${k})">${k}</button>`)
+    .join('');
+
+  const cards = partitions.map((p, pi) => {
+    const { teams, key } = p;
+    const votes    = _teamVoteMap[key] || 0;
+    const isMyVote = _myTeamVote === key;
+
+    const cols = teams.map((team, ti) => {
+      const wc   = team.filter(pl => pl.gender === 'f').length;
+      const rows = team.map(pl => {
+        const pos = [...pl.positions].map(k => POS[k] || k).join('/');
+        return `<div class="tbuilder-player${pl.gender === 'f' ? ' w' : ''}">
+          <span class="tbuilder-pname">${esc(pl.name)}</span>${pos ? `<span class="tbuilder-pos">${pos}</span>` : ''}
+        </div>`;
+      }).join('');
+      return `<div class="tbuilder-team-col">
+        <div class="tbuilder-team-hdr">Team ${ti + 1}<span class="tbuilder-wc-inline">${wc}♀</span></div>
+        ${rows}
       </div>`;
+    }).join('<div class="tbuilder-col-divider"></div>');
+
+    const safeKey  = key.replace(/"/g, '&quot;');
+    const voteBtn  = isAttending
+      ? `<button class="tbuilder-vote-btn${isMyVote ? ' voted' : ''}"
+           data-key="${safeKey}" data-sid="${session.id}"
+           onclick="voteForTeam(this)">${isMyVote ? '✓ Voted' : 'Vote'}</button>`
+      : '';
+    const voteBadge = votes > 0
+      ? `<span class="tbuilder-vote-count">${votes} vote${votes !== 1 ? 's' : ''}</span>`
+      : '';
+
+    return `<div class="tbuilder-card${isMyVote ? ' my-vote' : ''}">
+      <div class="tbuilder-card-top">
+        <span class="tbuilder-num">#${pi + 1}</span>
+        ${voteBadge}${voteBtn}
+      </div>
+      <div class="tbuilder-cols">${cols}</div>
+    </div>`;
   }).join('');
 
   return `
-    <div class="detail-section">
-      <div class="detail-section-title">Team combinations <span class="tbuilder-count">${lineups.length}</span></div>
+    <div class="detail-section" id="tbuilder-section">
+      <div class="tbuilder-header">
+        <span class="detail-section-title">Teams</span>
+        <span class="tbuilder-count">${partitions.length}</span>
+        <div class="tbuilder-n-row">${nBtns}</div>
+      </div>
       <div class="tbuilder-scroll">${cards}</div>
     </div>`;
 }
+
+function _refreshTeamsSection() {
+  const section = document.getElementById('tbuilder-section');
+  if (!section || !_currentSession) return;
+  const html = _renderTeamsSection(_currentSession, _currentAttendees);
+  if (html) section.outerHTML = html;
+}
+
+window.setTeamCount = function(n) {
+  _activeTeamCount = n;
+  _refreshTeamsSection();
+};
+
+window.voteForTeam = async function(btn) {
+  if (!_currentUser) return;
+  const key       = btn.dataset.key;
+  const sessionId = btn.dataset.sid;
+  const voteRef   = getDb().collection('sessions').doc(sessionId)
+                           .collection('teamVotes').doc(_currentUser.uid);
+
+  if (_myTeamVote === key) {
+    // Toggle off — remove vote.
+    _teamVoteMap[key] = Math.max(0, (_teamVoteMap[key] || 1) - 1);
+    if (!_teamVoteMap[key]) delete _teamVoteMap[key];
+    _myTeamVote = '';
+    _refreshTeamsSection();
+    await voteRef.delete();
+  } else {
+    // Switch or new vote — remove old, add new.
+    if (_myTeamVote) {
+      _teamVoteMap[_myTeamVote] = Math.max(0, (_teamVoteMap[_myTeamVote] || 1) - 1);
+      if (!_teamVoteMap[_myTeamVote]) delete _teamVoteMap[_myTeamVote];
+    }
+    _teamVoteMap[key] = (_teamVoteMap[key] || 0) + 1;
+    _myTeamVote = key;
+    _refreshTeamsSection();
+    await voteRef.set({ partition: key, votedAt: firebase.firestore.FieldValue.serverTimestamp() });
+  }
+};
 
 function _renderDetail(session, attendees, isAttending, waitingList, myWaitingListPos, content, footer, seriesReg) {
   const knownCount     = _currentUser ? attendees.length : (session.attendeeCount || 0);
