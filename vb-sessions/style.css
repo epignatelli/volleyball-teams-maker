@@ -3,7 +3,7 @@
 button, input, select, textarea { touch-action: manipulation; font-family: inherit; }
 
 :root {
-  --footer-h: 28px;
+  --footer-h: 30px;
   --bg:        #0f1117;
   --surface:   #1a1d27;
   --surface2:  #22263a;
@@ -180,9 +180,8 @@ body {
   position: fixed; left: 0; right: 0; z-index: 110;
   bottom: calc(var(--footer-h) + env(safe-area-inset-bottom));
   display: flex;
-  background: rgba(15,17,23,.92);
-  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
-  border-top: 1px solid rgba(255,255,255,.07);
+  background: var(--surface);
+  border-top: 1px solid var(--border);
   padding: 0 8px;
 }
 .fbar-item { position: relative; flex: 1; }
