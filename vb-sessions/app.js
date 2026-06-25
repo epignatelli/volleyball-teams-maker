@@ -19,6 +19,17 @@ const TERMS_VERSION         = '1.0';
 // Firebase Console → Project Settings → Cloud Messaging → Web Push certificates
 const VAPID_KEY = 'BEGU7JjvOHiJtWbrgZ2_9EDYb1mcoengEyQNlYaPeVr_pMeIQDOvumGu1WmPmA4KNKb3wDJphCZwCoNwIiYOCzU';
 
+// ─── Analytics ─────────────────────────────────────────────────────────────────
+function _gaEvent(name, params) {
+  if (typeof gtag === 'function') gtag('event', name, params || {});
+}
+function _gaPageView(path) {
+  if (typeof gtag === 'function') gtag('event', 'page_view', { page_path: path });
+}
+function _gaGrantConsent() {
+  if (typeof gtag === 'function') gtag('consent', 'update', { analytics_storage: 'granted' });
+}
+
 // ─── State ─────────────────────────────────────────────────────────────────────
 let _currentUser  = null;
 let _currentRoles = [];
@@ -334,6 +345,8 @@ getAuth().onAuthStateChanged(async user => {
     const termsAccepted = await _upsertUserDoc(user);
     if (!termsAccepted || termsAccepted.version !== TERMS_VERSION) {
       _showTermsModal();
+    } else {
+      _gaGrantConsent();
     }
     _subscribeToUserDoc(user);
     _initMessaging(user);
@@ -403,6 +416,9 @@ function _setHash(hash) {
   const next = '#' + hash;
   if (location.hash === next) return; // already here — avoid duplicate history entry
   history.pushState(null, '', next);
+  // Anonymise profile UIDs; normalise home → '/'.
+  const path = '/' + hash.replace(/^home$/, '').replace(/^profile\/[^/]+/, 'profile');
+  _gaPageView(path || '/');
 }
 
 async function _routeFromHash() {
@@ -1256,6 +1272,7 @@ window.voteForTeam = async function(btn) {
     _teamVoteMap[key] = (_teamVoteMap[key] || 0) + 1;
     _myTeamVote = key;
     _refreshTeamsSection();
+    _gaEvent('vote_team', { session_id: sessionId });
     await voteRef.set({ partition: key, votedAt: firebase.firestore.FieldValue.serverTimestamp() });
   }
 };
@@ -1552,6 +1569,7 @@ async function _confirmTerms() {
     return;
   }
   document.getElementById('terms-overlay').remove();
+  _gaGrantConsent();
   await _userRef(_currentUser.uid).update({
     termsAccepted: { version: TERMS_VERSION, at: firebase.firestore.FieldValue.serverTimestamp() },
   });
@@ -1633,6 +1651,7 @@ async function _doRegister(sessionId, extra = {}) {
       photoConsent: userDoc.data()?.photoConsent?.given ?? false,
       ...extra,
     });
+    _gaEvent('join_session', { session_id: sessionId });
     await _sessionRef(sessionId).update({
       attendeeCount: firebase.firestore.FieldValue.increment(1),
     });
@@ -1737,6 +1756,7 @@ async function dropOutOfSession(sessionId) {
   btns.forEach(b => { b.disabled = true; });
   try {
     await callFn('dropOutSeries', { sessionId });
+    _gaEvent('leave_session', { session_id: sessionId });
     showToast('Dropped out. Your series pass is still active.');
     await openSession(sessionId);
   } catch(e) {
@@ -1764,6 +1784,7 @@ async function cancelRegistration(sessionId) {
 
   try {
     const data = await callFn('cancelAttendeeAndRefund', { sessionId });
+    _gaEvent('leave_session', { session_id: sessionId });
     showToast(data.refunded ? 'Cancelled — refund on its way.' : 'Registration cancelled.');
     await openSession(sessionId);
   } catch(e) {
