@@ -2,15 +2,20 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
+    function userRoles() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('roles', []);
+    }
+
     function isAdmin() {
-      return request.auth != null
-          && request.auth.token.email != null
-          && exists(/databases/$(database)/documents/admins/$(request.auth.token.email));
+      return request.auth != null && (
+        userRoles().hasAny(['admin', 'owner'])
+        || (request.auth.token.email != null
+            && exists(/databases/$(database)/documents/admins/$(request.auth.token.email)))
+      );
     }
 
     function isOwner() {
-      return request.auth != null
-          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('roles', []).hasAny(['owner']);
+      return request.auth != null && userRoles().hasAny(['owner']);
     }
 
     function isProvider() {
