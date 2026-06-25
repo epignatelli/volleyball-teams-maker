@@ -966,9 +966,9 @@ body {
 .session-badge.level-competitive  { background: rgba(239,68,68,.12);       color: #f87171;       }
 
 /* ─── Session gender badges ───────────────────────────────────────────── */
-.session-badge.gender-mixed { background: var(--surface2);  color: var(--muted);  }
-.session-badge.gender-women { background: var(--green-bg);  color: var(--green);  }
-.session-badge.gender-men   { background: var(--purple-bg); color: var(--purple); }
+.session-badge.gender-mixed { background: var(--purple-bg);        color: var(--purple); }
+.session-badge.gender-women { background: rgba(96,165,250,.13);    color: #93c5fd;       }
+.session-badge.gender-men   { background: rgba(236,72,153,.13);    color: #f472b6;       }
 
 /* ─── Series ref badge (on session card) ─────────────────────────────── */
 .session-badge.series-ref { background: rgba(167,139,250,.1); color: var(--purple); }
