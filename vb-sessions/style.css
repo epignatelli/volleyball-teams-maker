@@ -178,8 +178,8 @@ body {
 /* ─── Footer (bottom of chrome, always visible) ──────────────────────────── */
 .roots-footer {
   display: flex; align-items: center; justify-content: center; gap: 8px;
-  padding: 6px 16px;
-  padding-bottom: max(6px, env(safe-area-inset-bottom));
+  padding: 3px 16px;
+  padding-bottom: max(3px, env(safe-area-inset-bottom));
   background: var(--surface);
   border-top: 1px solid var(--border);
 }
