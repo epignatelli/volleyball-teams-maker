@@ -709,6 +709,20 @@ body {
 
 .user-actions { display: flex; gap: 4px; flex-shrink: 0; flex-wrap: wrap; justify-content: flex-end; }
 
+.user-role-pills { display: flex; gap: 4px; flex-shrink: 0; align-items: center; }
+.role-pill {
+  font-family: var(--sport); font-size: 10px; font-weight: 700;
+  letter-spacing: .07em; text-transform: uppercase;
+  padding: 3px 8px; border-radius: 99px;
+  border: 1px solid var(--border2);
+  color: var(--border2); background: transparent;
+  user-select: none;
+}
+.role-pill.active.owner    { background: var(--red-bg);           border-color: rgba(248,113,113,.5);  color: var(--red); }
+.role-pill.active.admin    { background: rgba(244,114,182,.13);   border-color: rgba(244,114,182,.5);  color: #f472b6; }
+.role-pill.active.coach    { background: var(--green-bg);         border-color: rgba(34,201,122,.35);  color: var(--green); }
+.role-pill.active.provider { background: rgba(20,184,166,.15);    border-color: rgba(45,212,191,.5);   color: #2dd4bf; }
+
 .role-toggle {
   font-family: var(--sport); font-size: 10px; font-weight: 700;
   letter-spacing: .07em; text-transform: uppercase;

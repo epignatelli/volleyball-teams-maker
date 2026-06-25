@@ -1661,7 +1661,17 @@ function _renderUserRow(u) {
   const posStr             = (u.positions||[]).map(p => posLabels[p]||p).join(' · ');
   const genderSym          = { man:'♂', woman:'♀', nonbinary:'⚧' }[u.gender] || '';
   const joined             = u.createdAt ? _formatDate(u.createdAt) : '';
-  const canRemove          = _isAdmin && !isMe && (_isOwner ? !hasOwner : (!hasAdmin && !hasOwner));
+
+  const pill = (label, cls, active) =>
+    `<span class="role-pill${active ? ' active ' + cls : ''}">${label}</span>`;
+
+  const rolePills = `
+    <div class="user-role-pills">
+      ${pill('Sudo',  'owner',    hasOwner)}
+      ${pill('Admin', 'admin',    hasAdmin)}
+      ${pill('Coach', 'coach',    hasCoach)}
+      ${pill('Host',  'provider', hasProvider)}
+    </div>`;
 
   return `
     <div class="user-row" onclick="openProfileScreen('${u.id}')">
@@ -1671,18 +1681,14 @@ function _renderUserRow(u) {
       <div class="user-info">
         <div class="user-name">
           ${esc(u.name || '—')}${isMe ? ' <span class="user-you">you</span>' : ''}
-          ${hasOwner    ? '<span class="user-flag owner-badge">sudo</span>'       : ''}
-          ${hasAdmin    ? '<span class="user-flag admin-badge">admin</span>'      : ''}
-          ${hasCoach    ? '<span class="user-flag coach-badge">coach</span>'      : ''}
-          ${hasProvider ? '<span class="user-flag provider-badge">host</span>'   : ''}
-          ${incomplete        ? '<span class="user-flag">incomplete</span>'              : ''}
-          ${hasPendingCoach    ? '<span class="user-flag coach-req">coach req</span>'   : ''}
-          ${hasPendingProvider ? '<span class="user-flag provider-req">host req</span>' : ''}
-          ${hasPendingAdmin    ? '<span class="user-flag admin-req">admin req</span>'   : ''}
+          ${incomplete         ? '<span class="user-flag">incomplete</span>'              : ''}
+          ${hasPendingCoach    ? '<span class="user-flag coach-req">coach req</span>'    : ''}
+          ${hasPendingProvider ? '<span class="user-flag provider-req">host req</span>'  : ''}
+          ${hasPendingAdmin    ? '<span class="user-flag admin-req">admin req</span>'    : ''}
         </div>
         <div class="user-meta">${esc(u.email || '')}${genderSym ? ` · ${genderSym}` : ''}${posStr ? ` · ${posStr}` : ''}${joined ? ` · joined ${joined}` : ''}</div>
       </div>
-      ${canRemove ? `<div class="user-actions" onclick="event.stopPropagation()"><button class="role-toggle danger" data-uid="${esc(u.id)}" onclick="banUser(this.dataset.uid)">Remove</button></div>` : ''}
+      ${rolePills}
     </div>`;
 }
 
@@ -2033,6 +2039,8 @@ async function openProfileScreen(uid) {
             ${_activeTag}
           </div>` : ''}
         </div>
+        ${_isOwner && !hasOwner ? `
+        <button class="role-action-revoke" style="margin-top:12px;width:100%" data-uid="${esc(targetUid)}" onclick="banUser(this.dataset.uid)">Remove user</button>` : ''}
       </div>` : '';
 
     const showHistory = isOwn || _isAdmin;
