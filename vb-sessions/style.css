@@ -177,7 +177,7 @@ body {
 /* ─── Filter bar (above footer) ─────────────────────────────────────────── */
 .fbar {
   position: fixed; left: 0; right: 0; z-index: 110;
-  bottom: max(29px, calc(23px + env(safe-area-inset-bottom)));
+  bottom: max(34px, calc(28px + env(safe-area-inset-bottom)));
   display: flex;
   background: rgba(15,17,23,.92);
   backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px);
