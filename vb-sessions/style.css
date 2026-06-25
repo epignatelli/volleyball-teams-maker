@@ -103,6 +103,7 @@ body {
   border-top: 1px solid var(--border);
   display: flex;
   gap: 8px;
+  margin-bottom: calc(18px + max(18px, env(safe-area-inset-bottom)) + env(safe-area-inset-bottom));
 }
 
 /* ─── Buttons ────────────────────────────────────────────────────────────── */
@@ -233,7 +234,7 @@ body {
 }
 .filter-active-label strong { color: var(--amber); font-weight: 700; }
 
-.home-content { flex: 1; overflow-y: auto; padding: 20px; padding-bottom: calc(52px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 24px; }
+.home-content { flex: 1; overflow-y: auto; padding: 20px; padding-bottom: calc(92px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 24px; }
 .topbar-new-btn {
   background: var(--amber); color: #0f1117; border: none;
   font-family: var(--sport); font-size: 13px; font-weight: 700; letter-spacing: .05em;
@@ -290,7 +291,7 @@ body {
 .session-admin-btns { display: flex; gap: 6px; }
 
 /* ─── Session detail ─────────────────────────────────────────────────────── */
-.detail-content { flex: 1; overflow-y: auto; padding: 20px; display: flex; flex-direction: column; gap: 20px; }
+.detail-content { flex: 1; overflow-y: auto; padding: 20px; padding-bottom: calc(64px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 20px; }
 
 .detail-section {
   background: var(--surface);
@@ -378,7 +379,7 @@ body {
 /* ─── Session run screen ─────────────────────────────────────────────────── */
 .run-content {
   flex: 1; overflow-y: auto; overflow-x: hidden;
-  padding: 20px; display: flex; flex-direction: column; gap: 16px;
+  padding: 20px; padding-bottom: calc(64px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 16px;
 }
 
 .run-section {
@@ -614,7 +615,7 @@ body {
 
 /* ─── Policy overlay ────────────────────────────────────────────────────────── */
 .policy-panel { max-height: 85dvh; }
-.policy-body { flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 14px; font-size: 14px; line-height: 1.6; }
+.policy-body { flex: 1; overflow-y: auto; padding-bottom: calc(64px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 14px; font-size: 14px; line-height: 1.6; }
 .policy-body h2 { font-family: var(--sport); font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); margin-top: 4px; }
 .policy-body p  { color: var(--text); }
 .policy-updated { font-size: 11px; color: var(--muted); margin-top: 8px; }
@@ -629,7 +630,7 @@ body {
 .policy-link:hover { color: var(--text); }
 
 /* ─── Finances screen ────────────────────────────────────────────────────────── */
-.finances-content { flex: 1; overflow: auto; padding: 16px 20px; }
+.finances-content { flex: 1; overflow: auto; padding: 16px 20px; padding-bottom: calc(64px + env(safe-area-inset-bottom)); }
 
 .finances-table-wrap { overflow-x: auto; }
 
@@ -667,7 +668,7 @@ body {
 .filter-btn.active { background: var(--surface2); border-color: var(--text); color: var(--text); }
 .filter-btn:hover:not(.active) { border-color: var(--text); color: var(--text); }
 
-.users-content { flex: 1; overflow-y: auto; padding: 16px 20px; display: flex; flex-direction: column; gap: 2px; }
+.users-content { flex: 1; overflow-y: auto; padding: 16px 20px; padding-bottom: calc(64px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 2px; }
 
 .user-row {
   display: flex; align-items: center; gap: 12px;
@@ -736,7 +737,7 @@ body {
 
 /* ── Profile screen ──────────────────────────────────────────────────────── */
 .profile-screen-body {
-  flex: 1; overflow-y: auto; padding: 24px 20px;
+  flex: 1; overflow-y: auto; padding: 24px 20px; padding-bottom: calc(64px + env(safe-area-inset-bottom));
   display: flex; flex-direction: column; gap: 16px;
 }
 .profile-screen-card {

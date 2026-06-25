@@ -100,6 +100,18 @@ function _attendeesRef(sessionId)    { return _sessionRef(sessionId).collection(
 function _sessionHistoryRef(uid)     { return _userRef(uid).collection('sessions'); }
 function _usersRef()              { return getDb().collection('users'); }
 function _userRef(uid)            { return _usersRef().doc(uid); }
+function _isOpenRequest(req) {
+  if (!req || typeof req !== 'object' || req.status !== 'open') return false;
+  if (req.expiresAt && req.expiresAt.toDate?.() < new Date()) return false;
+  return true;
+}
+function _requestObj() {
+  const expiresAt = new Date(Date.now() + 30 * 24 * 60 * 60 * 1000);
+  return { id: Math.random().toString(36).slice(2, 10), status: 'open', requestedAt: firebase.firestore.FieldValue.serverTimestamp(), expiresAt };
+}
+function _requestClosed(status) {
+  return { status, respondedAt: firebase.firestore.FieldValue.serverTimestamp() };
+}
 
 // ─── User doc ──────────────────────────────────────────────────────────────────
 async function _upsertUserDoc(user) {
@@ -1399,8 +1411,8 @@ function _applyUserFilter() {
     if (_userFilter === 'coach')            return (u.roles||[]).includes('coach');
     if (_userFilter === 'provider')         return (u.roles||[]).includes('provider');
     if (_userFilter === 'admin')            return (u.roles||[]).includes('admin');
-    if (_userFilter === 'pending')          return (!!u.coachRequest && !(u.roles||[]).includes('coach'))
-                                                || (!!u.providerRequest && !(u.roles||[]).includes('provider'));
+    if (_userFilter === 'pending')          return (_isOpenRequest(u.coachRequest) && !(u.roles||[]).includes('coach'))
+                                                || (_isOpenRequest(u.providerRequest) && !(u.roles||[]).includes('provider'));
     if (_userFilter === 'incomplete') return !u.gender || !(u.positions||[]).length;
     return true;
   });
@@ -1415,8 +1427,8 @@ function _renderUserRow(u) {
   const hasAdmin           = roles.includes('admin');
   const hasCoach           = roles.includes('coach');
   const hasProvider        = roles.includes('provider');
-  const hasPendingCoach    = !!u.coachRequest && !hasCoach;
-  const hasPendingProvider = !!u.providerRequest && !hasProvider;
+  const hasPendingCoach    = _isOpenRequest(u.coachRequest) && !hasCoach;
+  const hasPendingProvider = _isOpenRequest(u.providerRequest) && !hasProvider;
   const hasPendingAdmin    = !!u.adminRequest && !hasAdmin;
   const initials        = (u.name || u.email || '?')[0].toUpperCase();
   const incomplete      = !u.gender || !(u.positions||[]).length;
@@ -1552,10 +1564,12 @@ async function approveCoach(uid, displayName) {
   const label = displayName || uid;
   if (!confirm(`Approve ${label} as Coach?`)) return;
   try {
-    const doc   = await _userRef(uid).get();
-    const roles = doc.data()?.roles || ['player'];
+    const doc  = await _userRef(uid).get();
+    const data = doc.data() || {};
+    if (!_isOpenRequest(data.coachRequest)) { showToast('Request is no longer open.', 'error'); return; }
+    const roles = data.roles || ['player'];
     if (!roles.includes('coach')) roles.push('coach');
-    await _userRef(uid).update({ roles, coachRequest: false });
+    await _userRef(uid).update({ roles, coachRequest: { ...data.coachRequest, ..._requestClosed('approved') } });
     callFn('notifyCoachRequestOutcome', { uid, approved: true }).catch(console.error);
     showToast('Coach approved.');
     _refreshAfterRoleAction(uid);
@@ -1566,7 +1580,10 @@ async function rejectCoach(uid) {
   if (!_isAdmin) return;
   if (!confirm('Reject this coach request?')) return;
   try {
-    await _userRef(uid).update({ coachRequest: false });
+    const doc  = await _userRef(uid).get();
+    const req  = doc.data()?.coachRequest;
+    if (!_isOpenRequest(req)) { showToast('Request is no longer open.', 'error'); return; }
+    await _userRef(uid).update({ coachRequest: { ...req, ..._requestClosed('declined') } });
     callFn('notifyCoachRequestOutcome', { uid, approved: false }).catch(console.error);
     showToast('Coach request rejected.');
     _refreshAfterRoleAction(uid);
@@ -1578,10 +1595,12 @@ async function approveProvider(uid, displayName) {
   const label = displayName || uid;
   if (!confirm(`Approve ${label} as a host?`)) return;
   try {
-    const doc   = await _userRef(uid).get();
-    const roles = doc.data()?.roles || ['player'];
+    const doc  = await _userRef(uid).get();
+    const data = doc.data() || {};
+    if (!_isOpenRequest(data.providerRequest)) { showToast('Request is no longer open.', 'error'); return; }
+    const roles = data.roles || ['player'];
     if (!roles.includes('provider')) roles.push('provider');
-    await _userRef(uid).update({ roles, providerRequest: false });
+    await _userRef(uid).update({ roles, providerRequest: { ...data.providerRequest, ..._requestClosed('approved') } });
     callFn('notifyHostRequestOutcome', { uid, approved: true }).catch(console.error);
     showToast('Host approved.');
     _refreshAfterRoleAction(uid);
@@ -1592,7 +1611,10 @@ async function rejectProvider(uid) {
   if (!_isAdmin) return;
   if (!confirm('Reject this host request?')) return;
   try {
-    await _userRef(uid).update({ providerRequest: false });
+    const doc  = await _userRef(uid).get();
+    const req  = doc.data()?.providerRequest;
+    if (!_isOpenRequest(req)) { showToast('Request is no longer open.', 'error'); return; }
+    await _userRef(uid).update({ providerRequest: { ...req, ..._requestClosed('declined') } });
     callFn('notifyHostRequestOutcome', { uid, approved: false }).catch(console.error);
     showToast('Host request rejected.');
     _refreshAfterRoleAction(uid);
@@ -1629,9 +1651,9 @@ async function openProfileScreen(uid) {
     const isOwn  = _currentUser && targetUid === _currentUser.uid;
     const roles  = u.roles || ['player'];
     const hasCoach           = roles.includes('coach');
-    const hasPending         = !!u.coachRequest && !hasCoach;
+    const hasPending         = _isOpenRequest(u.coachRequest) && !hasCoach;
     const hasProvider        = roles.includes('provider');
-    const hasPendingProvider = !!u.providerRequest && !hasProvider;
+    const hasPendingProvider = _isOpenRequest(u.providerRequest) && !hasProvider;
 
     if (isOwn) _setTitle('Your profile');
 
@@ -1674,7 +1696,7 @@ async function openProfileScreen(uid) {
             ${hasCoach
               ? _roleCheck
               : hasPending
-                ? `<span class="role-status-pending">Request pending</span>`
+                ? `<div style="display:flex;align-items:center;gap:8px"><span class="role-status-pending">Request pending</span><button class="role-status-btn" onclick="cancelCoachRequest()">Cancel</button></div>`
                 : `<button class="role-status-btn" id="coach-request-view-btn" onclick="requestCoachStatusFromView()">Request →</button>`}
           </div>
           <div class="role-status-row">
@@ -1682,7 +1704,7 @@ async function openProfileScreen(uid) {
             ${hasProvider
               ? _roleCheck
               : hasPendingProvider
-                ? `<span class="role-status-pending">Request pending</span>`
+                ? `<div style="display:flex;align-items:center;gap:8px"><span class="role-status-pending">Request pending</span><button class="role-status-btn" onclick="cancelProviderRequest()">Cancel</button></div>`
                 : `<button class="role-status-btn" id="provider-request-view-btn" onclick="requestProviderStatusFromView()">Request →</button>`}
           </div>
           <div class="role-status-row role-status-row--dim">
@@ -2987,7 +3009,7 @@ async function requestCoachStatus() {
   if (btn) btn.disabled = true;
   try {
     await _userRef(_currentUser.uid).update({
-      coachRequest: true,
+      coachRequest: _requestObj(),
       updatedAt:    firebase.firestore.FieldValue.serverTimestamp(),
     });
     await callFn('notifyCoachRequest', { uid: _currentUser.uid, name: _currentUser.displayName || '' });
@@ -3006,7 +3028,7 @@ async function requestProviderStatus() {
   if (btn) btn.disabled = true;
   try {
     await _userRef(_currentUser.uid).update({
-      providerRequest: true,
+      providerRequest: _requestObj(),
       updatedAt:       firebase.firestore.FieldValue.serverTimestamp(),
     });
     await callFn('notifyProviderRequest', { uid: _currentUser.uid, name: _currentUser.displayName || '' });
@@ -3025,7 +3047,7 @@ async function requestCoachStatusFromView() {
   if (btn) { btn.textContent = 'Request pending'; btn.disabled = true; }
   try {
     await _userRef(_currentUser.uid).update({
-      coachRequest: true,
+      coachRequest: _requestObj(),
       updatedAt:    firebase.firestore.FieldValue.serverTimestamp(),
     });
     await callFn('notifyCoachRequest', { uid: _currentUser.uid, name: _currentUser.displayName || '' });
@@ -3042,7 +3064,7 @@ async function requestProviderStatusFromView() {
   if (btn) { btn.textContent = 'Request pending'; btn.disabled = true; }
   try {
     await _userRef(_currentUser.uid).update({
-      providerRequest: true,
+      providerRequest: _requestObj(),
       updatedAt:       firebase.firestore.FieldValue.serverTimestamp(),
     });
     await callFn('notifyProviderRequest', { uid: _currentUser.uid, name: _currentUser.displayName || '' });
@@ -3050,6 +3072,26 @@ async function requestProviderStatusFromView() {
     console.error('Provider request failed:', e);
     if (btn) { btn.textContent = 'Request →'; btn.disabled = false; }
     showToast('Request failed: ' + (e.message || 'unknown error'), 'error');
+  }
+}
+
+async function cancelCoachRequest() {
+  if (!_currentUser) return;
+  try {
+    await _userRef(_currentUser.uid).update({ coachRequest: _requestClosed('cancelled') });
+    openProfileScreen(_currentUser.uid);
+  } catch(e) {
+    showToast('Couldn\'t cancel. Try again.', 'error');
+  }
+}
+
+async function cancelProviderRequest() {
+  if (!_currentUser) return;
+  try {
+    await _userRef(_currentUser.uid).update({ providerRequest: _requestClosed('cancelled') });
+    openProfileScreen(_currentUser.uid);
+  } catch(e) {
+    showToast('Couldn\'t cancel. Try again.', 'error');
   }
 }
 
@@ -3071,7 +3113,7 @@ function _updateCoachRequestBtn(data) {
   const btn    = document.getElementById('coach-request-btn');
   if (!field || !btn) return;
   const isCoach   = (data.roles || []).includes('coach');
-  const isPending = !!data.coachRequest;
+  const isPending = _isOpenRequest(data.coachRequest);
   if (isCoach) {
     field.style.display = 'none';
     return;
@@ -3095,7 +3137,7 @@ function _updateProviderRequestBtn(data) {
   if (!field || !btn) return;
   const roles      = data.roles || [];
   const isProvider = roles.includes('provider');
-  const isPending  = !!data.providerRequest && !isProvider;
+  const isPending  = _isOpenRequest(data.providerRequest) && !isProvider;
   const needsStripe = isProvider && !data.providerOnboardingComplete;
 
   // Request row: hidden once approved as provider

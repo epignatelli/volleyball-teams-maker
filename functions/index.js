@@ -1516,9 +1516,7 @@ exports.handleRequestAction = functions
       return res.status(410).send(_actionHtml('Link expired', 'This link expired 7 days after it was sent.'));
     }
 
-    await tokenRef.update({ used: true, usedAt: FieldValue.serverTimestamp() });
-
-    const { uid, role, action } = data;
+    const { uid, role, action, requestId, siblingToken } = data;
     const userSnap = await db.collection('users').doc(uid).get();
     if (!userSnap.exists) {
       return res.status(404).send(_actionHtml('User not found', 'The user no longer exists.'));
@@ -1527,14 +1525,28 @@ exports.handleRequestAction = functions
     const userName  = userData.name  || 'Unknown';
     const userEmail = userData.email;
     const roleLabel = role === 'provider' ? 'host' : role;
+    const field     = role === 'coach' ? 'coachRequest' : 'providerRequest';
+    const currentReq = userData[field];
+
+    // Guard: reject stale tokens — request must still be open, not expired, and match the stored requestId
+    const reqExpiry = currentReq?.expiresAt?.toDate?.();
+    if (!currentReq || currentReq.status !== 'open' || (reqExpiry && reqExpiry < new Date()) || (requestId && currentReq.id !== requestId)) {
+      return res.status(409).send(_actionHtml('Already processed', 'This request has already been responded to, cancelled, or expired.'));
+    }
+
+    // Mark this token used and invalidate the sibling so the other email button can't fire
+    await tokenRef.update({ used: true, usedAt: FieldValue.serverTimestamp() });
+    if (siblingToken) {
+      db.collection('requestTokens').doc(siblingToken).update({ used: true, usedAt: FieldValue.serverTimestamp() }).catch(() => {});
+    }
+
+    const closedUpdate = { ...currentReq, respondedAt: FieldValue.serverTimestamp() };
 
     if (action === 'approve') {
       const roles = userData.roles || ['player'];
       if (!roles.includes(role)) roles.push(role);
-      const update = { roles };
-      if (role === 'coach')    update.coachRequest    = false;
-      if (role === 'provider') update.providerRequest = false;
-      await db.collection('users').doc(uid).update(update);
+      closedUpdate.status = 'approved';
+      await db.collection('users').doc(uid).update({ roles, [field]: closedUpdate });
 
       if (userEmail) {
         const subject = role === 'provider'
@@ -1555,10 +1567,8 @@ exports.handleRequestAction = functions
         'The user has been notified by email.'
       ));
     } else {
-      const update = {};
-      if (role === 'coach')    update.coachRequest    = false;
-      if (role === 'provider') update.providerRequest = false;
-      await db.collection('users').doc(uid).update(update);
+      closedUpdate.status = 'declined';
+      await db.collection('users').doc(uid).update({ [field]: closedUpdate });
 
       if (userEmail) {
         const subject = role === 'provider' ? 'Your host request'  : 'Your coach request';
@@ -1710,10 +1720,17 @@ async function _createRequestTokens(db, uid, role) {
   const approveToken = crypto.randomBytes(32).toString('hex');
   const rejectToken  = crypto.randomBytes(32).toString('hex');
   const expiresAt    = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
-  const base         = { uid, role, expiresAt, used: false };
+
+  // Read current requestId from Firestore so tokens are bound to this specific request
+  const userSnap  = await db.collection('users').doc(uid).get();
+  const field     = role === 'coach' ? 'coachRequest' : 'providerRequest';
+  const requestId = userSnap.data()?.[field]?.id || null;
+
+  const base = { uid, role, requestId, expiresAt, used: false, siblingToken: null };
+  // Store sibling token ID so we can invalidate the other link when one is used
   await Promise.all([
-    db.collection('requestTokens').doc(approveToken).set({ ...base, action: 'approve' }),
-    db.collection('requestTokens').doc(rejectToken).set({ ...base, action: 'reject' }),
+    db.collection('requestTokens').doc(approveToken).set({ ...base, action: 'approve', siblingToken: rejectToken }),
+    db.collection('requestTokens').doc(rejectToken).set({ ...base, action: 'reject',  siblingToken: approveToken }),
   ]);
   const fnBase = 'https://europe-west2-roots-kqotc.cloudfunctions.net/handleRequestAction';
   return {

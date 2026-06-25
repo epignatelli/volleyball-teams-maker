@@ -37,7 +37,7 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  padding: 36px 24px max(24px, env(safe-area-inset-bottom));
+  padding: 18px 24px max(18px, env(safe-area-inset-bottom));
   border-top: 1px solid rgba(255,255,255,0.07);
   font-family: 'Barlow Condensed', system-ui, sans-serif;
 }
