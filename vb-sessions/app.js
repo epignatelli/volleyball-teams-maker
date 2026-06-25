@@ -192,8 +192,8 @@ let _pendingCoachRequest    = false;
 let _pendingProviderRequest = false;
 let _activeSeriesFilter     = null; // { id, name } or null
 let _activeProviderFilter   = null; // uid or null
-let _activeLevelFilter      = null; // level string or null
-let _activeGenderFilter     = null; // gender string or null
+let _activeLevelFilter      = new Set(); // set of level strings
+let _activeGenderFilter     = new Set(); // set of gender strings
 let _activeSeries        = null; // full series doc data when in filtered mode
 let _activeSeriesReg     = null; // user's paid registration for _activeSeries, or null
 let _activeSeriesMembers = []; // paid registrations for current series (admin view)
@@ -421,6 +421,12 @@ function _updateFbarBtn(type, isActive, label) {
   if (span) span.textContent = label;
 }
 
+function _setLabel(set, defaultLabel, labelMap) {
+  if (!set.size) return defaultLabel;
+  if (set.size === 1) return labelMap[[...set][0]] || defaultLabel;
+  return `${defaultLabel} (${set.size})`;
+}
+
 function _closePopovers() {
   document.querySelectorAll('.fbar-pop').forEach(p => p.classList.remove('open'));
 }
@@ -438,10 +444,16 @@ document.addEventListener('click', e => {
 });
 
 function _syncFilterPillsToState() {
-  document.querySelectorAll('#fpop-level  .fpop-opt').forEach(b => b.classList.toggle('active', (b.dataset.level  || '') === (_activeLevelFilter    || '')));
-  document.querySelectorAll('#fpop-gender .fpop-opt').forEach(b => b.classList.toggle('active', (b.dataset.gender || '') === (_activeGenderFilter   || '')));
-  _updateFbarBtn('level',  _activeLevelFilter,  _LEVEL_LABELS[_activeLevelFilter  || ''] || 'Level');
-  _updateFbarBtn('gender', _activeGenderFilter, _GENDER_LABELS[_activeGenderFilter || ''] || 'Gender');
+  document.querySelectorAll('#fpop-level .fpop-opt').forEach(b => {
+    const v = b.dataset.level || '';
+    b.classList.toggle('active', v === '' ? !_activeLevelFilter.size : _activeLevelFilter.has(v));
+  });
+  document.querySelectorAll('#fpop-gender .fpop-opt').forEach(b => {
+    const v = b.dataset.gender || '';
+    b.classList.toggle('active', v === '' ? !_activeGenderFilter.size : _activeGenderFilter.has(v));
+  });
+  _updateFbarBtn('level',  _activeLevelFilter.size,  _setLabel(_activeLevelFilter,  'Level',  _LEVEL_LABELS));
+  _updateFbarBtn('gender', _activeGenderFilter.size, _setLabel(_activeGenderFilter, 'Gender', _GENDER_LABELS));
   _updateFbarBtn('host',   _activeProviderFilter, _activeProviderFilter ? 'Host ✓' : 'Host');
 }
 
@@ -456,22 +468,32 @@ function setHostFilter(uid, name) {
 }
 
 function setLevelFilter(level) {
-  _activeLevelFilter = level || null;
-  document.querySelectorAll('#fpop-level .fpop-opt').forEach(b =>
-    b.classList.toggle('active', (b.dataset.level || '') === (level || ''))
-  );
-  _updateFbarBtn('level', level, _LEVEL_LABELS[level || ''] || 'Level');
-  _closePopovers();
+  if (!level) {
+    _activeLevelFilter.clear();
+  } else {
+    if (_activeLevelFilter.has(level)) _activeLevelFilter.delete(level);
+    else _activeLevelFilter.add(level);
+  }
+  document.querySelectorAll('#fpop-level .fpop-opt').forEach(b => {
+    const v = b.dataset.level || '';
+    b.classList.toggle('active', v === '' ? !_activeLevelFilter.size : _activeLevelFilter.has(v));
+  });
+  _updateFbarBtn('level', _activeLevelFilter.size, _setLabel(_activeLevelFilter, 'Level', _LEVEL_LABELS));
   renderHome();
 }
 
 function setGenderFilter(gender) {
-  _activeGenderFilter = gender || null;
-  document.querySelectorAll('#fpop-gender .fpop-opt').forEach(b =>
-    b.classList.toggle('active', (b.dataset.gender || '') === (gender || ''))
-  );
-  _updateFbarBtn('gender', gender, _GENDER_LABELS[gender || ''] || 'Gender');
-  _closePopovers();
+  if (!gender) {
+    _activeGenderFilter.clear();
+  } else {
+    if (_activeGenderFilter.has(gender)) _activeGenderFilter.delete(gender);
+    else _activeGenderFilter.add(gender);
+  }
+  document.querySelectorAll('#fpop-gender .fpop-opt').forEach(b => {
+    const v = b.dataset.gender || '';
+    b.classList.toggle('active', v === '' ? !_activeGenderFilter.size : _activeGenderFilter.has(v));
+  });
+  _updateFbarBtn('gender', _activeGenderFilter.size, _setLabel(_activeGenderFilter, 'Gender', _GENDER_LABELS));
   renderHome();
 }
 
@@ -500,8 +522,8 @@ function goHome() {
   _activeSeriesReg      = null;
   _activeSeriesMembers  = [];
   _activeProviderFilter = null;
-  _activeLevelFilter    = null;
-  _activeGenderFilter   = null;
+  _activeLevelFilter.clear();
+  _activeGenderFilter.clear();
   _setHash('home');
   showScreen('home');
   _setNav('primary', 'home');
@@ -645,20 +667,22 @@ async function renderHome() {
     if (_activeProviderFilter) {
       sessions = sessions.filter(s => s.providerUid === _activeProviderFilter);
     }
-    if (_activeLevelFilter === 'any') {
-      sessions = sessions.filter(s => !s.level);
-    } else if (_activeLevelFilter) {
-      sessions = sessions.filter(s => (s.level || '') === _activeLevelFilter);
+    if (_activeLevelFilter.size) {
+      sessions = sessions.filter(s => {
+        const l = s.level || '';
+        if (_activeLevelFilter.has('any') && !l) return true;
+        return _activeLevelFilter.has(l);
+      });
     }
-    if (_activeGenderFilter) {
-      sessions = sessions.filter(s => (s.gender || '') === _activeGenderFilter);
+    if (_activeGenderFilter.size) {
+      sessions = sessions.filter(s => _activeGenderFilter.has(s.gender || ''));
     }
     const providerBannerHtml = _activeProviderFilter
       ? `<div class="provider-banner"><span class="provider-banner-label">My sessions</span><button class="provider-banner-clear" onclick="goHome()">← All sessions</button></div>`
       : '';
     const levelLabels = { any: 'Any level', beginner: 'Beginner', intermediate: 'Intermediate', advanced: 'Advanced', competitive: 'Competitive' };
-    const levelBannerHtml = _activeLevelFilter
-      ? `<div class="filter-active-label">Filtering by level: <strong>${levelLabels[_activeLevelFilter] || _activeLevelFilter}</strong></div>`
+    const levelBannerHtml = _activeLevelFilter.size
+      ? `<div class="filter-active-label">Level: <strong>${[..._activeLevelFilter].map(l => levelLabels[l] || l).join(', ')}</strong></div>`
       : '';
     if (!sessions.length) {
       const bannerHtml = _activeSeries ? _renderSeriesBanner(_activeSeries, _activeSeriesReg) : '';
