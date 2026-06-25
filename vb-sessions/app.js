@@ -208,6 +208,10 @@ function _subscribeToUserDoc(user) {
 async function handleAuthClick() {
   if (_currentUser) {
     await getAuth().signOut();
+    showScreen('home');
+    _setHash('home');
+    _setNav('primary', 'home');
+    _setTitle('Sessions');
   } else {
     const provider = new firebase.auth.GoogleAuthProvider();
     try { await getAuth().signInWithPopup(provider); }
