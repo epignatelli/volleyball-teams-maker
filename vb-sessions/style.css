@@ -587,6 +587,21 @@ body {
 
 .field-hint { font-size: 11px; color: var(--muted); margin-top: 2px; }
 
+/* position targets form row */
+.pos-targets-row { display: flex; gap: 8px; flex-wrap: wrap; }
+.pos-target-item { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 60px; }
+.pos-target-label { font-size: 11px; font-weight: 700; letter-spacing: .06em;
+                    text-transform: uppercase; color: var(--muted); }
+.pos-target-input { text-align: center; padding: 6px 4px !important; }
+
+/* position fill chips in session detail */
+.pos-fill-row { display: flex; flex-wrap: wrap; gap: 5px; }
+.pos-fill-chip { font-size: 11px; font-weight: 700; padding: 2px 7px;
+                 border-radius: 99px; background: var(--surface2);
+                 border: 1px solid var(--border2); color: var(--muted); }
+.pos-fill-chip.full { background: rgba(240,165,0,.13); border-color: rgba(240,165,0,.4);
+                      color: var(--amber); }
+
 .toggle-row { display: flex; align-items: center; gap: 10px; cursor: pointer; }
 .toggle-row input[type="checkbox"] { width: 16px; height: 16px; accent-color: var(--amber); flex-shrink: 0; }
 .toggle-label-text { font-size: 14px; color: var(--text); }

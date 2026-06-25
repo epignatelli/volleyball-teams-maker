@@ -49,7 +49,7 @@ service cloud.firestore {
       return request.resource.data.keys().hasOnly([
         'date','time','venue','level','gender','type','description',
         'capacity','cost','coachFee','coachUid','coach',
-        'providerUid','seriesId','seriesName','askPositions',
+        'providerUid','seriesId','seriesName','askPositions','positionTargets',
         'status','attendeeCount','waitingListCount','cancellationCount','createdAt',
       ]);
     }

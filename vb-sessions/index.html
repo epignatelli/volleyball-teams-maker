@@ -199,9 +199,18 @@
         </div>
         <div class="field">
           <label class="toggle-row">
-            <input type="checkbox" id="form-ask-positions" />
+            <input type="checkbox" id="form-ask-positions" onchange="document.getElementById('form-pos-targets-field').style.display=this.checked?'':'none'" />
             <span class="toggle-label-text">Ask players for their position when registering</span>
           </label>
+        </div>
+        <div class="field" id="form-pos-targets-field" style="display:none">
+          <label class="field-label">Position targets <span class="field-hint">— leave blank for no limit</span></label>
+          <div class="pos-targets-row">
+            <label class="pos-target-item"><span class="pos-target-label">Setter</span><input class="field-input pos-target-input" type="number" id="form-target-setter" min="0" max="99" placeholder="–" /></label>
+            <label class="pos-target-item"><span class="pos-target-label">Hitter</span><input class="field-input pos-target-input" type="number" id="form-target-hitter" min="0" max="99" placeholder="–" /></label>
+            <label class="pos-target-item"><span class="pos-target-label">Middle</span><input class="field-input pos-target-input" type="number" id="form-target-middle" min="0" max="99" placeholder="–" /></label>
+            <label class="pos-target-item"><span class="pos-target-label">Libero</span><input class="field-input pos-target-input" type="number" id="form-target-libero" min="0" max="99" placeholder="–" /></label>
+          </div>
         </div>
         <div class="field" id="form-status-field">
           <label class="field-label">Status</label>

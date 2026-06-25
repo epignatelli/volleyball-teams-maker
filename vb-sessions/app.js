@@ -1305,6 +1305,19 @@ function _renderDetail(session, attendees, isAttending, waitingList, myWaitingLi
         ${levelLabel ? `<div class="detail-meta-row"><span class="detail-meta-label">Level</span><span>${esc(levelLabel)}</span></div>` : ''}
         <div class="detail-meta-row"><span class="detail-meta-label">Cost</span><span>${esc(_formatPlayerPrice(session.cost, session.absorbFee))}</span></div>
         <div class="detail-meta-row"><span class="detail-meta-label">Spots</span><span>${knownCount} / ${session.maxPlayers}${isCancelled ? '' : ` · ${spotsLeft} left`}</span></div>
+        ${(() => {
+          const pt = session.positionTargets;
+          if (!session.askPositions || !pt || !_currentUser) return '';
+          const PLABELS = { setter: 'S', hitter: 'H', middle: 'M', libero: 'L' };
+          const chips = Object.entries(PLABELS)
+            .filter(([pos]) => pt[pos])
+            .map(([pos, lbl]) => {
+              const count = attendees.filter(a => (a.positions || []).includes(pos)).length;
+              const full  = count >= pt[pos];
+              return `<span class="pos-fill-chip${full ? ' full' : ''}">${lbl} ${count}/${pt[pos]}</span>`;
+            }).join('');
+          return chips ? `<div class="detail-meta-row"><span class="detail-meta-label">Positions</span><span class="pos-fill-row">${chips}</span></div>` : '';
+        })()}
         ${deadlineStr ? `<div class="detail-meta-row"><span class="detail-meta-label">Deadline</span><span${deadlinePassed ? ' style="color:var(--red)"' : ''}>${esc(deadlineStr)}${deadlinePassed ? ' · closed' : ''}</span></div>` : ''}
         ${isCancelled ? `<div class="detail-meta-row"><span class="detail-badge cancelled">Cancelled</span></div>` : ''}
         ${_isAdmin && session.coach && session.coachFee != null ? `<div class="detail-meta-row"><span class="detail-meta-label">Coach fee</span><span>£${Number(session.coachFee).toFixed(2)} ${_coachPayStatusWidget(session)}</span></div>` : ''}
@@ -2623,6 +2636,10 @@ function openSessionForm(id = null) {
       }
       statusSel.value = s.status || 'open';
       document.getElementById('form-ask-positions').checked = s.askPositions || false;
+      const _pt = s.positionTargets || {};
+      for (const _p of ['setter', 'hitter', 'middle', 'libero'])
+        document.getElementById(`form-target-${_p}`).value = _pt[_p] || '';
+      document.getElementById('form-pos-targets-field').style.display = s.askPositions ? '' : 'none';
       document.getElementById('form-absorb-fee').checked   = s.absorbFee    || false;
       document.getElementById('form-type').value   = s.type   || 'game';
       document.getElementById('form-gender').value = s.gender || 'mixed';
@@ -2649,6 +2666,9 @@ function openSessionForm(id = null) {
     statusSel.querySelector('option[value="closed"]')?.remove();
     statusSel.value = 'open';
     document.getElementById('form-ask-positions').checked = false;
+    for (const _p of ['setter', 'hitter', 'middle', 'libero'])
+      document.getElementById(`form-target-${_p}`).value = '';
+    document.getElementById('form-pos-targets-field').style.display = 'none';
     document.getElementById('form-absorb-fee').checked   = false;
     _populateVenueSelect('');
     _populateSeriesSelect(_activeSeriesFilter?.id || '');
@@ -2768,6 +2788,15 @@ async function submitSessionForm() {
     ...(!_editingId ? { providerUid: _currentUser.uid } : {}),
     playerPrice:          document.getElementById('form-absorb-fee').checked ? costVal : _playerPrice(costVal),
     askPositions:         document.getElementById('form-ask-positions').checked,
+    positionTargets:      (() => {
+      if (!document.getElementById('form-ask-positions').checked) return null;
+      const t = {};
+      for (const p of ['setter', 'hitter', 'middle', 'libero']) {
+        const v = parseInt(document.getElementById(`form-target-${p}`).value);
+        if (v > 0) t[p] = v;
+      }
+      return Object.keys(t).length ? t : null;
+    })(),
     type:                 typeVal,
     gender:               genderVal,
     seriesId:             seriesIdVal || null,
