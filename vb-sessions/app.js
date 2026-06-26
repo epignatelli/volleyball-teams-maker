@@ -999,7 +999,7 @@ function _renderSessionCard(s) {
   const typeLabel   = SESSION_TYPES.find(t => t.value === s.type)?.label || '';
   const genderLabel = SESSION_GENDERS.find(g => g.value === s.gender)?.label || '';
   return `
-    <div class="session-card" onclick="openSession('${s.id}')">
+    <div class="session-card${s.status === 'closed' || s.status === 'cancelled' ? ' dim-card' : ''}" onclick="openSession('${s.id}')">
       <div class="session-card-top">
         <div class="session-card-main">
           <div class="session-date">${esc(dateStr)}${timeStr ? ` · ${esc(timeStr)}` : ''}</div>
@@ -1015,7 +1015,7 @@ function _renderSessionCard(s) {
         </div>
       </div>
       <div class="session-card-meta">
-        <span class="session-badge ${statusClass}">${statusLabel}</span>
+        ${statusClass !== 'open' ? `<span class="session-badge ${statusClass}">${statusLabel}</span>` : ''}
         <span class="session-badge level level-${esc(s.level || 'any')}">${esc(levelLabel)}</span>
         ${typeLabel    ? `<span class="session-badge type-${esc(s.type)}">${esc(typeLabel)}</span>` : ''}
         ${genderLabel  ? `<span class="session-badge gender-${esc(s.gender)}">${esc(genderLabel)}</span>` : ''}
