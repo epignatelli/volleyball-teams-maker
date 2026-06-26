@@ -47,10 +47,11 @@ service cloud.firestore {
     // Valid session fields for client-written creates/updates (CF-managed fields excluded).
     function validSessionKeys() {
       return request.resource.data.keys().hasOnly([
-        'date','time','venue','level','gender','type','description',
-        'capacity','cost','coachFee','coachUid','coach',
+        'date','time','venue','venueId','level','gender','type','description',
+        'maxPlayers','cost','coachFee','coachUid','coach','absorbFee','playerPrice',
         'providerUid','seriesId','seriesName','askPositions','positionTargets',
         'status','attendeeCount','waitingListCount','cancellationCount','createdAt',
+        'registrationDeadline','insuranceDeclaredBy','insuranceDeclaredAt',
       ]);
     }
 
