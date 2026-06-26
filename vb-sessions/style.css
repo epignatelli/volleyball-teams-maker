@@ -355,11 +355,12 @@ body {
 
 .attendee-list { display: flex; flex-direction: column; gap: 2px; }
 .attendee-row {
-  display: flex; align-items: center; gap: 8px;
-  padding: 6px 0; border-bottom: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 3px;
+  padding: 8px 0; border-bottom: 1px solid var(--border);
   font-size: 13px;
 }
 .attendee-row:last-child { border-bottom: none; }
+.attendee-main { display: flex; align-items: center; gap: 8px; }
 .attendee-num    { color: var(--muted); min-width: 18px; font-size: 11px; flex-shrink: 0; }
 .attendee-gender { font-size: 14px; flex-shrink: 0; }
 .attendee-gender.gender-m  { color: var(--purple); }
@@ -390,7 +391,11 @@ body {
 .att-chip.waived-chip      { border-color: var(--muted);  background: transparent;       color: var(--muted);  }
 .att-chip.queue-offered-chip { border-color: var(--amber); background: var(--amber-bg); color: var(--amber); }
 .offer-waiting-pos { font-size: 13px; color: var(--amber); align-self: center; }
-.attendee-email { color: var(--muted); font-size: 11px; }
+.attendee-email {
+  padding-left: 26px;
+  color: var(--muted); font-size: 11px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
 
 .empty-note { font-size: 13px; color: var(--muted); }
 
@@ -694,7 +699,16 @@ body {
 .session-admin-label {
   font-family: var(--sport); font-size: 11px; font-weight: 700;
   letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
-  margin-bottom: 2px;
+  margin-bottom: 4px;
+}
+.session-admin-group {
+  display: flex; flex-direction: column; gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.session-admin-group-label {
+  font-family: var(--sport); font-size: 10px; font-weight: 700;
+  letter-spacing: .12em; text-transform: uppercase; color: var(--muted); opacity: .6;
 }
 .danger-btn {
   background: transparent;

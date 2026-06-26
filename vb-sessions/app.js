@@ -1427,17 +1427,19 @@ function _renderDetail(session, attendees, isAttending, waitingList, myWaitingLi
               const canSee = _isAdmin || (_currentUser && session.coachUid === _currentUser.uid);
               return `
               <div class="attendee-row">
-                <span class="attendee-num">${i + 1}</span>
-                ${genderSym ? `<span class="attendee-gender ${genderClass}">${genderSym}</span>` : ''}
-                <button class="attendee-name-btn" onclick="openProfileScreen('${a.id}')">${esc(a.name)}</button>
-                ${posChips ? `<div class="att-chips">${posChips}</div>` : ''}
-                ${a.seriesId ? `<span class="att-chip series-chip" title="Pass holder">P</span>` : ''}
-                ${canSee && session.cost > 0 ? `<span class="att-chip ${a.feeWaived ? 'waived-chip' : a.paid ? 'paid-chip' : 'unpaid-chip'}">${a.feeWaived ? '£–' : a.paid ? '£✓' : '£?'}</span>` : ''}
-                ${_isAdmin && a.photoConsent === true  ? `<span class="att-chip photo-chip"   title="Consented to photos/filming">📷</span>` : ''}
-                ${_isAdmin && a.photoConsent === false ? `<span class="att-chip nophoto-chip" title="No photo/filming consent">📷✗</span>` : ''}
-                ${_isAdmin ? `<span class="attendee-email">${esc(a.email || '')}</span>` : ''}
-                ${isOwn && session.askPositions && !Object.keys(session.positionTargets || {}).length ? `<button class="icon-btn small" data-session-id="${esc(session.id)}" data-positions="${esc(Array.from(posSet).join(','))}" onclick="openEditPositions(this.dataset.sessionId,this.dataset.positions)" title="Edit positions">✎</button>` : ''}
-                ${_isAdmin ? `<button class="icon-btn danger small" onclick="removeAttendee('${session.id}','${a.id}')" title="Remove">✕</button>` : ''}
+                <div class="attendee-main">
+                  <span class="attendee-num">${i + 1}</span>
+                  ${genderSym ? `<span class="attendee-gender ${genderClass}">${genderSym}</span>` : ''}
+                  <button class="attendee-name-btn" onclick="openProfileScreen('${a.id}')">${esc(a.name)}</button>
+                  ${posChips ? `<div class="att-chips">${posChips}</div>` : ''}
+                  ${a.seriesId ? `<span class="att-chip series-chip" title="Pass holder">P</span>` : ''}
+                  ${canSee && session.cost > 0 ? `<span class="att-chip ${a.feeWaived ? 'waived-chip' : a.paid ? 'paid-chip' : 'unpaid-chip'}">${a.feeWaived ? '£–' : a.paid ? '£✓' : '£?'}</span>` : ''}
+                  ${_isAdmin && a.photoConsent === true  ? `<span class="att-chip photo-chip"   title="Photo consent">✓ photo</span>` : ''}
+                  ${_isAdmin && a.photoConsent === false ? `<span class="att-chip nophoto-chip" title="No photo consent">no photo</span>` : ''}
+                  ${isOwn && session.askPositions && !Object.keys(session.positionTargets || {}).length ? `<button class="icon-btn small" data-session-id="${esc(session.id)}" data-positions="${esc(Array.from(posSet).join(','))}" onclick="openEditPositions(this.dataset.sessionId,this.dataset.positions)" title="Edit positions">✎</button>` : ''}
+                  ${_isAdmin ? `<button class="icon-btn danger small" onclick="removeAttendee('${session.id}','${a.id}')" title="Remove">✕</button>` : ''}
+                </div>
+                ${_isAdmin && a.email ? `<div class="attendee-email">${esc(a.email)}</div>` : ''}
               </div>`;
             }).join('')}
           </div>` : '<div class="empty-note">No one signed up yet.</div>'}
@@ -1536,13 +1538,33 @@ function _renderDetail(session, attendees, isAttending, waitingList, myWaitingLi
     ${(_isAdmin || (_isProvider && _currentUser && session.providerUid === _currentUser.uid)) ? `
     <div class="session-detail-admin">
       <div class="session-admin-label">Host tools</div>
-      ${!isCancelled && !isClosed ? `<button class="cta-btn secondary-btn" onclick="openSessionEditInline('${session.id}')">Edit session</button>` : ''}
-      ${_isAdmin && !isCancelled ? `<button class="cta-btn secondary-btn" onclick="openMessageForm('${session.id}')">✉ Message attendees</button>` : ''}
-      ${_isAdmin ? `<button class="cta-btn secondary-btn" onclick="exportAttendeesCsv('${session.id}')">⬇ Export attendees</button>` : ''}
-      ${_isAdmin && session.coach && session.coachFee > 0 && isClosed ? _coachPayCtaBtn(session) : ''}
-      ${canStart && isClosed && session.report ? `<button class="cta-btn secondary-btn" onclick="openSessionEndReport('${session.id}')">View report</button>` : ''}
-      ${!isCancelled && !isClosed ? `<button class="cta-btn danger-btn" onclick="cancelSession('${session.id}')" title="Mark this session as cancelled and notify all attendees">Cancel session</button>` : ''}
-      ${_isAdmin ? `<button class="cta-btn danger-btn" onclick="deleteSession('${session.id}','${esc(session.venue || '')}',this)" title="Permanently delete this session and all attendee records — cannot be undone">Delete session</button>` : ''}
+
+      ${!isCancelled && !isClosed ? `
+        <div class="session-admin-group">
+          <div class="session-admin-group-label">Session</div>
+          <button class="cta-btn secondary-btn" onclick="openSessionEditInline('${session.id}')">Edit</button>
+        </div>` : ''}
+
+      ${_isAdmin ? `
+        <div class="session-admin-group">
+          <div class="session-admin-group-label">Attendees</div>
+          ${!isCancelled ? `<button class="cta-btn secondary-btn" onclick="openMessageForm('${session.id}')">Message all</button>` : ''}
+          <button class="cta-btn secondary-btn" onclick="exportAttendeesCsv('${session.id}')">Export CSV</button>
+        </div>` : ''}
+
+      ${(_isAdmin && session.coach && session.coachFee > 0 && isClosed) || (canStart && isClosed && session.report) ? `
+        <div class="session-admin-group">
+          <div class="session-admin-group-label">After session</div>
+          ${_isAdmin && session.coach && session.coachFee > 0 && isClosed ? _coachPayCtaBtn(session) : ''}
+          ${canStart && isClosed && session.report ? `<button class="cta-btn secondary-btn" onclick="openSessionEndReport('${session.id}')">View report</button>` : ''}
+        </div>` : ''}
+
+      ${(!isCancelled && !isClosed) || _isAdmin ? `
+        <div class="session-admin-group">
+          <div class="session-admin-group-label">Danger zone</div>
+          ${!isCancelled && !isClosed ? `<button class="cta-btn danger-btn" onclick="cancelSession('${session.id}')">Cancel session</button>` : ''}
+          ${_isAdmin ? `<button class="cta-btn danger-btn" onclick="deleteSession('${session.id}','${esc(session.venue || '')}',this)">Delete session</button>` : ''}
+        </div>` : ''}
     </div>` : ''}`;
 
   const hasWaitingList = waitingList.length > 0;
