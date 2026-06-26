@@ -1055,9 +1055,9 @@ body {
 
 /* ─── Series cards ────────────────────────────────────────────────────── */
 .series-card {
-  background: rgba(167,139,250,0.05);
-  border: 1px solid rgba(167,139,250,0.2);
-  border-left: 3px solid var(--purple);
+  background: rgba(20,184,166,0.05);
+  border: 1px solid rgba(20,184,166,0.2);
+  border-left: 3px solid #2dd4bf;
   border-radius: var(--radius-md);
   padding: 14px 16px;
   margin-bottom: 8px;
@@ -1067,7 +1067,7 @@ body {
   gap: 8px;
   transition: border-color .15s;
 }
-.series-card:active { border-left-color: var(--purple); border-color: rgba(167,139,250,.4); }
+.series-card:active { border-left-color: #2dd4bf; border-color: rgba(20,184,166,.4); }
 .series-card-name { font-size: 15px; font-weight: 600; }
 .series-card-meta { font-size: 12px; color: var(--muted); }
 .series-card-tags { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }

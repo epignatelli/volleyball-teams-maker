@@ -37,7 +37,10 @@
       <span class="nav-screen-title" id="nav-screen-title"></span>
     </div>
     <div class="topbar-right">
-      <button class="topbar-new-btn" id="home-new-btn" onclick="openSessionForm()" style="display:none">+ New</button>
+      <div id="home-new-btns" style="display:none;gap:6px;align-items:center" class="topbar-new-group">
+        <button class="topbar-new-btn" id="home-new-session-btn" onclick="openSessionForm()">+ New session</button>
+        <button class="topbar-new-btn" id="home-new-pass-btn"    onclick="openSeriesForm()">+ New pass</button>
+      </div>
       <div id="nav-avatar-wrap">
         <button class="auth-btn" id="auth-btn" onclick="handleAuthClick()">Sign in</button>
       </div>

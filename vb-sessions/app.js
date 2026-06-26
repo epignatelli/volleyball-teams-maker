@@ -298,8 +298,8 @@ function _updateAuthUI() {
       avatarWrap.innerHTML = `<button class="auth-btn" onclick="handleAuthClick()">Sign in</button>`;
     }
   }
-  const newBtn = document.getElementById('home-new-btn');
-  if (newBtn) newBtn.style.display = _canCreate() ? '' : 'none';
+  const newGroup = document.getElementById('home-new-btns');
+  if (newGroup) newGroup.style.display = _canCreate() ? 'flex' : 'none';
   // Refresh admin-only tabs and tab strip visibility
   document.querySelectorAll('.admin-tab').forEach(t => {
     t.style.display = _isAdmin ? '' : 'none';
