@@ -1351,6 +1351,7 @@ function _renderDetail(session, attendees, isAttending, waitingList, myWaitingLi
   const isCancelled    = session.status === 'cancelled';
   const isClosed       = session.status === 'closed';
   const isFull         = spotsLeft === 0 && !isAttending;
+  const canStart       = _isAdmin || (_currentUser && session.coachUid && session.coachUid === _currentUser.uid);
   const deadlinePassed = session.registrationDeadline && session.registrationDeadline.toDate() < new Date();
   const levelLabel     = { beginner: 'Beginner', intermediate: 'Intermediate', advanced: 'Advanced', competitive: 'Competitive' }[session.level] || '';
   const deadlineStr    = session.registrationDeadline
@@ -1544,8 +1545,6 @@ function _renderDetail(session, attendees, isAttending, waitingList, myWaitingLi
   const cancelLabel    = isAttending && hasWaitingList && !isCancelled && !isClosed
     ? 'Sell my spot →'
     : 'Cancel my registration';
-
-  const canStart = _isAdmin || (_currentUser && session.coachUid && session.coachUid === _currentUser.uid);
 
   // Compute whether all position targets are met (relevant for position-queue routing)
   const _pt = session.positionTargets || {};
