@@ -1422,7 +1422,7 @@ function _renderDetail(session, attendees, isAttending, waitingList, myWaitingLi
                 ${_isAdmin && a.photoConsent === true  ? `<span class="att-chip photo-chip"   title="Consented to photos/filming">📷</span>` : ''}
                 ${_isAdmin && a.photoConsent === false ? `<span class="att-chip nophoto-chip" title="No photo/filming consent">📷✗</span>` : ''}
                 ${_isAdmin ? `<span class="attendee-email">${esc(a.email || '')}</span>` : ''}
-                ${isOwn && session.askPositions ? `<button class="icon-btn small" data-session-id="${esc(session.id)}" data-positions="${esc(Array.from(posSet).join(','))}" onclick="openEditPositions(this.dataset.sessionId,this.dataset.positions)" title="Edit positions">✎</button>` : ''}
+                ${isOwn && session.askPositions && !Object.keys(session.positionTargets || {}).length ? `<button class="icon-btn small" data-session-id="${esc(session.id)}" data-positions="${esc(Array.from(posSet).join(','))}" onclick="openEditPositions(this.dataset.sessionId,this.dataset.positions)" title="Edit positions">✎</button>` : ''}
                 ${_isAdmin ? `<button class="icon-btn danger small" onclick="removeAttendee('${session.id}','${a.id}')" title="Remove">✕</button>` : ''}
               </div>`;
             }).join('')}
