@@ -1812,7 +1812,7 @@ function _showEditQueueOpenSlotModal(sessionId, allChecked, openPositions) {
         There's a free <strong style="color:var(--text)">${openStr}</strong> spot — would you like to register now instead of joining the queue?
       </p>
       <button class="cta-btn" onclick="_confirmEditQueueRegister('${sessionId}', ${JSON.stringify(openPositions)}, ${JSON.stringify(stillFull)})">Register as ${openStr} →</button>
-      <button class="cta-btn secondary-btn" style="margin-top:8px" onclick="_saveEditQueue('${sessionId}', ${JSON.stringify(allChecked)})">Join ${openStr} queue instead</button>
+      <button class="cta-btn secondary-btn" style="margin-top:8px" onclick="document.getElementById('queue-modal-overlay').remove()">Cancel</button>
     </div>`;
   document.body.appendChild(el);
 }
