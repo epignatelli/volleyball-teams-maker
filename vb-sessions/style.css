@@ -243,6 +243,7 @@ body {
   padding: 6px 12px; border-radius: var(--radius-sm);
   cursor: pointer; white-space: nowrap;
 }
+#home-new-pass-btn { background: #2dd4bf; }
 .home-empty { color: var(--muted); font-size: 14px; text-align: center; padding: 40px 0; }
 .link-btn { background: none; border: none; color: var(--amber); font: inherit; cursor: pointer; text-decoration: underline; padding: 0; }
 
