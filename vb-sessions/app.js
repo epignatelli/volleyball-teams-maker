@@ -3614,6 +3614,8 @@ window._submitInlineEdit = async function(sessionId) {
   if (!dateVal)                    { errorEl.textContent = 'Please set a date.'; return; }
   if (!venueId)                    { errorEl.textContent = 'Please select a venue.'; return; }
   if (isNaN(maxVal) || maxVal < 1) { errorEl.textContent = 'Max players must be at least 1.'; return; }
+  const currentCount = _currentSession?.attendeeCount || 0;
+  if (maxVal < currentCount && !confirm(`${currentCount} players are already registered. Reducing max to ${maxVal} will leave ${currentCount - maxVal} over capacity. Continue?`)) return;
   if (document.getElementById('ie-ask-positions')?.checked) {
     const posSum = ['setter','hitter','middle','libero'].reduce((s, p) => s + (parseInt(document.getElementById(`ie-target-${p}`)?.value) || 0), 0);
     if (posSum > 0 && posSum !== maxVal) { errorEl.textContent = `Position targets sum to ${posSum} but max players is ${maxVal} — they must match.`; return; }
