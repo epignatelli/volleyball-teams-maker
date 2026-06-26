@@ -1822,8 +1822,7 @@ function _showEditQueueOpenSlotModal(sessionId, allChecked, openPositions) {
 }
 
 window._confirmEditQueueRegister = async function(sessionId) {
-  const openPositions       = _pendingEditQueueOpen;
-  const remainingQueuePositions = _pendingEditQueueFull;
+  const openPositions = _pendingEditQueueOpen;
   const btn = document.querySelector('#queue-modal-overlay .cta-btn');
   if (btn) btn.disabled = true;
   try {
@@ -1839,12 +1838,7 @@ window._confirmEditQueueRegister = async function(sessionId) {
       gender:       userDoc.data()?.gender || '',
     });
     await _sessionRef(sessionId).update({ attendeeCount: firebase.firestore.FieldValue.increment(1) });
-
-    if (remainingQueuePositions.length) {
-      await _posWlRef(sessionId).doc(_currentUser.uid).update({ positions: remainingQueuePositions });
-    } else {
-      await _posWlRef(sessionId).doc(_currentUser.uid).delete();
-    }
+    await _posWlRef(sessionId).doc(_currentUser.uid).delete();
 
     document.getElementById('queue-modal-overlay')?.remove();
     await openSession(sessionId);
