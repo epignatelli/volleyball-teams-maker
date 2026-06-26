@@ -277,6 +277,15 @@ function _setNav(mode, activeTab) {
   document.querySelectorAll('.nav-tab').forEach(t =>
     t.classList.toggle('active', !!activeTab && t.dataset.tab === activeTab)
   );
+  const canCreate = _canCreate();
+  const newGroup      = document.getElementById('home-new-btns');
+  const sessionBtn    = document.getElementById('home-new-session-btn');
+  const passBtn       = document.getElementById('home-new-pass-btn');
+  const showSession   = canCreate && activeTab === 'home';
+  const showPass      = canCreate && activeTab === 'series';
+  if (sessionBtn) sessionBtn.style.display = showSession ? '' : 'none';
+  if (passBtn)    passBtn.style.display    = showPass    ? '' : 'none';
+  if (newGroup)   newGroup.style.display   = (showSession || showPass) ? 'flex' : 'none';
 }
 
 function _setTitle(title) {
@@ -298,8 +307,6 @@ function _updateAuthUI() {
       avatarWrap.innerHTML = `<button class="auth-btn" onclick="handleAuthClick()">Sign in</button>`;
     }
   }
-  const newGroup = document.getElementById('home-new-btns');
-  if (newGroup) newGroup.style.display = _canCreate() ? 'flex' : 'none';
   // Refresh admin-only tabs and tab strip visibility
   document.querySelectorAll('.admin-tab').forEach(t => {
     t.style.display = _isAdmin ? '' : 'none';
