@@ -1373,7 +1373,11 @@ function _renderDetail(session, attendees, isAttending, waitingList, myWaitingLi
         ${session.coach ? `<div class="detail-meta-row"><span class="detail-meta-label">Coach</span><span>${esc(session.coach)}</span></div>` : ''}
         ${levelLabel ? `<div class="detail-meta-row"><span class="detail-meta-label">Level</span><span>${esc(levelLabel)}</span></div>` : ''}
         <div class="detail-meta-row"><span class="detail-meta-label">Cost</span><span>${esc(_formatPlayerPrice(session.cost, session.absorbFee))}</span></div>
-        <div class="detail-meta-row"><span class="detail-meta-label">Spots</span><span>${knownCount} / ${session.maxPlayers}${isCancelled ? '' : ` · ${spotsLeft} left`}</span></div>
+        <div class="detail-meta-row"><span class="detail-meta-label">Spots</span><span>${knownCount} / ${session.maxPlayers}${isCancelled ? '' : ` · ${spotsLeft} left`}${(() => {
+          const isHost = _isAdmin || (_currentUser && session.providerUid === _currentUser.uid);
+          const over = knownCount - (session.maxPlayers || 0);
+          return isHost && over > 0 ? ` <span class="detail-badge over-cap-badge">+${over} over capacity</span>` : '';
+        })()}</span></div>
         ${(() => {
           const pt = session.positionTargets;
           if (!session.askPositions || !pt || !_currentUser) return '';
@@ -3602,7 +3606,14 @@ window._submitInlineEdit = async function(sessionId) {
   if (!venueId)                    { errorEl.textContent = 'Please select a venue.'; return; }
   if (isNaN(maxVal) || maxVal < 1) { errorEl.textContent = 'Max players must be at least 1.'; return; }
   const currentCount = _currentSession?.attendeeCount || 0;
-  if (maxVal < currentCount && !confirm(`${currentCount} players are already registered. Reducing max to ${maxVal} will leave ${currentCount - maxVal} over capacity. Continue?`)) return;
+  if (maxVal < currentCount) {
+    const over = currentCount - maxVal;
+    if (!confirm(
+      `⚠️ ${currentCount} players are already registered and will still show up.\n\n` +
+      `Reducing max to ${maxVal} does NOT remove anyone or issue refunds — all ${currentCount} people remain registered and will attend.\n\n` +
+      `You will be ${over} player${over > 1 ? 's' : ''} over capacity. Continue?`
+    )) return;
+  }
   if (document.getElementById('ie-ask-positions')?.checked) {
     const posSum = ['setter','hitter','middle','libero'].reduce((s, p) => s + (parseInt(document.getElementById(`ie-target-${p}`)?.value) || 0), 0);
     if (posSum > 0 && posSum !== maxVal) { errorEl.textContent = `Position targets sum to ${posSum} but max players is ${maxVal} — they must match.`; return; }

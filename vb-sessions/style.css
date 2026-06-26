@@ -350,7 +350,8 @@ body {
   letter-spacing: .08em; text-transform: uppercase;
   padding: 3px 10px; border-radius: 99px;
 }
-.detail-badge.cancelled { background: var(--red-bg); color: var(--red); }
+.detail-badge.cancelled    { background: var(--red-bg);   color: var(--red);   }
+.detail-badge.over-cap-badge { background: var(--red-bg); color: var(--red); border: 1px solid rgba(248,113,113,.3); }
 
 .attendee-list { display: flex; flex-direction: column; gap: 2px; }
 .attendee-row {
