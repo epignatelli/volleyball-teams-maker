@@ -1454,8 +1454,6 @@ function _renderDetail(session, attendees, isAttending, waitingList, myWaitingLi
       // Positions with open slots (target set but not yet met)
       const openSlots = Object.entries(pt).filter(([p, t]) => (counts[p] || 0) < t);
       // Queued players who already have a pending offer
-      const offeredUids = new Set(_positionQueue.filter(e => e.pendingOffer?.position).map(e => e.id));
-
       const byPos = {};
       for (const entry of _positionQueue) {
         for (const pos of (entry.positions || [])) {
@@ -1465,16 +1463,19 @@ function _renderDetail(session, attendees, isAttending, waitingList, myWaitingLi
       const groups = Object.entries(byPos).filter(([,list]) => list.length);
       if (!groups.length) return '';
 
+      const _offeredPositions = e => e.pendingOffer?.positions || (e.pendingOffer?.position ? [e.pendingOffer.position] : []);
+
       const offerBanner = _isAdmin && openSlots.length ? `
         <div class="queue-offer-banner">
           ${openSlots.map(([p, t]) => {
             const need  = t - (counts[p] || 0);
             const label = POS_LABELS[p] || p;
-            const alreadyOffered = _positionQueue.some(e => e.pendingOffer?.position === p);
+            const alreadyOffered = _positionQueue.some(e => _offeredPositions(e).includes(p));
             return alreadyOffered
               ? `<span class="queue-offer-row"><span class="queue-offer-label">${label} needs ${need} — offer pending</span></span>`
               : `<span class="queue-offer-row"><span class="queue-offer-label">${label} needs ${need}</span><button class="icon-btn small" onclick="offerPositionToQueue('${session.id}','${p}')">Send offer →</button></span>`;
           }).join('')}
+          ${openSlots.length > 1 ? `<span class="queue-offer-row queue-offer-row-fill"><button class="icon-btn small" onclick="fillAllPositions('${session.id}')">Fill all positions →</button></span>` : ''}
         </div>` : '';
 
       return `
@@ -1487,12 +1488,13 @@ function _renderDetail(session, attendees, isAttending, waitingList, myWaitingLi
           <div class="attendee-list">
             ${list.map((e, i) => {
               const isMe = _currentUser && e.id === _currentUser.uid;
+              const offPos = _offeredPositions(e);
               return `<div class="attendee-row${isMe ? ' attendee-row-me' : ''}">
                 <span class="attendee-num">${i + 1}</span>
                 ${_isAdmin
                   ? `<button class="attendee-name-btn" onclick="openProfileScreen('${e.id}')">${esc(e.name)}</button>
                      <span class="attendee-email">${esc(e.email || '')}</span>
-                     ${e.pendingOffer?.position ? `<span class="att-chip queue-offered-chip">Offered ${POS_LABELS[e.pendingOffer.position] || e.pendingOffer.position}</span>` : ''}`
+                     ${offPos.length ? `<span class="att-chip queue-offered-chip">Offered ${offPos.map(p => POS_LABELS[p] || p).join(' · ')}</span>` : ''}`
                   : `<span class="attendee-name-btn">${isMe ? 'You' : '—'}</span>`}
               </div>`;
             }).join('')}
@@ -1585,12 +1587,13 @@ function _renderDetail(session, attendees, isAttending, waitingList, myWaitingLi
   } else if (_myQueueEntry && !deadlinePassed) {
     const POS_LABELS = { setter: 'Setter', hitter: 'Hitter', middle: 'Middle', libero: 'Libero' };
     const offer = _myQueueEntry.pendingOffer;
-    if (offer?.position) {
-      const posLabel = POS_LABELS[offer.position] || offer.position;
+    const offeredPositions = offer?.positions || (offer?.position ? [offer.position] : []);
+    if (offeredPositions.length) {
+      const labels = offeredPositions.map(p => POS_LABELS[p] || p).join(' · ');
       footer.innerHTML = `
-        <span class="waiting-pos offer-waiting-pos">You've been offered a <strong>${posLabel}</strong> spot!</span>
-        <div style="display:flex;gap:8px">
-          <button class="cta-btn" onclick="acceptQueueOffer('${session.id}')">Accept</button>
+        <span class="waiting-pos offer-waiting-pos">Spot${offeredPositions.length > 1 ? 's' : ''} available — <strong>${labels}</strong></span>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          ${offeredPositions.map(p => `<button class="cta-btn" onclick="acceptQueueOffer('${session.id}','${p}')">Accept ${POS_LABELS[p] || p}</button>`).join('')}
           <button class="cta-btn secondary-btn" onclick="declineQueueOffer('${session.id}')">Decline</button>
         </div>${msgBtn}`;
     } else {
@@ -1751,21 +1754,27 @@ window.leavePositionQueue = async function(sessionId) {
   }
 };
 
-// Admin sends a position offer to ALL players currently in the queue.
-// First to accept gets the spot.
+function _offeredPositions(entry) {
+  return entry.pendingOffer?.positions || (entry.pendingOffer?.position ? [entry.pendingOffer.position] : []);
+}
+
+// Admin sends a position offer to ALL players currently in the queue (merges with any existing offer).
 window.offerPositionToQueue = async function(sessionId, position) {
   if (!_positionQueue.length) return;
   try {
     const batch = firebase.firestore().batch();
+    let count = 0;
     for (const entry of _positionQueue) {
-      if (!entry.pendingOffer) {
+      const existing = _offeredPositions(entry);
+      if (!existing.includes(position)) {
         batch.update(_posWlRef(sessionId).doc(entry.id), {
-          pendingOffer: { position, offeredAt: firebase.firestore.FieldValue.serverTimestamp() },
+          pendingOffer: { positions: [...existing, position], offeredAt: firebase.firestore.FieldValue.serverTimestamp() },
         });
+        count++;
       }
     }
     await batch.commit();
-    showToast(`Offer sent to ${_positionQueue.filter(e => !e.pendingOffer).length} players.`);
+    showToast(`Offer sent to ${count} player${count !== 1 ? 's' : ''}.`);
     await openSession(sessionId);
   } catch(e) {
     console.error('Offer failed:', e);
@@ -1773,10 +1782,34 @@ window.offerPositionToQueue = async function(sessionId, position) {
   }
 };
 
+// Admin sends offers for ALL underfilled positions at once.
+window.fillAllPositions = async function(sessionId) {
+  if (!_positionQueue.length) return;
+  const pt      = _currentSession?.positionTargets || {};
+  const counts  = _computePosCounts(_currentAttendees, pt);
+  const allOpen = Object.keys(pt).filter(p => (counts[p] || 0) < pt[p]);
+  if (!allOpen.length) { showToast('No open slots to fill.'); return; }
+  try {
+    const batch = firebase.firestore().batch();
+    for (const entry of _positionQueue) {
+      const existing    = _offeredPositions(entry);
+      const newPositions = [...new Set([...existing, ...allOpen])];
+      batch.update(_posWlRef(sessionId).doc(entry.id), {
+        pendingOffer: { positions: newPositions, offeredAt: firebase.firestore.FieldValue.serverTimestamp() },
+      });
+    }
+    await batch.commit();
+    showToast(`All open slots offered to ${_positionQueue.length} player${_positionQueue.length !== 1 ? 's' : ''}.`);
+    await openSession(sessionId);
+  } catch(e) {
+    console.error('Fill all failed:', e);
+    showToast('Couldn\'t send offers. Try again.', 'error');
+  }
+};
+
 // Player accepts the offered position. First to commit wins.
-window.acceptQueueOffer = async function(sessionId) {
-  if (!_currentUser || !_myQueueEntry?.pendingOffer?.position) return;
-  const position = _myQueueEntry.pendingOffer.position;
+window.acceptQueueOffer = async function(sessionId, position) {
+  if (!_currentUser || !position) return;
   const pt     = _currentSession?.positionTargets || {};
   const counts = _computePosCounts(_currentAttendees, pt);
   if (pt[position] != null && (counts[position] || 0) >= pt[position]) {
