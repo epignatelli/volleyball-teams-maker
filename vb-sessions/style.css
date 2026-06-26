@@ -236,7 +236,7 @@ body {
 }
 .filter-active-label strong { color: var(--amber); font-weight: 700; }
 
-.home-content { flex: 1; overflow-y: auto; padding: 20px; padding-bottom: calc(92px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 24px; }
+.home-content { flex: 1; overflow-y: auto; padding: 20px 0; padding-bottom: calc(92px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 24px; }
 .topbar-new-btn {
   background: var(--amber); color: #0f1117; border: none;
   font-family: var(--sport); font-size: 13px; font-weight: 700; letter-spacing: .05em;
@@ -252,15 +252,18 @@ body {
   font-size: 11px; font-weight: 700;
   letter-spacing: .1em; text-transform: uppercase;
   color: var(--muted);
+  padding: 0 20px;
   margin-bottom: 10px;
 }
 
 .session-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-  padding: 14px 16px;
-  margin-bottom: 8px;
+  border-radius: 0;
+  border-left: none;
+  border-right: none;
+  padding: 14px 20px;
+  margin: 0 0 5px;
   cursor: pointer;
   display: flex;
   flex-direction: column;
