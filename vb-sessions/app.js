@@ -1601,12 +1601,6 @@ function _showMixedPositionModal(sessionId, openPositions, fullPositions, extra)
     ? `The ${fullLabels[0]} slots are full`
     : `The ${fullLabels.slice(0, -1).join(', ')} and ${fullLabels.at(-1)} slots are full`;
   const openStr  = openLabels.join(' and ');
-  const queueRows = fullPositions.map(p => `
-    <label class="pos-queue-check-row">
-      <input type="checkbox" value="${p}" checked />
-      <span class="pos-queue-check-label">Join the ${POS_LABELS_FULL[p] || p} queue</span>
-    </label>`).join('');
-
   const el = document.createElement('div');
   el.id = 'mixed-pos-overlay';
   el.className = 'overlay open';
@@ -1616,7 +1610,6 @@ function _showMixedPositionModal(sessionId, openPositions, fullPositions, extra)
       <p style="font-size:14px;color:var(--muted);line-height:1.55;padding-bottom:20px">
         ${fullStr} — would you like to be registered as <strong style="color:var(--text)">${openStr}</strong> only?
       </p>
-      ${queueRows ? `<div id="mixed-pos-queues" style="display:flex;flex-direction:column;gap:12px;padding-bottom:20px">${queueRows}</div>` : ''}
       <div id="mixed-pos-error" style="color:var(--red);font-size:13px;min-height:18px;margin-bottom:12px"></div>
       <button class="cta-btn" onclick="_confirmMixedPosition('${sessionId}')">Yes, register as ${openStr} →</button>
       <button class="cta-btn secondary-btn" style="margin-top:8px" onclick="document.getElementById('mixed-pos-overlay').remove()">Cancel</button>
@@ -1628,25 +1621,13 @@ function _showMixedPositionModal(sessionId, openPositions, fullPositions, extra)
 }
 
 window._confirmMixedPosition = async function(sessionId) {
-  const overlay     = document.getElementById('mixed-pos-overlay');
-  const extra       = overlay._extra;
-  const openPos     = overlay._openPositions;
-  const queuedPos   = Array.from(overlay.querySelectorAll('#mixed-pos-queues input:checked')).map(el => el.value);
-  const btn         = overlay.querySelector('.cta-btn');
+  const overlay = document.getElementById('mixed-pos-overlay');
+  const extra   = overlay._extra;
+  const openPos = overlay._openPositions;
+  const btn     = overlay.querySelector('.cta-btn');
   btn.disabled = true;
   try {
-    // Register with open positions
     await _doRegister(sessionId, { ...extra, positions: openPos });
-    // Optionally join queues for full positions
-    if (queuedPos.length) {
-      await _posWlRef(sessionId).doc(_currentUser.uid).set({
-        name:      _currentUser.displayName || _currentUser.email,
-        email:     _currentUser.email || '',
-        uid:       _currentUser.uid,
-        positions: queuedPos,
-        joinedAt:  firebase.firestore.FieldValue.serverTimestamp(),
-      });
-    }
     overlay.remove();
   } catch(e) {
     console.error('Mixed position register failed:', e);
