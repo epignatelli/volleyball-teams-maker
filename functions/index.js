@@ -2118,6 +2118,38 @@ exports.sendSessionReminders = onSchedule({
   }
 });
 
+// ── notifyCoachBookingRequest ─────────────────────────────────────────────────
+// Triggered when a player creates a new coachBookings document.
+// Emails the coach to let them know about the request.
+exports.notifyCoachBookingRequest = onDocumentCreated({
+  document: 'coachBookings/{bookingId}',
+  region:   REGION_FIRESTORE,
+  secrets:  [GMAIL_APP_PASSWORD],
+}, async (event) => {
+  const booking = event.data.data();
+  const db = getFirestore();
+  const coachDoc = await db.collection('users').doc(booking.coachUid).get();
+  if (!coachDoc.exists) return;
+  const coach = coachDoc.data();
+  if (!coach.email) return;
+
+  const dateStr  = booking.date || '';
+  const slotLabel = { morning: 'morning', afternoon: 'afternoon', evening: 'evening' }[booking.timeSlot] || booking.timeSlot;
+  const fmtLabel  = { 'in-person': 'in person', 'video': 'via video call' }[booking.format] || booking.format;
+  const appUrl    = APP_URL;
+
+  await sendEmail(
+    coach.email,
+    `New 1-1 booking request from ${booking.playerName}`,
+    _emailHtml(`Hi ${coach.name || 'there'},`, [
+      `<strong>${_hEsc(booking.playerName)}</strong> has requested a ${booking.duration}-minute ${fmtLabel} session.`,
+      `<strong>Preferred:</strong> ${_hEsc(dateStr)}${slotLabel ? `, ${slotLabel}` : ''}`,
+      booking.note ? `<strong>Note:</strong> ${_hEsc(booking.note)}` : '',
+      `Log in to accept or decline this request.`,
+    ].filter(Boolean), null, appUrl, 'Open app →')
+  );
+});
+
 function _actionHtml(title, message) {
   const adminUrl = 'https://epignatelli.com/apps/vb-sessions/#users';
   return `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:480px;margin:60px auto;padding:24px;color:#111">

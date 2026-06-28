@@ -515,6 +515,51 @@
   </div>
 </div>
 
+<!-- ══════════════════════════════════════════════════
+     OVERLAY — BOOK A 1-1
+══════════════════════════════════════════════════ -->
+<div class="overlay" id="booking-overlay">
+  <div class="panel" id="booking-panel">
+    <div class="panel-header">
+      <span class="panel-title">Book a 1-1</span>
+      <button class="panel-close" onclick="closeBookingForm()">✕</button>
+    </div>
+    <div class="field">
+      <label class="field-label">Preferred date</label>
+      <input class="field-input" type="date" id="bk-date" />
+    </div>
+    <div class="field">
+      <label class="field-label">Time of day</label>
+      <div class="radio-group" id="bk-timeslot">
+        <label class="radio-opt"><input type="radio" name="bk-ts" value="morning" checked /> Morning</label>
+        <label class="radio-opt"><input type="radio" name="bk-ts" value="afternoon" /> Afternoon</label>
+        <label class="radio-opt"><input type="radio" name="bk-ts" value="evening" /> Evening</label>
+      </div>
+    </div>
+    <div class="field">
+      <label class="field-label">Duration</label>
+      <select class="field-input" id="bk-duration">
+        <option value="30">30 min</option>
+        <option value="60" selected>60 min</option>
+        <option value="90">90 min</option>
+      </select>
+    </div>
+    <div class="field">
+      <label class="field-label">Format</label>
+      <select class="field-input" id="bk-format">
+        <option value="in-person">In person</option>
+        <option value="video">Video call</option>
+      </select>
+    </div>
+    <div class="field">
+      <label class="field-label">What do you want to work on? <span class="field-optional">(optional)</span></label>
+      <textarea class="field-input field-textarea" id="bk-note" maxlength="200" rows="3" placeholder="e.g. serving consistency, reading the game…"></textarea>
+    </div>
+    <div id="bk-error" class="form-error" style="display:none"></div>
+    <button class="cta-btn" id="bk-submit-btn" onclick="submitBookingRequest()">Send request</button>
+  </div>
+</div>
+
 <div id="toast" class="toast"></div>
 
 <script src="https://www.gstatic.com/firebasejs/10.14.1/firebase-app-compat.js"></script>

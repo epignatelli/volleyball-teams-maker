@@ -85,6 +85,7 @@ let _pendingEditQueueFull   = [];     // full positions to keep in queue during 
 // and stash the success flag to show a toast after auth resolves.
 let _pendingCheckoutSuccess = null;
 let _seriesInvite           = null; // { seriesId, token } when user arrived via a valid invite link
+let _bookingCoach           = null; // { uid, name, rate, coachAvailability } when booking overlay is open
 (function _handleUrlParams() {
   const p        = new URLSearchParams(window.location.search);
   const status   = p.get('checkout');
@@ -2962,10 +2963,14 @@ async function openProfileScreen(uid) {
 
     const showHistory = isOwn || _isAdmin;
     const showCoach   = (hasCoach || roles.includes('admin') || roles.includes('owner')) && _isAdmin;
+    // Show incoming booking requests to the coach on their own profile
+    const showCoachBookings  = isOwn && _isCoach;
+    // Show player's outgoing booking requests on their own profile
+    const showPlayerBookings = isOwn && _currentUser;
 
-    // Fetch all data in parallel: coach sessions, all series docs, all session docs, upcoming clinics
+    // Fetch all data in parallel: coach sessions, all series docs, all session docs, upcoming clinics, bookings
     const todayTs = firebase.firestore.Timestamp.fromDate(new Date(new Date().setHours(0,0,0,0)));
-    const [coachSessionsSnap, allSeriesSnap, allSessionsSnap, upcomingClinicsSnap] = await Promise.all([
+    const [coachSessionsSnap, allSeriesSnap, allSessionsSnap, upcomingClinicsSnap, coachBookingsSnap, playerBookingsSnap] = await Promise.all([
       showCoach
         ? _sessionsRef().where('coachUid', '==', targetUid).where('status', '==', 'closed').orderBy('date', 'desc').limit(25).get().catch(() => null)
         : Promise.resolve(null),
@@ -2977,6 +2982,12 @@ async function openProfileScreen(uid) {
         : Promise.resolve(null),
       hasCoach
         ? _sessionsRef().where('coachUid', '==', targetUid).where('date', '>=', todayTs).orderBy('date', 'asc').limit(3).get().catch(() => null)
+        : Promise.resolve(null),
+      showCoachBookings
+        ? getDb().collection('coachBookings').where('coachUid', '==', targetUid).where('status', '==', 'pending').orderBy('createdAt', 'asc').limit(20).get().catch(() => null)
+        : Promise.resolve(null),
+      showPlayerBookings
+        ? getDb().collection('coachBookings').where('playerUid', '==', _currentUser.uid).orderBy('createdAt', 'desc').limit(10).get().catch(() => null)
         : Promise.resolve(null),
     ]);
 
@@ -3126,6 +3137,64 @@ async function openProfileScreen(uid) {
         </div>`;
     })() : '';
 
+    // ── Book a 1-1 button (player viewing another coach's profile) ──────────────
+    const showBook1to1 = u.coach1to1Enabled && _currentUser && targetUid !== _currentUser.uid;
+    const book1to1Btn  = showBook1to1
+      ? `<div class="profile-actions">
+           <button class="cta-btn" onclick="openBookingForm('${esc(targetUid)}', ${JSON.stringify({ name: u.name || '', rate: u.coachRate ?? null, coachAvailability: u.coachAvailability || [] })})">Book a 1-1${u.coachRate != null ? ` · £${u.coachRate}/hr` : ''}</button>
+         </div>`
+      : '';
+
+    // ── Coach: incoming booking requests ────────────────────────────────────────
+    const _slotLabel = { morning: 'Morning', afternoon: 'Afternoon', evening: 'Evening' };
+    const _fmtLabel  = { 'in-person': 'In person', 'video': 'Video call' };
+    const coachBookingRows = coachBookingsSnap?.docs.map(d => {
+      const b   = d.data();
+      const bid = d.id;
+      const meta = [b.date, _slotLabel[b.timeSlot] || b.timeSlot, `${b.duration} min`, _fmtLabel[b.format] || b.format].filter(Boolean).join(' · ');
+      return `<div class="booking-request-card" id="bk-card-${esc(bid)}">
+        <div><strong>${esc(b.playerName || '—')}</strong></div>
+        <div class="booking-request-meta">${esc(meta)}</div>
+        ${b.note ? `<div style="font-size:13px;color:var(--text-dim);margin-bottom:8px">${esc(b.note)}</div>` : ''}
+        <div class="booking-actions">
+          <button class="cta-btn btn-accept cta-btn--sm" onclick="acceptBooking('${esc(bid)}', document.getElementById('bk-card-${esc(bid)}'))">Accept</button>
+          <button class="cta-btn btn-decline cta-btn--sm" onclick="declineBooking('${esc(bid)}', document.getElementById('bk-card-${esc(bid)}'))">Decline</button>
+        </div>
+      </div>`;
+    }) || [];
+    const coachBookingsSection = showCoachBookings && coachBookingRows.length
+      ? `<div class="detail-section">
+           <div class="detail-section-title">Booking requests</div>
+           ${coachBookingRows.join('')}
+         </div>`
+      : showCoachBookings
+        ? `<div class="detail-section">
+             <div class="detail-section-title">Booking requests</div>
+             <div class="empty-note">No pending requests.</div>
+           </div>`
+        : '';
+
+    // ── Player: outgoing booking requests ────────────────────────────────────────
+    const playerBookingRows = playerBookingsSnap?.docs.map(d => {
+      const b = d.data();
+      const meta = [b.date, _slotLabel[b.timeSlot] || b.timeSlot, `${b.duration} min`, _fmtLabel[b.format] || b.format].filter(Boolean).join(' · ');
+      const statusBadge = `<span class="booking-status-badge ${esc(b.status || 'pending')}">${b.status || 'pending'}</span>`;
+      return `<div class="booking-request-card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <strong>${esc(b.coachUid ? (_userDisplayNames[b.coachUid] || 'Coach') : '—')}</strong>
+          ${statusBadge}
+        </div>
+        <div class="booking-request-meta">${esc(meta)}</div>
+        ${b.note ? `<div style="font-size:13px;color:var(--text-dim)">${esc(b.note)}</div>` : ''}
+      </div>`;
+    }) || [];
+    const playerBookingsSection = showPlayerBookings && playerBookingRows.length
+      ? `<div class="detail-section">
+           <div class="detail-section-title">My 1-1 requests</div>
+           ${playerBookingRows.join('')}
+         </div>`
+      : '';
+
     body.innerHTML = `
       <div class="profile-screen-card">
         <div class="profile-hero">
@@ -3137,16 +3206,144 @@ async function openProfileScreen(uid) {
         </div>
         ${metaRows ? `<div class="detail-section"><div class="detail-meta-grid">${metaRows}</div></div>` : ''}
         ${coachProfileSection}
+        ${book1to1Btn}
         ${rolesSection}
         ${adminSection}
         ${ownActions}
+        ${coachBookingsSection}
         ${coachPaySection}
+        ${playerBookingsSection}
         ${seriesPassSection}
         ${sessionsSection}
       </div>`;
   } catch(e) {
     console.error('Load profile failed:', e);
     body.innerHTML = '<div class="home-empty">Couldn\'t load profile.</div>';
+  }
+}
+
+// ─── 1-1 Booking overlay ──────────────────────────────────────────────────────
+function openBookingForm(coachUid, coachData) {
+  if (!_currentUser) { showToast('Sign in to book a session.', 'error'); return; }
+  _bookingCoach = { uid: coachUid, ...coachData };
+
+  // Set minimum date to today
+  const today = new Date().toISOString().slice(0, 10);
+  const dateEl = document.getElementById('bk-date');
+  dateEl.min   = today;
+  dateEl.value = '';
+
+  // Reset form
+  document.querySelector('input[name="bk-ts"][value="morning"]').checked = true;
+  document.getElementById('bk-duration').value = '60';
+  document.getElementById('bk-format').value   = 'in-person';
+  document.getElementById('bk-note').value     = '';
+  const errEl = document.getElementById('bk-error');
+  errEl.style.display = 'none';
+  errEl.textContent   = '';
+
+  const btn = document.getElementById('bk-submit-btn');
+  btn.disabled    = false;
+  btn.textContent = 'Send request';
+
+  document.getElementById('booking-overlay').classList.add('open');
+}
+
+function closeBookingForm() {
+  document.getElementById('booking-overlay').classList.remove('open');
+  _bookingCoach = null;
+}
+
+async function submitBookingRequest() {
+  if (!_currentUser || !_bookingCoach) return;
+
+  const dateVal = document.getElementById('bk-date').value;
+  const errEl   = document.getElementById('bk-error');
+  const btn     = document.getElementById('bk-submit-btn');
+
+  errEl.style.display = 'none';
+  errEl.textContent   = '';
+
+  if (!dateVal) {
+    errEl.textContent   = 'Please choose a preferred date.';
+    errEl.style.display = '';
+    return;
+  }
+  const today = new Date().toISOString().slice(0, 10);
+  if (dateVal < today) {
+    errEl.textContent   = 'Date must be today or in the future.';
+    errEl.style.display = '';
+    return;
+  }
+
+  const timeSlot = document.querySelector('input[name="bk-ts"]:checked')?.value || 'morning';
+  const duration = parseInt(document.getElementById('bk-duration').value, 10) || 60;
+  const format   = document.getElementById('bk-format').value;
+  const note     = document.getElementById('bk-note').value.trim();
+
+  const playerName = _currentUserDoc?.name || _currentUser.displayName || _currentUser.email || '';
+
+  const booking = {
+    coachUid:   _bookingCoach.uid,
+    playerUid:  _currentUser.uid,
+    playerName,
+    date:       dateVal,
+    timeSlot,
+    duration,
+    format,
+    note,
+    rate:       _bookingCoach.rate ?? null,
+    status:     'pending',
+    createdAt:  firebase.firestore.FieldValue.serverTimestamp(),
+  };
+
+  btn.disabled    = true;
+  btn.textContent = 'Sending…';
+
+  try {
+    await getDb().collection('coachBookings').add(booking);
+    closeBookingForm();
+    showToast('Request sent! The coach will get back to you.');
+  } catch (e) {
+    console.error('submitBookingRequest failed:', e);
+    errEl.textContent   = e.message || 'Couldn\'t send request. Please try again.';
+    errEl.style.display = '';
+    btn.disabled    = false;
+    btn.textContent = 'Send request';
+  }
+}
+
+// ── Coach: load incoming booking requests ────────────────────────────────────
+// NOTE: This query requires a composite index on coachBookings:
+//   coachUid ASC + status ASC + createdAt ASC
+// Firebase will prompt with a link to create it automatically when first run in dev.
+async function _loadCoachBookingRequests(coachUid) {
+  const snap = await getDb().collection('coachBookings')
+    .where('coachUid', '==', coachUid)
+    .where('status', '==', 'pending')
+    .orderBy('createdAt', 'asc')
+    .limit(20)
+    .get();
+  return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+}
+
+async function acceptBooking(bookingId, containerEl) {
+  try {
+    await getDb().collection('coachBookings').doc(bookingId).update({ status: 'accepted' });
+    showToast('Booking accepted.');
+    if (containerEl) containerEl.remove();
+  } catch (e) {
+    showToast('Couldn\'t accept booking. Try again.', 'error');
+  }
+}
+
+async function declineBooking(bookingId, containerEl) {
+  try {
+    await getDb().collection('coachBookings').doc(bookingId).update({ status: 'declined' });
+    showToast('Booking declined.');
+    if (containerEl) containerEl.remove();
+  } catch (e) {
+    showToast('Couldn\'t decline booking. Try again.', 'error');
   }
 }
 
