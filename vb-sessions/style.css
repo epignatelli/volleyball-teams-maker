@@ -904,6 +904,7 @@ body {
 .session-badge.owner-badge-lg    { background: var(--red-bg);           border: 1px solid rgba(248,113,113,.4);  color: var(--red); }
 .session-badge.admin-badge-lg    { background: rgba(244,114,182,.13);   border: 1px solid rgba(244,114,182,.4);  color: #f472b6; }
 .session-badge.provider-badge-lg { background: rgba(20,184,166,.15);    border: 1px solid rgba(45,212,191,.4);   color: #2dd4bf; }
+.session-badge.coach-badge-lg    { background: var(--green-bg);         border: 1px solid rgba(34,201,122,.35);  color: var(--green); }
 
 .role-status-list { display: flex; flex-direction: column; }
 .role-status-row {

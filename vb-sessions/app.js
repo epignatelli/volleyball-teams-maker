@@ -2837,9 +2837,10 @@ async function openProfileScreen(uid) {
 
     const roleLabel = { owner: 'sudo', admin: 'admin', provider: 'host', coach: 'coach' };
     const roleBadges = displayRoles.map(r => {
-      const cls = r === 'owner' ? 'level owner-badge-lg'
-                : r === 'admin' ? 'level admin-badge-lg'
+      const cls = r === 'owner'    ? 'level owner-badge-lg'
+                : r === 'admin'    ? 'level admin-badge-lg'
                 : r === 'provider' ? 'level provider-badge-lg'
+                : r === 'coach'    ? 'level coach-badge-lg'
                 : 'level';
       return `<span class="session-badge ${cls}">${roleLabel[r] || r}</span>`;
     }).join(' ');
