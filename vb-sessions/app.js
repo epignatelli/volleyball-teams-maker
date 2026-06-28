@@ -430,6 +430,14 @@ getAuth().onAuthStateChanged(async user => {
 // Browser back/forward → route within the app instead of exiting
 window.addEventListener('popstate', () => { _routeFromHash(); });
 
+document.addEventListener('keydown', e => {
+  if (e.key !== 'Escape') return;
+  // Close the topmost open overlay, or any open filter popover
+  const overlay = document.querySelector('.overlay.open');
+  if (overlay) { overlay.classList.remove('open'); return; }
+  document.querySelectorAll('.fbar-pop.open').forEach(p => p.classList.remove('open'));
+});
+
 // Firestore .get() can stall indefinitely on mobile after cross-origin navigation
 // (e.g. returning from Stripe checkout). Race against a 12-second timeout so the
 // catch handler can show a retry message rather than an infinite spinner.
