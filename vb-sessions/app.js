@@ -3073,6 +3073,8 @@ async function openProfileScreen(uid) {
     // ── Coach public section ─────────────────────────────────────────────────
     const _posLabel  = { setter: 'Setter', hitter: 'Hitter', middle: 'Middle', libero: 'Libero' };
     const _lvlLabel  = { beginner: 'Beginner', improver: 'Improver', intermediate: 'Intermediate', advanced: 'Advanced', competitive: 'Competitive' };
+    const _availPeriodLabel = { am: 'morning', pm: 'afternoon', eve: 'evening' };
+    const _availDayLabel    = { mon: 'Mon', tue: 'Tue', wed: 'Wed', thu: 'Thu', fri: 'Fri', sat: 'Sat', sun: 'Sun' };
     const coachProfileSection = hasCoach ? (() => {
       const bio        = u.coachBio;
       const posMeta    = (u.coachPositions || []).map(p => _posLabel[p] || p).join(', ');
@@ -3080,6 +3082,13 @@ async function openProfileScreen(uid) {
       const styleMeta  = (u.coachStyles    || []).join(', ');
       const rateLine   = u.coach1to1Enabled
         ? (u.coachRate != null ? `£${u.coachRate}/hr · Available for 1-1 sessions` : 'Available for 1-1 sessions')
+        : '';
+      const availSlots = (u.coachAvailability || []);
+      const availMeta  = availSlots.length
+        ? availSlots.map(s => {
+            const [day, period] = s.split('-');
+            return `${_availDayLabel[day] || day} ${_availPeriodLabel[period] || period}`;
+          }).join(' · ')
         : '';
       const clinicRows = upcomingClinicsSnap?.docs.map(d => {
         const s = d.data();
@@ -3094,10 +3103,11 @@ async function openProfileScreen(uid) {
           <div class="detail-section-title">Coach</div>
           ${bio ? `<div class="detail-description">${esc(bio)}</div>` : ''}
           <div class="detail-meta-grid">
-            ${posMeta   ? `<div class="detail-meta-row"><span class="detail-meta-label">Positions</span><span>${esc(posMeta)}</span></div>` : ''}
-            ${lvlMeta   ? `<div class="detail-meta-row"><span class="detail-meta-label">Levels</span><span>${esc(lvlMeta)}</span></div>` : ''}
-            ${styleMeta ? `<div class="detail-meta-row"><span class="detail-meta-label">Style</span><span>${esc(styleMeta)}</span></div>` : ''}
-            ${rateLine  ? `<div class="detail-meta-row"><span class="detail-meta-label">1-1</span><span>${esc(rateLine)}</span></div>` : ''}
+            ${posMeta    ? `<div class="detail-meta-row"><span class="detail-meta-label">Positions</span><span>${esc(posMeta)}</span></div>` : ''}
+            ${lvlMeta    ? `<div class="detail-meta-row"><span class="detail-meta-label">Levels</span><span>${esc(lvlMeta)}</span></div>` : ''}
+            ${styleMeta  ? `<div class="detail-meta-row"><span class="detail-meta-label">Style</span><span>${esc(styleMeta)}</span></div>` : ''}
+            ${rateLine   ? `<div class="detail-meta-row"><span class="detail-meta-label">1-1</span><span>${esc(rateLine)}</span></div>` : ''}
+            ${availMeta  ? `<div class="detail-meta-row"><span class="detail-meta-label">Availability</span><span>${esc(availMeta)}</span></div>` : ''}
           </div>
           ${clinicRows.length ? `
             <div class="detail-section-title" style="margin-top:4px">Upcoming clinics</div>
@@ -4505,6 +4515,34 @@ async function sendMessage() {
   }
 }
 
+// ─── Availability grid ────────────────────────────────────────────────────────
+function _renderAvailGrid(selectedSlots) {
+  const days    = ['mon','tue','wed','thu','fri','sat','sun'];
+  const dayLabels = { mon:'Mon', tue:'Tue', wed:'Wed', thu:'Thu', fri:'Fri', sat:'Sat', sun:'Sun' };
+  const periods = [['am','Morning'],['pm','Afternoon'],['eve','Evening']];
+  const sel     = new Set(selectedSlots || []);
+  const grid    = document.getElementById('pf-avail-grid');
+  if (!grid) return;
+
+  // Header row: empty label cell + period headers
+  let html = `<div class="avail-day-label"></div>`;
+  for (const [, label] of periods) {
+    html += `<div class="avail-day-label" style="justify-content:center;font-weight:600">${label}</div>`;
+  }
+
+  // One row per day
+  for (const day of days) {
+    html += `<div class="avail-day-label">${dayLabels[day]}</div>`;
+    for (const [period] of periods) {
+      const slot = `${day}-${period}`;
+      const active = sel.has(slot) ? ' active' : '';
+      html += `<button type="button" class="avail-slot${active}" data-slot="${slot}" onclick="this.classList.toggle('active')">${periods.find(p=>p[0]===period)[1]}</button>`;
+    }
+  }
+
+  grid.innerHTML = html;
+}
+
 // ─── Edit profile overlay ──────────────────────────────────────────────────────
 async function openEditProfile() {
   if (!_currentUser) return;
@@ -4538,6 +4576,7 @@ async function openEditProfile() {
         document.querySelectorAll('.pf-coach-pos').forEach(cb  => { cb.checked = coachPosSet.has(cb.value);   });
         document.querySelectorAll('.pf-coach-lvl').forEach(cb  => { cb.checked = coachLvlSet.has(cb.value);   });
         document.querySelectorAll('.pf-coach-style').forEach(cb => { cb.checked = coachStyleSet.has(cb.value); });
+        _renderAvailGrid(data.coachAvailability || []);
       }
     }
   } catch(e) {
@@ -4574,10 +4613,11 @@ async function saveProfile() {
     coachPositions:   Array.from(document.querySelectorAll('.pf-coach-pos:checked')).map(el => el.value),
     coachLevels:      Array.from(document.querySelectorAll('.pf-coach-lvl:checked')).map(el => el.value),
     coachStyles:      Array.from(document.querySelectorAll('.pf-coach-style:checked')).map(el => el.value),
-    coachRate:        document.getElementById('pf-coach-rate').value !== ''
-                        ? Number(document.getElementById('pf-coach-rate').value)
-                        : null,
-    coach1to1Enabled: document.getElementById('pf-coach-1to1').checked,
+    coachRate:          document.getElementById('pf-coach-rate').value !== ''
+                          ? Number(document.getElementById('pf-coach-rate').value)
+                          : null,
+    coach1to1Enabled:   document.getElementById('pf-coach-1to1').checked,
+    coachAvailability:  Array.from(document.querySelectorAll('.avail-slot.active')).map(b => b.dataset.slot),
   } : {};
 
   try {
