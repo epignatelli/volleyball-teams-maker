@@ -5107,13 +5107,17 @@ function renderVenueDetail(v) {
   content.innerHTML = `
     <div class="venue-detail-header">
       <div class="venue-detail-initial">${esc((v.name || '?')[0].toUpperCase())}</div>
-      <div>
+      <div class="venue-detail-info">
         <div class="venue-detail-name">${esc(v.name)}</div>
         <div class="venue-detail-address ${v.address ? '' : 'venue-missing'}">${v.address ? esc(v.address) : 'No address'}</div>
       </div>
+      <button class="venue-edit-btn" onclick="openVenueForm('${v.id}')">Edit</button>
     </div>
 
-    ${embedSrc ? `<iframe class="venue-map-embed" src="${esc(embedSrc)}" loading="lazy" referrerpolicy="no-referrer" allowfullscreen></iframe>` : ''}
+    <div class="venue-detail-section">
+      ${row('Cost per hour', v.costPerHour > 0 ? `£${v.costPerHour}` : '')}
+      ${row('Contact', v.contact)}
+    </div>
 
     ${mapsUrl ? `
     <a class="venue-map-link" href="${esc(mapsUrl)}" target="_blank" rel="noopener">
@@ -5122,12 +5126,7 @@ function renderVenueDetail(v) {
       <span class="venue-map-arrow">↗</span>
     </a>` : ''}
 
-    <div class="venue-detail-section">
-      ${row('Cost per hour', v.costPerHour > 0 ? `£${v.costPerHour}` : '')}
-      ${row('Contact', v.contact)}
-    </div>
-
-    <button class="venue-edit-btn" onclick="openVenueForm('${v.id}')">Edit venue</button>
+    ${embedSrc ? `<iframe class="venue-map-embed" src="${esc(embedSrc)}" loading="lazy" referrerpolicy="no-referrer" allowfullscreen></iframe>` : ''}
   `;
 }
 
