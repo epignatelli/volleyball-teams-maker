@@ -489,7 +489,7 @@ async function _routeFromHash() {
       await _loadRunSessionData(id);
       showScreen('session-end');
       _setNav('sub', null);
-      _setBack(() => closeSessionEnd());
+      _setBack(() => history.back());
       _renderSessionEnd();
     } catch(e) { renderHome(); }
   }
@@ -3801,7 +3801,7 @@ async function openSessionRun(sessionId) {
   _setHash('run/' + sessionId);
   showScreen('session-run');
   _setNav('sub', null);
-  _setBack(() => closeSessionRun());
+  _setBack(() => history.back());
   const content = document.getElementById('run-content');
   content.innerHTML = '<div class="home-empty">Loading…</div>';
   try {
@@ -3952,7 +3952,7 @@ function openSessionEnd() {
   _setHash('end/' + _runSession.id);
   showScreen('session-end');
   _setNav('sub', null);
-  _setBack(() => closeSessionEnd());
+  _setBack(() => history.back());
   _renderSessionEnd();
 }
 
@@ -4345,7 +4345,7 @@ async function openSessionEndReport(sessionId) {
     _setHash('end/' + sessionId);
     showScreen('session-end');
     _setNav('sub', null);
-    _setBack(() => closeSessionEnd());
+    _setBack(() => history.back());
     _renderSessionEnd();
   } catch(e) {
     console.error(e);
@@ -5331,6 +5331,7 @@ async function _joinSeriesFromCard(seriesId, btn) {
 }
 
 async function openSeriesDetail(seriesId) {
+  _activeSeriesFilter = null; _activeSeries = null; _activeSeriesReg = null; _activeSeriesMembers = [];
   _setHash('pass/' + seriesId);
   showScreen('detail');
   _setNav('sub', null);
@@ -5437,7 +5438,7 @@ async function openSeriesSessions(seriesId, seriesName) {
   showScreen('home');
   _setNav('sub', null);
   _setTitle(seriesName);
-  _setBack(() => { _activeSeriesFilter = null; _activeSeries = null; _activeSeriesReg = null; _activeSeriesMembers = []; openSeriesDetail(seriesId); });
+  _setBack(() => history.back());
   document.getElementById('home-content').innerHTML = '<div class="home-empty">Loading…</div>';
 
   // Series doc is critical for the banner — fetch separately so a reg/member failure can't hide it
