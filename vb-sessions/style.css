@@ -1364,3 +1364,16 @@ body {
   color: var(--amber);
   border-color: rgba(240,165,0,.4);
 }
+
+/* ─── Coach onboarding checklist ─────────────────────────────────────────── */
+.coach-onboarding { background: var(--surface2); border-radius: var(--radius-md); padding: 14px 16px; margin: 12px 16px; border: 1px solid var(--border); }
+.coach-onboarding-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.coach-onboarding-progress { font-size: 12px; color: var(--muted); }
+.coach-onboarding-bar { height: 4px; background: var(--border); border-radius: 2px; margin-bottom: 12px; }
+.coach-onboarding-fill { height: 100%; background: var(--amber); border-radius: 2px; transition: width .3s; }
+.coach-onboarding-list { list-style: none; padding: 0; margin: 0 0 12px; display: flex; flex-direction: column; gap: 6px; }
+.coach-onboarding-item { font-size: 13px; display: flex; align-items: center; gap: 8px; color: var(--text); }
+.coach-onboarding-item.done { color: var(--muted); text-decoration: line-through; }
+.coach-onboarding-check { font-size: 14px; color: var(--muted); width: 16px; }
+.coach-onboarding-item.done .coach-onboarding-check { color: var(--green); }
+.cta-btn--sm { padding: 8px 16px; font-size: 13px; }

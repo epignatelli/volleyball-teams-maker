@@ -64,6 +64,7 @@ let _isCoach                  = false;
 let _isProvider               = false;
 let _isOwner                  = false;
 let _providerOnboardingComplete = false;
+let _currentUserDoc = null;  // latest user doc data for the signed-in user
 let _userDocUnsub = null;    // unsubscribe fn for own user doc listener
 let _editingId              = null;   // session ID being edited, null when creating
 let _pendingJoinSessionId   = null;   // session to join after sign-in completes
@@ -229,13 +230,15 @@ async function _maybeShowOnboarding(user) {
 function _subscribeToUserDoc(user) {
   if (_userDocUnsub) { _userDocUnsub(); _userDocUnsub = null; }
   _userDocUnsub = _userRef(user.uid).onSnapshot(doc => {
-    _currentRoles = (doc.data()?.roles) || ['player'];
+    _currentUserDoc = doc.data() || {};
+    _currentRoles = (_currentUserDoc.roles) || ['player'];
     _isOwner = _currentRoles.includes('owner');
     _isAdmin    = _isOwner || _currentRoles.includes('admin');
     _isCoach    = _currentRoles.includes('coach');
     _isProvider = _currentRoles.includes('provider');
-    _providerOnboardingComplete = !!doc.data()?.providerOnboardingComplete;
+    _providerOnboardingComplete = !!_currentUserDoc.providerOnboardingComplete;
     _updateAuthUI();
+    _renderCoachOnboarding();
     if (_pendingProviderRequest) {
       _pendingProviderRequest = false;
       if (_isProvider) _showProviderSessions(_currentUser?.uid);
@@ -410,6 +413,7 @@ getAuth().onAuthStateChanged(async user => {
     }
   } else {
     _currentRoles = [];
+    _currentUserDoc             = null;
     _isAdmin  = false;
     _isCoach                   = false;
     _isProvider                 = false;
@@ -5547,6 +5551,47 @@ function openSeriesScreen() {
 }
 
 // ── Coaches directory ──────────────────────────────────────────────────────────
+function _renderCoachOnboarding() {
+  const el = document.getElementById('coach-onboarding-banner');
+  if (!el || !_isCoach) { if (el) el.style.display = 'none'; return; }
+
+  const u = _currentUserDoc || {};
+  const items = [
+    { label: 'Add your bio',            done: !!(u.coachBio && u.coachBio.trim()) },
+    { label: 'Add positions you coach', done: !!(u.coachPositions && u.coachPositions.length) },
+    { label: 'Set your levels',         done: !!(u.coachLevels && u.coachLevels.length) },
+    { label: 'Set your availability',   done: !!(u.coachAvailability && u.coachAvailability.length) },
+    { label: 'Set your 1-1 rate',       done: !!(u.coachRate && u.coachRate > 0) },
+    { label: 'Connect Stripe',          done: !!_providerOnboardingComplete },
+  ];
+
+  const allDone = items.every(i => i.done);
+  if (allDone) { el.style.display = 'none'; return; }
+
+  const done = items.filter(i => i.done).length;
+  el.style.display = '';
+  el.innerHTML = `
+    <div class="coach-onboarding">
+      <div class="coach-onboarding-header">
+        <strong>Complete your coach profile</strong>
+        <span class="coach-onboarding-progress">${done}/${items.length}</span>
+      </div>
+      <div class="coach-onboarding-bar">
+        <div class="coach-onboarding-fill" style="width:${Math.round(done/items.length*100)}%"></div>
+      </div>
+      <ul class="coach-onboarding-list">
+        ${items.map(i => `
+          <li class="coach-onboarding-item ${i.done ? 'done' : ''}">
+            <span class="coach-onboarding-check">${i.done ? '✓' : '○'}</span>
+            ${esc(i.label)}
+          </li>
+        `).join('')}
+      </ul>
+      <button class="cta-btn cta-btn--sm" onclick="openEditProfile()">Edit coach profile →</button>
+    </div>
+  `;
+}
+
 function openCoachesScreen() {
   _setHash('coaches');
   showScreen('coaches');
@@ -5554,6 +5599,7 @@ function openCoachesScreen() {
   _setTitle('Coaches');
   const coachesFooter = document.getElementById('coaches-footer');
   if (coachesFooter) coachesFooter.style.display = _canCreateClinic() ? '' : 'none';
+  _renderCoachOnboarding();
   renderCoaches();
 }
 
