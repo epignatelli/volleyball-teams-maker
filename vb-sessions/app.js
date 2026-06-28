@@ -5094,15 +5094,26 @@ function renderVenueDetail(v) {
   const content  = document.getElementById('venue-detail-content');
   const mapsUrl  = safeUrl(v.mapsUrl)
     || (v.address ? `https://www.google.com/maps/search/${encodeURIComponent(v.address)}` : null);
+  const embedSrc = v.address
+    ? `https://maps.google.com/maps?q=${encodeURIComponent(v.address)}&output=embed`
+    : null;
+
+  const row = (label, val) => `
+    <div class="user-row" style="cursor:default">
+      <div class="user-info"><div class="user-name">${label}</div></div>
+      <div class="user-meta ${val ? '' : 'venue-missing'}">${val ? esc(val) : 'Missing'}</div>
+    </div>`;
 
   content.innerHTML = `
     <div class="venue-detail-header">
       <div class="venue-detail-initial">${esc((v.name || '?')[0].toUpperCase())}</div>
       <div>
         <div class="venue-detail-name">${esc(v.name)}</div>
-        ${v.address ? `<div class="venue-detail-address">${esc(v.address)}</div>` : ''}
+        <div class="venue-detail-address ${v.address ? '' : 'venue-missing'}">${v.address ? esc(v.address) : 'No address'}</div>
       </div>
     </div>
+
+    ${embedSrc ? `<iframe class="venue-map-embed" src="${esc(embedSrc)}" loading="lazy" referrerpolicy="no-referrer" allowfullscreen></iframe>` : ''}
 
     ${mapsUrl ? `
     <a class="venue-map-link" href="${esc(mapsUrl)}" target="_blank" rel="noopener">
@@ -5112,15 +5123,8 @@ function renderVenueDetail(v) {
     </a>` : ''}
 
     <div class="venue-detail-section">
-      ${v.costPerHour > 0 ? `
-        <div class="user-row" style="cursor:default">
-          <div class="user-info"><div class="user-name">Cost per hour</div></div>
-          <div class="user-meta">£${v.costPerHour}</div>
-        </div>` : ''}
-      <div class="user-row" style="cursor:default">
-        <div class="user-info"><div class="user-name">Contact</div></div>
-        <div class="user-meta ${v.contact ? '' : 'venue-missing'}">${v.contact ? esc(v.contact) : 'Missing'}</div>
-      </div>
+      ${row('Cost per hour', v.costPerHour > 0 ? `£${v.costPerHour}` : '')}
+      ${row('Contact', v.contact)}
     </div>
 
     <button class="venue-edit-btn" onclick="openVenueForm('${v.id}')">Edit venue</button>
