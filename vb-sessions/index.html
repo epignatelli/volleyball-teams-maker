@@ -209,6 +209,43 @@
      SCREEN — COACHES DIRECTORY
 ══════════════════════════════════════════════════ -->
 <div class="screen" id="screen-coaches">
+  <div class="coaches-toolbar">
+    <input class="field-input users-search" id="coaches-search" type="search" placeholder="Search coaches…" oninput="filterCoaches()" />
+    <div class="coaches-filters" id="coaches-filters">
+      <div class="coaches-filter-group">
+        <button class="filter-btn active" data-coach-filter="pos" data-val="" onclick="setCoachFilter('pos','')">All positions</button>
+        <button class="filter-btn" data-coach-filter="pos" data-val="setter" onclick="setCoachFilter('pos','setter')">Setter</button>
+        <button class="filter-btn" data-coach-filter="pos" data-val="hitter" onclick="setCoachFilter('pos','hitter')">Hitter</button>
+        <button class="filter-btn" data-coach-filter="pos" data-val="middle" onclick="setCoachFilter('pos','middle')">Middle</button>
+        <button class="filter-btn" data-coach-filter="pos" data-val="libero" onclick="setCoachFilter('pos','libero')">Libero</button>
+      </div>
+      <div class="coaches-filter-group">
+        <button class="filter-btn active" data-coach-filter="level" data-val="" onclick="setCoachFilter('level','')">All levels</button>
+        <button class="filter-btn" data-coach-filter="level" data-val="beginner"     onclick="setCoachFilter('level','beginner')">Beginner</button>
+        <button class="filter-btn" data-coach-filter="level" data-val="intermediate" onclick="setCoachFilter('level','intermediate')">Intermediate</button>
+        <button class="filter-btn" data-coach-filter="level" data-val="advanced"     onclick="setCoachFilter('level','advanced')">Advanced</button>
+        <button class="filter-btn" data-coach-filter="level" data-val="competitive"  onclick="setCoachFilter('level','competitive')">Competitive</button>
+        <button class="filter-btn" data-coach-filter="level" data-val="elite"        onclick="setCoachFilter('level','elite')">Elite</button>
+      </div>
+      <div class="coaches-filter-group">
+        <button class="filter-btn active" data-coach-filter="style" data-val="" onclick="setCoachFilter('style','')">All styles</button>
+        <button class="filter-btn" data-coach-filter="style" data-val="Technical" onclick="setCoachFilter('style','Technical')">Technical</button>
+        <button class="filter-btn" data-coach-filter="style" data-val="Tactical"  onclick="setCoachFilter('style','Tactical')">Tactical</button>
+        <button class="filter-btn" data-coach-filter="style" data-val="Physical"  onclick="setCoachFilter('style','Physical')">Physical</button>
+        <button class="filter-btn" data-coach-filter="style" data-val="Mental"    onclick="setCoachFilter('style','Mental')">Mental</button>
+      </div>
+      <div class="coaches-filter-group">
+        <button class="filter-btn active" data-coach-filter="day" data-val="" onclick="setCoachFilter('day','')">Any day</button>
+        <button class="filter-btn" data-coach-filter="day" data-val="mon" onclick="setCoachFilter('day','mon')">Mon</button>
+        <button class="filter-btn" data-coach-filter="day" data-val="tue" onclick="setCoachFilter('day','tue')">Tue</button>
+        <button class="filter-btn" data-coach-filter="day" data-val="wed" onclick="setCoachFilter('day','wed')">Wed</button>
+        <button class="filter-btn" data-coach-filter="day" data-val="thu" onclick="setCoachFilter('day','thu')">Thu</button>
+        <button class="filter-btn" data-coach-filter="day" data-val="fri" onclick="setCoachFilter('day','fri')">Fri</button>
+        <button class="filter-btn" data-coach-filter="day" data-val="sat" onclick="setCoachFilter('day','sat')">Sat</button>
+        <button class="filter-btn" data-coach-filter="day" data-val="sun" onclick="setCoachFilter('day','sun')">Sun</button>
+      </div>
+    </div>
+  </div>
   <div class="users-content" id="coaches-list">
     <div class="home-empty">Loading…</div>
   </div>
@@ -429,6 +466,12 @@
           <label class="field-label" style="display:flex;align-items:center;gap:8px">
             <input type="checkbox" id="pf-coach-1to1" /> Available for 1-1 sessions
           </label>
+        </div>
+        <div class="field">
+          <label class="field-label">Weekly availability</label>
+          <div class="avail-grid" id="pf-avail-grid">
+            <!-- rendered by _renderAvailGrid() -->
+          </div>
         </div>
       </div>
     </div>

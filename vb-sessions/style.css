@@ -783,6 +783,11 @@ body {
 
 .users-content { flex: 1; overflow-y: auto; overflow-x: hidden; padding: 16px 20px; padding-bottom: calc(64px + env(safe-area-inset-bottom)); display: flex; flex-direction: column; gap: 2px; }
 
+/* ─── Coaches screen ─────────────────────────────────────────────────────────── */
+.coaches-toolbar { padding: 12px 20px 0; display: flex; flex-direction: column; gap: 8px; }
+.coaches-filters { display: flex; flex-direction: column; gap: 6px; }
+.coaches-filter-group { display: flex; gap: 6px; flex-wrap: wrap; }
+
 .user-row {
   display: flex; align-items: center; gap: 12px;
   padding: 10px 0; border-bottom: 1px solid var(--border);
@@ -1329,4 +1334,33 @@ body {
 .coach-section { }
 .coach-section .detail-description {
   font-size: 14px; color: var(--muted); line-height: 1.6;
+}
+
+/* ── Availability grid ──────────────────────────── */
+.avail-grid {
+  display: grid;
+  grid-template-columns: 80px repeat(3, 1fr);
+  gap: 4px;
+  margin-top: 6px;
+}
+.avail-day-label {
+  font-size: 11px;
+  color: var(--muted);
+  display: flex;
+  align-items: center;
+}
+.avail-slot {
+  font-size: 11px;
+  padding: 5px 4px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface2);
+  color: var(--muted);
+  cursor: pointer;
+  text-align: center;
+}
+.avail-slot.active {
+  background: rgba(240,165,0,.15);
+  color: var(--amber);
+  border-color: rgba(240,165,0,.4);
 }

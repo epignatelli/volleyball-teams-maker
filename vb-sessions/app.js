@@ -2504,6 +2504,13 @@ function openUsersScreen() {
 let _allUsers = [];
 let _userFilter = 'all';
 
+let _allCoaches = [];
+let _coachPosFilter   = '';   // '' | 'setter' | 'hitter' | 'middle' | 'libero'
+let _coachLevelFilter = '';   // '' | level key
+let _coachStyleFilter = '';   // '' | 'Technical' | 'Tactical' | 'Physical' | 'Mental'
+let _coachDayFilter   = '';   // '' | 'mon' | 'tue' | ... | 'sun'
+let _coachSearch      = '';
+
 async function renderUsers() {
   const container = document.getElementById('users-content');
   container.innerHTML = '<div class="home-empty">Loading…</div>';
@@ -5488,40 +5495,76 @@ function openCoachesScreen() {
 async function renderCoaches() {
   const list = document.getElementById('coaches-list');
   if (!list) return;
-  list.innerHTML = '<div class="home-empty">Loading…</div>';
-  try {
-    const snap = await getDb().collection('publicProfiles')
-      .where('isCoach', '==', true)
-      .orderBy('name')
-      .get();
-    if (snap.empty) {
-      list.innerHTML = '<div class="home-empty">No coaches listed yet.</div>';
+  // Only fetch from Firestore on first load; afterwards re-filter the cache
+  if (!_allCoaches.length) {
+    list.innerHTML = '<div class="home-empty">Loading…</div>';
+    try {
+      const snap = await getDb().collection('publicProfiles')
+        .where('isCoach', '==', true)
+        .orderBy('name')
+        .get();
+      _allCoaches = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch(e) {
+      console.error('Load coaches failed:', e);
+      list.innerHTML = '<div class="home-empty">Couldn\'t load coaches.</div>';
       return;
     }
-    const _posLabel  = { setter: 'Setter', hitter: 'Hitter', middle: 'Middle', libero: 'Libero' };
-    const _lvlLabel  = { beginner: 'Beginner', improver: 'Improver', intermediate: 'Intermediate', advanced: 'Advanced', competitive: 'Competitive' };
-    list.innerHTML = snap.docs.map(d => {
-      const u        = d.data();
-      const initials = (u.name || '?')[0].toUpperCase();
-      const avatar   = u.photoURL
-        ? `<img class="user-avatar" src="${esc(u.photoURL)}" alt="" referrerpolicy="no-referrer" />`
-        : `<div class="user-avatar user-avatar--initials">${esc(initials)}</div>`;
-      const posMeta  = (u.coachPositions || []).map(p => _posLabel[p] || p).join(', ');
-      const lvlMeta  = (u.coachLevels    || []).map(l => _lvlLabel[l] || l).join(', ');
-      const rateMeta = u.coach1to1Enabled && u.coachRate != null ? ` · £${u.coachRate}/hr` : '';
-      const metaLine = [posMeta, lvlMeta].filter(Boolean).join(' · ') + rateMeta;
-      return `<div class="user-row" onclick="openProfileScreen('${esc(d.id)}')">
-        ${avatar}
-        <div class="user-info">
-          <div class="user-name">${esc(u.name || '—')}</div>
-          ${metaLine ? `<div class="user-meta coach-card-meta">${esc(metaLine)}</div>` : ''}
-        </div>
-      </div>`;
-    }).join('');
-  } catch(e) {
-    console.error('Load coaches failed:', e);
-    list.innerHTML = '<div class="home-empty">Couldn\'t load coaches.</div>';
   }
+  _applyCoachFilters();
+}
+
+function filterCoaches() {
+  _coachSearch = (document.getElementById('coaches-search')?.value || '').toLowerCase();
+  _applyCoachFilters();
+}
+
+function setCoachFilter(type, val) {
+  if (type === 'pos')   _coachPosFilter   = val;
+  if (type === 'level') _coachLevelFilter = val;
+  if (type === 'style') _coachStyleFilter = val;
+  if (type === 'day')   _coachDayFilter   = val;
+  // Update active class on filter buttons in each filter group
+  document.querySelectorAll(`[data-coach-filter="${type}"]`).forEach(b => {
+    b.classList.toggle('active', b.dataset.val === val);
+  });
+  _applyCoachFilters();
+}
+
+function _applyCoachFilters() {
+  const list = document.getElementById('coaches-list');
+  if (!list) return;
+  const q = _coachSearch;
+  let coaches = _allCoaches.filter(u => {
+    if (q && !(u.name || '').toLowerCase().includes(q)) return false;
+    if (_coachPosFilter   && !(u.coachPositions || []).includes(_coachPosFilter))   return false;
+    if (_coachLevelFilter && !(u.coachLevels    || []).includes(_coachLevelFilter)) return false;
+    if (_coachStyleFilter && !(u.coachStyles    || []).includes(_coachStyleFilter)) return false;
+    if (_coachDayFilter   && !(u.coachDays      || []).includes(_coachDayFilter))   return false;
+    return true;
+  });
+  if (!coaches.length) {
+    list.innerHTML = '<div class="home-empty">No coaches match your search.</div>';
+    return;
+  }
+  const _posLabel = { setter: 'Setter', hitter: 'Hitter', middle: 'Middle', libero: 'Libero' };
+  const _lvlLabel = { beginner: 'Beginner', improver: 'Improver', intermediate: 'Intermediate', advanced: 'Advanced', competitive: 'Competitive' };
+  list.innerHTML = coaches.map(u => {
+    const initials = (u.name || '?')[0].toUpperCase();
+    const avatar   = u.photoURL
+      ? `<img class="user-avatar" src="${esc(u.photoURL)}" alt="" referrerpolicy="no-referrer" />`
+      : `<div class="user-avatar user-avatar--initials">${esc(initials)}</div>`;
+    const posMeta  = (u.coachPositions || []).map(p => _posLabel[p] || p).join(', ');
+    const lvlMeta  = (u.coachLevels    || []).map(l => _lvlLabel[l] || l).join(', ');
+    const rateMeta = u.coach1to1Enabled && u.coachRate != null ? ` · £${u.coachRate}/hr` : '';
+    const metaLine = [posMeta, lvlMeta].filter(Boolean).join(' · ') + rateMeta;
+    return `<div class="user-row" onclick="openProfileScreen('${esc(u.id)}')">
+      ${avatar}
+      <div class="user-info">
+        <div class="user-name">${esc(u.name || '—')}</div>
+        ${metaLine ? `<div class="user-meta coach-card-meta">${esc(metaLine)}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
 }
 
 async function renderSeries() {
