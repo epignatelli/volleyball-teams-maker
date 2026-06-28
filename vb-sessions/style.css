@@ -1339,6 +1339,17 @@ body {
 }
 
 .coach-card-meta { color: var(--muted); }
+.coach-badges { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+.coach-style-chip {
+  font-size: 10px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase;
+  padding: 2px 6px; border-radius: 99px;
+  background: var(--surface2); border: 1px solid var(--border2); color: var(--muted);
+}
+.coach-rate-chip {
+  font-size: 10px; font-weight: 700; letter-spacing: .04em;
+  padding: 2px 7px; border-radius: 99px;
+  background: var(--amber-bg); border: 1px solid rgba(240,165,0,.35); color: var(--amber);
+}
 
 .coach-section { }
 .coach-section .detail-description {

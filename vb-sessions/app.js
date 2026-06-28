@@ -5855,22 +5855,25 @@ function _applyCoachFilters() {
     list.innerHTML = '<div class="home-empty">No coaches match your search.</div>';
     return;
   }
-  const _posLabel = { setter: 'Setter', hitter: 'Hitter', middle: 'Middle', libero: 'Libero' };
-  const _lvlLabel = { beginner: 'Beginner', improver: 'Improver', intermediate: 'Intermediate', advanced: 'Advanced', competitive: 'Competitive' };
   list.innerHTML = coaches.map(u => {
     const initials = (u.name || '?')[0].toUpperCase();
     const avatar   = u.photoURL
       ? `<img class="user-avatar" src="${esc(u.photoURL)}" alt="" referrerpolicy="no-referrer" />`
       : `<div class="user-avatar user-avatar--initials">${esc(initials)}</div>`;
-    const posMeta  = (u.coachPositions || []).map(p => _posLabel[p] || p).join(', ');
-    const lvlMeta  = (u.coachLevels    || []).map(l => _lvlLabel[l] || l).join(', ');
-    const rateMeta = u.coach1to1Enabled && u.coachRate != null ? ` · £${u.coachRate}/hr` : '';
-    const metaLine = [posMeta, lvlMeta].filter(Boolean).join(' · ') + rateMeta;
+    const posBadges = (u.coachPositions || [])
+      .map(p => `<span class="pos-fill-chip ${esc(p)}">${esc({setter:'S',hitter:'H',middle:'M',libero:'L'}[p]||p)}</span>`)
+      .join('');
+    const styleBadges = (u.coachStyles || [])
+      .map(s => `<span class="coach-style-chip">${esc(s)}</span>`)
+      .join('');
+    const rateBadge = u.coach1to1Enabled && u.coachRate != null
+      ? `<span class="coach-rate-chip">£${u.coachRate}/hr</span>` : '';
+    const badges = posBadges + styleBadges + rateBadge;
     return `<div class="user-row" onclick="openProfileScreen('${esc(u.id)}')">
       ${avatar}
       <div class="user-info">
         <div class="user-name">${esc(u.name || '—')}</div>
-        ${metaLine ? `<div class="user-meta coach-card-meta">${esc(metaLine)}</div>` : ''}
+        ${badges ? `<div class="coach-badges">${badges}</div>` : ''}
       </div>
     </div>`;
   }).join('');
