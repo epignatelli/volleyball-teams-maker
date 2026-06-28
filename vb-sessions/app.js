@@ -5119,13 +5119,6 @@ function renderVenueDetail(v) {
       ${row('Contact', v.contact)}
     </div>
 
-    ${mapsUrl ? `
-    <a class="venue-map-link" href="${esc(mapsUrl)}" target="_blank" rel="noopener">
-      <span class="venue-map-pin">📍</span>
-      <span>${v.address ? esc(v.address) : 'Open in Maps'}</span>
-      <span class="venue-map-arrow">↗</span>
-    </a>` : ''}
-
     ${embedSrc ? `<iframe class="venue-map-embed" src="${esc(embedSrc)}" loading="lazy" referrerpolicy="no-referrer" allowfullscreen></iframe>` : ''}
   `;
 }
