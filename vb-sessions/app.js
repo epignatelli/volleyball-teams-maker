@@ -1425,11 +1425,16 @@ function _renderDetail(session, attendees, isAttending, waitingList, myWaitingLi
                 : '';
               const isOwn  = _currentUser && a.id === _currentUser.uid;
               const canSee = _isAdmin || (_currentUser && session.coachUid === _currentUser.uid);
-              const photoLine = _isAdmin && a.photoConsent != null
-                ? `<div class="attendee-sub">${a.photoConsent ? '✓ Photo consent' : 'No photo consent'}</div>`
+              const payChip   = canSee && session.cost > 0
+                ? `<span class="att-chip ${a.feeWaived ? 'waived-chip' : a.paid ? 'paid-chip' : 'unpaid-chip'}">${a.feeWaived ? 'Waived' : a.paid ? 'Paid' : 'Unpaid'}</span>`
                 : '';
-              const removeLine = _isAdmin
-                ? `<div class="attendee-sub"><button class="attendee-remove-btn" onclick="removeAttendee('${session.id}','${a.id}')">Remove attendee</button></div>`
+              const photoChip = _isAdmin && a.photoConsent === true
+                ? `<span class="att-chip photo-chip">Photo ✓</span>`
+                : _isAdmin && a.photoConsent === false
+                  ? `<span class="att-chip nophoto-chip">No photo</span>`
+                  : '';
+              const statusLine = payChip || photoChip
+                ? `<div class="attendee-sub attendee-chips-row">${payChip}${photoChip}</div>`
                 : '';
               return `
               <div class="attendee-row">
@@ -1439,11 +1444,10 @@ function _renderDetail(session, attendees, isAttending, waitingList, myWaitingLi
                   <button class="attendee-name-btn" onclick="openProfileScreen('${a.id}')">${esc(a.name)}</button>
                   ${posChips ? `<div class="att-chips">${posChips}</div>` : ''}
                   ${a.seriesId ? `<span class="att-chip series-chip" title="Pass holder">P</span>` : ''}
-                  ${canSee && session.cost > 0 ? `<span class="att-chip ${a.feeWaived ? 'waived-chip' : a.paid ? 'paid-chip' : 'unpaid-chip'}">${a.feeWaived ? '£–' : a.paid ? '£✓' : '£?'}</span>` : ''}
                   ${isOwn && session.askPositions && !Object.keys(session.positionTargets || {}).length ? `<button class="icon-btn small" data-session-id="${esc(session.id)}" data-positions="${esc(Array.from(posSet).join(','))}" onclick="openEditPositions(this.dataset.sessionId,this.dataset.positions)" title="Edit positions">✎</button>` : ''}
                 </div>
-                ${photoLine}
-                ${removeLine}
+                ${statusLine}
+                ${_isAdmin ? `<div class="attendee-sub"><button class="attendee-remove-btn" onclick="removeAttendee('${session.id}','${a.id}')">Remove attendee</button></div>` : ''}
               </div>`;
             }).join('')}
           </div>` : '<div class="empty-note">No one signed up yet.</div>'}
