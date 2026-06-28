@@ -1364,15 +1364,16 @@ function _renderDetail(session, attendees, isAttending, waitingList, myWaitingLi
       <div class="detail-meta-grid">
         ${session.venue ? `<div class="detail-meta-row"><span class="detail-meta-label">Venue</span><span>${(() => {
           const v = session.venueId ? _allVenues.find(x => x.id === session.venueId) : null;
-          const name = esc(session.venue);
+          const name = session.venueId && _currentUser
+            ? `<button class="detail-link" onclick="openVenueDetail('${session.venueId}')">${esc(session.venue)}</button>`
+            : esc(session.venue);
           const addr = v?.address ? ` <span class="venue-address">${esc(v.address)}</span>` : '';
-          const _mapsUrl = safeUrl(v?.mapsUrl);
-          const link = _mapsUrl ? ` <a class="venue-maps-link" href="${esc(_mapsUrl)}" target="_blank" rel="noopener">Map ↗</a>` : '';
-          return name + addr + link;
+          return name + addr;
         })()}</span></div>` : ''}
         <div class="detail-meta-row"><span class="detail-meta-label">Date</span><span>${esc(_formatDate(session.date))}${session.time ? ` at ${esc(session.time)}` : ''}</span></div>
+        ${session.type ? `<div class="detail-meta-row"><span class="detail-meta-label">Type</span><span><span class="session-badge type-${esc(session.type)}">${esc(SESSION_TYPES.find(t => t.value === session.type)?.label || session.type)}</span></span></div>` : ''}
         ${session.coach ? `<div class="detail-meta-row"><span class="detail-meta-label">Coach</span><span>${esc(session.coach)}</span></div>` : ''}
-        ${levelLabel ? `<div class="detail-meta-row"><span class="detail-meta-label">Level</span><span>${esc(levelLabel)}</span></div>` : ''}
+        ${levelLabel ? `<div class="detail-meta-row"><span class="detail-meta-label">Level</span><span><button class="detail-link" onclick="openLevelInfo('${esc(session.level)}')">${esc(levelLabel)} ↗</button></span></div>` : ''}
         <div class="detail-meta-row"><span class="detail-meta-label">Cost</span><span>${esc(_formatPlayerPrice(session.cost, session.absorbFee))}</span></div>
         <div class="detail-meta-row"><span class="detail-meta-label">Spots</span><span>${knownCount} / ${session.maxPlayers}${isCancelled ? '' : ` · ${spotsLeft} left`}${(() => {
           const isHost = _isAdmin || (_currentUser && session.providerUid === _currentUser.uid);
@@ -5024,6 +5025,41 @@ function _renderInsightsUI(container) {
     </div>`;
 }
 
+// ─── Level info ────────────────────────────────────────────────────────────────
+
+const _LEVEL_INFO = [
+  { key: 'beginner',     label: 'Beginner',     lva: 'Recreational',           desc: 'Casual play, no league experience needed. Focus on learning and fun.' },
+  { key: 'intermediate', label: 'Intermediate', lva: 'LVA Division 3',         desc: 'Some competitive experience. Comfortable with game rotations and basic systems.' },
+  { key: 'advanced',     label: 'Advanced',     lva: 'LVA Divisions 1–2',      desc: 'Regular league players. Strong fundamentals, reads the game well.' },
+  { key: 'competitive',  label: 'Competitive',  lva: 'LVA Première / Superleague', desc: 'Elite level. National league or equivalent experience.' },
+];
+
+window.openLevelInfo = function(activeLevel) {
+  const existing = document.getElementById('level-info-overlay');
+  if (existing) existing.remove();
+  const rows = _LEVEL_INFO.map(l => `
+    <div class="level-info-row${l.key === activeLevel ? ' active' : ''}">
+      <div class="level-info-top">
+        <span class="session-badge level level-${l.key}">${l.label}</span>
+        <span class="level-info-lva">${l.lva}</span>
+      </div>
+      <div class="level-info-desc">${l.desc}</div>
+    </div>`).join('');
+  const el = document.createElement('div');
+  el.id = 'level-info-overlay';
+  el.className = 'modal-overlay open';
+  el.innerHTML = `
+    <div class="modal-panel" onclick="event.stopPropagation()">
+      <div class="panel-header">
+        <span class="panel-title">Levels</span>
+        <button class="panel-close" onclick="document.getElementById('level-info-overlay').remove()">✕</button>
+      </div>
+      <div style="display:flex;flex-direction:column;gap:12px;padding-bottom:8px">${rows}</div>
+    </div>`;
+  el.addEventListener('click', () => el.remove());
+  document.body.appendChild(el);
+};
+
 // ─── Venues ────────────────────────────────────────────────────────────────────
 
 function _venuesRef() { return getDb().collection('venues'); }
@@ -5078,10 +5114,10 @@ async function renderVenues() {
 // ── Venue detail ──
 
 async function openVenueDetail(id) {
-  if (!_isAdmin) return;
+  if (!_currentUser) return;
   if (!_allVenues.length) await _loadVenues();
   const v = _allVenues.find(x => x.id === id);
-  if (!v) { openVenuesScreen(); return; }
+  if (!v) { if (_isAdmin) openVenuesScreen(); else goHome(); return; }
   _setHash(`venue/${id}`);
   showScreen('venue-detail');
   _setNav('sub', null);
@@ -5111,7 +5147,7 @@ function renderVenueDetail(v) {
         <div class="venue-detail-name">${esc(v.name)}</div>
         <div class="venue-detail-address ${v.address ? '' : 'venue-missing'}">${v.address ? esc(v.address) : 'No address'}</div>
       </div>
-      <button class="venue-edit-btn" onclick="openVenueForm('${v.id}')">Edit</button>
+      ${_isAdmin ? `<button class="venue-edit-btn" onclick="openVenueForm('${v.id}')">Edit</button>` : ''}
     </div>
 
     <div class="venue-detail-section">
