@@ -949,10 +949,6 @@ body {
 .role-action-revoke  { background: var(--red-bg);     color: var(--red);  border: 1px solid rgba(248,113,113,.35); }
 .role-action-approve:hover, .role-action-reject:hover,
 .role-action-grant:hover, .role-action-revoke:hover { opacity: .75; }
-.role-action-grant.coach   { color: var(--green); background: var(--green-bg); border-color: rgba(34,201,122,.35); }
-.role-action-grant.provider{ color: #2dd4bf; background: rgba(20,184,166,.15); border-color: rgba(45,212,191,.35); }
-.role-action-grant.admin   { color: #f472b6; background: rgba(244,114,182,.13); border-color: rgba(244,114,182,.35); }
-.role-action-grant.owner   { color: var(--red); background: var(--red-bg); border-color: rgba(248,113,113,.35); }
 
 .profile-actions {
   display: flex; flex-direction: column; gap: 10px;
