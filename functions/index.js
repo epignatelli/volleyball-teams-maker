@@ -1459,6 +1459,49 @@ exports.notifyCoachRequest = functions
     return res.json({ ok: true });
   });
 
+// ── notifyVenueProposal ──────────────────────────────────────────────────────
+exports.notifyVenueProposal = functions
+  .region(REGION)
+  .runWith({ secrets: [GMAIL_APP_PASSWORD] })
+  .https.onRequest(async (req, res) => {
+    setCors(req, res);
+    if (req.method === 'OPTIONS') return res.status(204).end();
+    if (req.method !== 'POST')    return res.status(405).end();
+
+    let decoded;
+    try { decoded = await verifyAuth(req); }
+    catch (e) { return res.status(401).json({ error: 'Unauthorized.' }); }
+
+    const { venueId, venueName } = req.body;
+    if (!venueId || !venueName) return res.status(400).json({ error: 'Missing venueId or venueName.' });
+
+    const db       = getFirestore();
+    const userSnap = await db.collection('users').doc(decoded.uid).get();
+    const userData = userSnap.data() || {};
+    const safeName = _hEsc(userData.name || decoded.uid);
+    const safeVenue = _hEsc(venueName);
+
+    const adminsSnap = await db.collection('admins').get();
+    const venueUrl   = `${APP_URL}#venues`;
+
+    await Promise.all(adminsSnap.docs.map(doc =>
+      sendEmail(doc.id,
+        `New venue proposed: ${venueName}`,
+        _emailHtml('Hi,', [
+          `<strong>${safeName}</strong> has proposed a new venue: <strong>${safeVenue}</strong>.`,
+          'Review it in the Venues screen and approve or reject it.',
+        ], null, null, null,
+        `<div style="text-align:center;margin-top:24px">
+          <a href="${venueUrl}" style="display:inline-block;padding:12px 28px;background:#f0a500;color:#000;font-weight:700;border-radius:8px;text-decoration:none;font-size:15px">
+            Review venue
+          </a>
+        </div>`)
+      )
+    ));
+
+    return res.json({ ok: true });
+  });
+
 // ── notifyAdminRequest ───────────────────────────────────────────────────────
 exports.notifyAdminRequest = functions
   .region(REGION)

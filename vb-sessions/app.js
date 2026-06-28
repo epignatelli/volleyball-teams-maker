@@ -3148,9 +3148,7 @@ async function openSessionCreateInline() {
   const content = document.getElementById('detail-content');
   const footer  = document.getElementById('detail-footer');
 
-  const venueOpts  = '<option value="">Select a venue…</option>' + _allVenues.map(v =>
-    `<option value="${v.id}"${_activeSeriesFilter && v.id === _currentSession?.venueId ? ' selected' : ''}>${esc(v.name)}</option>`
-  ).join('');
+  const venueOpts  = _venueSelectOpts(_activeSeriesFilter ? _currentSession?.venueId : null);
   const seriesOpts = '<option value="">None</option>' + _allSeries.map(sr =>
     `<option value="${sr.id}"${sr.id === (_activeSeriesFilter?.id || '') ? ' selected' : ''}>${esc(sr.name)}</option>`
   ).join('');
@@ -3198,7 +3196,7 @@ async function openSessionCreateInline() {
       </div>` : ''}
       <div class="field">
         <label class="field-label">Venue</label>
-        <select class="field-input field-select" id="ie-venue">${venueOpts}</select>
+        <select class="field-input field-select" id="ie-venue" onchange="onVenueSelectChange(this)">${venueOpts}</select>
       </div>
       <div class="field-row">
         <div class="field">
@@ -3465,9 +3463,7 @@ async function openSessionEditInline(sessionId) {
     deadlineVal = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
   }
 
-  const venueOpts = _allVenues.map(v =>
-    `<option value="${v.id}"${v.id === s.venueId ? ' selected' : ''}>${esc(v.name)}</option>`
-  ).join('');
+  const venueOpts = _venueSelectOpts(s.venueId);
   const seriesOpts = '<option value="">None</option>' + _allSeries.map(sr =>
     `<option value="${sr.id}"${sr.id === s.seriesId ? ' selected' : ''}>${esc(sr.name)}</option>`
   ).join('');
@@ -3497,7 +3493,7 @@ async function openSessionEditInline(sessionId) {
       </div>
       <div class="field">
         <label class="field-label">Venue</label>
-        <select class="field-input field-select" id="ie-venue">${venueOpts}</select>
+        <select class="field-input field-select" id="ie-venue" onchange="onVenueSelectChange(this)">${venueOpts}</select>
       </div>
       <div class="field-row">
         <div class="field">
@@ -5071,13 +5067,32 @@ window.openLevelInfo = function(activeLevel) {
 
 function _venuesRef() { return getDb().collection('venues'); }
 
-let _allVenues    = [];   // cached list
+let _allVenues      = [];   // cached list
 let _editingVenueId = null;
+let _venueFormMode  = 'admin'; // 'admin' | 'propose'
 
 async function _loadVenues() {
   const snap  = await _venuesRef().orderBy('name').get();
   _allVenues  = snap.docs.map(d => ({ id: d.id, ...d.data() }));
   return _allVenues;
+}
+
+function _venueSelectOpts(selectedId) {
+  const uid = _currentUser?.uid;
+  const active  = _allVenues.filter(v => !v.status);
+  const myPending = _allVenues.filter(v => v.status === 'pending' && v.proposedBy === uid);
+  const opts = [
+    '<option value="">Select a venue…</option>',
+    ...active.map(v => `<option value="${v.id}"${v.id === selectedId ? ' selected' : ''}>${esc(v.name)}</option>`),
+    ...myPending.map(v => `<option value="${v.id}"${v.id === selectedId ? ' selected' : ''}>${esc(v.name)} (pending approval)</option>`),
+    _canCreate() ? '<option value="__propose__">+ Propose a new venue…</option>' : '',
+  ];
+  return opts.join('');
+}
+
+function _repopulateIeVenueSelect(selectedId) {
+  const sel = document.getElementById('ie-venue');
+  if (sel) sel.innerHTML = _venueSelectOpts(selectedId);
 }
 
 // ── Nav / routing ──
@@ -5100,18 +5115,21 @@ async function renderVenues() {
     if (!_allVenues.length) {
       list.innerHTML = '<div class="home-empty">No venues yet. Add one below.</div>'; return;
     }
-    list.innerHTML = _allVenues.map(v => {
+    const pending = _allVenues.filter(v => v.status === 'pending');
+    const active  = _allVenues.filter(v => !v.status);
+    const renderRow = v => {
       const initial = (v.name || '?')[0].toUpperCase();
       const meta    = [v.address, v.costPerHour > 0 ? `£${v.costPerHour}/hr` : '', v.contact].filter(Boolean).join(' · ');
       return `
       <div class="user-row" onclick="openVenueDetail('${v.id}')">
         <div class="user-avatar user-avatar--initials venue-avatar">${esc(initial)}</div>
         <div class="user-info">
-          <div class="user-name">${esc(v.name)}</div>
+          <div class="user-name">${esc(v.name)}${v.status === 'pending' ? ' <span class="venue-pending-badge">Pending</span>' : ''}</div>
           ${meta ? `<div class="user-meta">${esc(meta)}</div>` : ''}
         </div>
       </div>`;
-    }).join('');
+    };
+    list.innerHTML = [...pending, ...active].map(renderRow).join('');
   } catch(e) {
     list.innerHTML = '<div class="home-empty">Couldn\'t load venues.</div>';
     console.error(e);
@@ -5147,15 +5165,25 @@ function renderVenueDetail(v) {
       <div class="user-meta ${val ? '' : 'venue-missing'}">${val ? esc(val) : 'Missing'}</div>
     </div>`;
 
+  const isPending = v.status === 'pending';
   content.innerHTML = `
     <div class="venue-detail-header">
       <div class="venue-detail-initial">${esc((v.name || '?')[0].toUpperCase())}</div>
       <div class="venue-detail-info">
-        <div class="venue-detail-name">${esc(v.name)}</div>
+        <div class="venue-detail-name">${esc(v.name)}${isPending ? ' <span class="venue-pending-badge">Pending</span>' : ''}</div>
         <div class="venue-detail-address ${v.address ? '' : 'venue-missing'}">${v.address ? esc(v.address) : 'No address'}</div>
       </div>
       ${_isAdmin ? `<button class="venue-edit-btn" onclick="openVenueForm('${v.id}')">Edit</button>` : ''}
     </div>
+
+    ${_isAdmin && isPending ? `
+    <div class="venue-approve-bar">
+      <span class="venue-approve-info">Proposed by a host — review before making it available to all.</span>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button class="cta-btn" style="flex:1" onclick="approveVenue('${v.id}')">Approve</button>
+        <button class="cta-btn secondary-btn" onclick="rejectVenue('${v.id}')">Reject</button>
+      </div>
+    </div>` : ''}
 
     <div class="venue-detail-section">
       ${row('Cost per hour', v.costPerHour > 0 ? `£${v.costPerHour}` : '')}
@@ -5166,19 +5194,48 @@ function renderVenueDetail(v) {
   `;
 }
 
+// ── Venue approve / reject ──
+
+window.approveVenue = async function(id) {
+  if (!_isAdmin) return;
+  try {
+    await _venuesRef().doc(id).update({ status: firebase.firestore.FieldValue.delete(), proposedBy: firebase.firestore.FieldValue.delete() });
+    const v = _allVenues.find(x => x.id === id);
+    if (v) { delete v.status; delete v.proposedBy; }
+    showToast('Venue approved and now live.');
+    history.back();
+  } catch(e) { showToast('Could not approve venue.', 'error'); }
+};
+
+window.rejectVenue = async function(id) {
+  if (!_isAdmin) return;
+  if (!confirm('Reject and delete this venue proposal?')) return;
+  try {
+    await _venuesRef().doc(id).delete();
+    _allVenues = _allVenues.filter(x => x.id !== id);
+    showToast('Venue proposal rejected.');
+    history.back();
+  } catch(e) { showToast('Could not reject venue.', 'error'); }
+};
+
 // ── Venue form (create / edit) ──
 
-function openVenueForm(id) {
+function openVenueForm(id, mode) {
   _editingVenueId = id || null;
+  _venueFormMode  = mode || 'admin';
   const v = id ? _allVenues.find(x => x.id === id) : null;
-  document.getElementById('venue-form-title').textContent = v ? 'Edit venue' : 'New venue';
+  const isPropose = _venueFormMode === 'propose';
+  document.getElementById('venue-form-title').textContent  = v ? 'Edit venue' : (isPropose ? 'Propose a venue' : 'New venue');
   document.getElementById('vf-name').value    = v?.name        || '';
   document.getElementById('vf-address').value = v?.address     || '';
   document.getElementById('vf-maps').value    = v?.mapsUrl     || '';
   document.getElementById('vf-cost').value    = v?.costPerHour || '';
   document.getElementById('vf-contact').value = v?.contact     || '';
   document.getElementById('venue-form-error').textContent = '';
-  document.getElementById('venue-delete-btn').style.display = v ? '' : 'none';
+  document.getElementById('venue-delete-btn').style.display = (v && !isPropose) ? '' : 'none';
+  document.getElementById('venue-submit-btn').textContent  = isPropose ? 'Submit for approval' : 'Save venue';
+  const note = document.getElementById('vf-propose-note');
+  if (note) note.style.display = isPropose ? '' : 'none';
   document.getElementById('venue-form-overlay').classList.add('open');
 }
 
@@ -5205,13 +5262,25 @@ async function submitVenueForm() {
   try {
     if (_editingVenueId) {
       await _venuesRef().doc(_editingVenueId).update(data);
+      closeVenueForm();
+      await renderVenues();
+    } else if (_venueFormMode === 'propose') {
+      data.status     = 'pending';
+      data.proposedBy = _currentUser.uid;
+      data.createdAt  = firebase.firestore.FieldValue.serverTimestamp();
+      const ref = await _venuesRef().add(data);
+      _allVenues.push({ id: ref.id, ...data });
+      closeVenueForm();
+      _repopulateIeVenueSelect(ref.id);
+      showToast('Venue submitted for review. You can use it in your session now.');
+      try { await callFn('notifyVenueProposal', { venueId: ref.id, venueName: name }); } catch(_) {}
     } else {
       data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
       await _venuesRef().add(data);
+      closeVenueForm();
+      await renderVenues();
+      await _populateVenueSelect();
     }
-    closeVenueForm();
-    await renderVenues();
-    await _populateVenueSelect();
   } catch(e) {
     errorEl.textContent = 'Couldn\'t save venue. Try again.';
     console.error(e);
@@ -5246,8 +5315,11 @@ async function _populateVenueSelect(selectedId) {
     ).join('');
 }
 
-function onVenueSelectChange() {
-  // venueId and name resolved at form submit time — nothing extra needed here
+function onVenueSelectChange(sel) {
+  if (sel && sel.value === '__propose__') {
+    sel.value = '';
+    openVenueForm(null, 'propose');
+  }
 }
 
 // ─── Series ────────────────────────────────────────────────────────────────────

@@ -1099,6 +1099,16 @@ body {
   cursor: pointer; transition: color .15s, border-color .15s;
 }
 .venue-edit-btn:hover { color: var(--text); border-color: var(--border2); }
+.venue-pending-badge {
+  font-size: 10px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--amber); background: rgba(240,165,0,.12); border: 1px solid rgba(240,165,0,.3);
+  border-radius: 99px; padding: 1px 7px; vertical-align: middle; margin-left: 6px;
+}
+.venue-approve-bar {
+  background: rgba(240,165,0,.07); border: 1px solid rgba(240,165,0,.2);
+  border-radius: var(--radius-md); padding: 14px 16px; margin: 12px 0 4px;
+}
+.venue-approve-info { font-size: 13px; color: var(--muted); line-height: 1.5; }
 
 /* session form — venue row */
 .venue-field-row { display: flex; gap: 8px; align-items: center; }
