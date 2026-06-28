@@ -4789,6 +4789,8 @@ async function openEditProfile() {
   if (!_currentUser) return;
   const errorEl = document.getElementById('edit-profile-error');
   errorEl.textContent = '';
+  const saveBtn = document.getElementById('edit-profile-save-btn');
+  if (saveBtn) saveBtn.disabled = false;
 
   try {
     const doc  = await _userRef(_currentUser.uid).get();
