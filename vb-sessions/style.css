@@ -1352,6 +1352,12 @@ body {
 }
 
 .coach-section { }
+.coach-stripe-cta {
+  margin-top: 12px; width: 100%;
+  background: var(--amber-bg); border: 1px solid rgba(240,165,0,.4);
+  color: var(--amber) !important;
+}
+.coach-stripe-cta:hover { background: rgba(240,165,0,.2); }
 .coach-section .detail-description {
   font-size: 14px; color: var(--muted); line-height: 1.6;
 }

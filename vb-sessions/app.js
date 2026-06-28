@@ -3146,12 +3146,9 @@ async function openProfileScreen(uid) {
             ${styleMeta  ? `<div class="detail-meta-row"><span class="detail-meta-label">Style</span><span>${esc(styleMeta)}</span></div>` : ''}
             ${rateLine   ? `<div class="detail-meta-row"><span class="detail-meta-label">1-1</span><span>${esc(rateLine)}</span></div>` : ''}
             ${availMeta  ? `<div class="detail-meta-row"><span class="detail-meta-label">Availability</span><span>${esc(availMeta)}</span></div>` : ''}
-          ${isOwn ? `<div class="detail-meta-row"><span class="detail-meta-label">Payments</span><span>${
-            u.providerOnboardingComplete
-              ? `<span class="role-status-active">Connected</span>`
-              : `<button class="role-status-btn" onclick="startProviderOnboarding(this)">Connect Stripe →</button>`
-          }</span></div>` : ''}
+          ${isOwn && u.providerOnboardingComplete ? `<div class="detail-meta-row"><span class="detail-meta-label">Payments</span><span class="role-status-active">Connected</span></div>` : ''}
           </div>
+          ${isOwn && !u.providerOnboardingComplete ? `<button class="cta-btn coach-stripe-cta" onclick="startProviderOnboarding(this)">Connect Stripe to receive payments →</button>` : ''}
           ${clinicRows.length ? `
             <div class="detail-section-title" style="margin-top:4px">Upcoming clinics</div>
             <div class="profile-history-list">${clinicRows.join('')}</div>
