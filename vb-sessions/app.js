@@ -5862,7 +5862,6 @@ function setCoachFilter(type, val) {
   document.querySelectorAll(`#fpop-${meta.fbarId} .fpop-opt`).forEach(b => {
     b.classList.toggle('active', b.dataset.val === '' ? filters.size === 0 : filters.has(b.dataset.val));
   });
-  _closePopovers();
   const rst = document.getElementById('coach-filter-reset');
   if (rst) rst.style.display = _coachFiltersActive() ? '' : 'none';
   _applyCoachFilters();
