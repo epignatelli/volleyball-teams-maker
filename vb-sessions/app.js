@@ -5047,14 +5047,14 @@ window.openLevelInfo = function(activeLevel) {
     </div>`).join('');
   const el = document.createElement('div');
   el.id = 'level-info-overlay';
-  el.className = 'modal-overlay open';
+  el.className = 'overlay open';
   el.innerHTML = `
-    <div class="modal-panel" onclick="event.stopPropagation()">
+    <div class="panel" onclick="event.stopPropagation()">
       <div class="panel-header">
         <span class="panel-title">Levels</span>
         <button class="panel-close" onclick="document.getElementById('level-info-overlay').remove()">✕</button>
       </div>
-      <div style="display:flex;flex-direction:column;gap:12px;padding-bottom:8px">${rows}</div>
+      <div style="display:flex;flex-direction:column;gap:4px;padding-top:16px">${rows}</div>
     </div>`;
   el.addEventListener('click', () => el.remove());
   document.body.appendChild(el);
