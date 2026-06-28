@@ -3146,6 +3146,11 @@ async function openProfileScreen(uid) {
             ${styleMeta  ? `<div class="detail-meta-row"><span class="detail-meta-label">Style</span><span>${esc(styleMeta)}</span></div>` : ''}
             ${rateLine   ? `<div class="detail-meta-row"><span class="detail-meta-label">1-1</span><span>${esc(rateLine)}</span></div>` : ''}
             ${availMeta  ? `<div class="detail-meta-row"><span class="detail-meta-label">Availability</span><span>${esc(availMeta)}</span></div>` : ''}
+          ${isOwn ? `<div class="detail-meta-row"><span class="detail-meta-label">Payments</span><span>${
+            u.providerOnboardingComplete
+              ? `<span class="role-status-active">Connected</span>`
+              : `<button class="role-status-btn" onclick="startProviderOnboarding(this)">Connect Stripe →</button>`
+          }</span></div>` : ''}
           </div>
           ${clinicRows.length ? `
             <div class="detail-section-title" style="margin-top:4px">Upcoming clinics</div>
@@ -4988,8 +4993,8 @@ async function cancelProviderRequest() {
   }
 }
 
-async function startProviderOnboarding() {
-  const btn = document.getElementById('provider-stripe-btn') || document.getElementById('coach-stripe-btn');
+async function startProviderOnboarding(btn) {
+  if (!btn) btn = document.getElementById('provider-stripe-btn') || document.getElementById('coach-stripe-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Opening…'; }
   try {
     const { url } = await callFn('providerOnboardingLink', { uid: _currentUser.uid });
