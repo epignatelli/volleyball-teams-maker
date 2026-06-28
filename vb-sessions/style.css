@@ -391,11 +391,16 @@ body {
 .att-chip.waived-chip      { border-color: var(--muted);  background: transparent;       color: var(--muted);  }
 .att-chip.queue-offered-chip { border-color: var(--amber); background: var(--amber-bg); color: var(--amber); }
 .offer-waiting-pos { font-size: 13px; color: var(--amber); align-self: center; }
-.attendee-email {
+.attendee-sub {
   padding-left: 26px;
-  color: var(--muted); font-size: 11px;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 11px; color: var(--muted);
 }
+.attendee-remove-btn {
+  background: none; border: none; padding: 0; cursor: pointer;
+  font: inherit; font-size: 11px; color: var(--red);
+  text-decoration: underline dotted;
+}
+.attendee-remove-btn:hover { color: #ff9999; }
 
 .empty-note { font-size: 13px; color: var(--muted); }
 
