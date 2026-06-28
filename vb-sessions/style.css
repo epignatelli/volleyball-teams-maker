@@ -1071,6 +1071,7 @@ body {
 .venue-map-pin  { font-size: 18px; flex-shrink: 0; }
 .venue-map-arrow { margin-left: auto; font-size: 16px; opacity: .7; }
 .venue-detail-section { margin: 4px 0 16px; }
+.venue-missing { opacity: .4; font-style: italic; }
 .venue-edit-btn {
   margin-top: 8px;
   background: var(--surface); border: 1px solid var(--border);

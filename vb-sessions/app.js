@@ -5117,11 +5117,10 @@ function renderVenueDetail(v) {
           <div class="user-info"><div class="user-name">Cost per hour</div></div>
           <div class="user-meta">£${v.costPerHour}</div>
         </div>` : ''}
-      ${v.contact ? `
-        <div class="user-row" style="cursor:default">
-          <div class="user-info"><div class="user-name">Contact</div></div>
-          <div class="user-meta">${esc(v.contact)}</div>
-        </div>` : ''}
+      <div class="user-row" style="cursor:default">
+        <div class="user-info"><div class="user-name">Contact</div></div>
+        <div class="user-meta ${v.contact ? '' : 'venue-missing'}">${v.contact ? esc(v.contact) : 'Missing'}</div>
+      </div>
     </div>
 
     <button class="venue-edit-btn" onclick="openVenueForm('${v.id}')">Edit venue</button>
