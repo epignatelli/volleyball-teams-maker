@@ -1409,7 +1409,8 @@ details:not([open]) .collapsible-title::after { transform: rotate(0deg); }
 
 /* ─── Coach onboarding checklist ─────────────────────────────────────────── */
 .coach-onboarding { background: var(--surface2); border-radius: var(--radius-md); padding: 14px 16px; margin: 12px 16px; border: 1px solid var(--border); }
-.coach-onboarding-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+.coach-onboarding-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; cursor: pointer; user-select: none; }
+.coach-onboarding-header::after { display: none; }
 .coach-onboarding-progress { font-size: 12px; color: var(--muted); }
 .coach-onboarding-bar { height: 4px; background: var(--border); border-radius: 2px; margin-bottom: 12px; }
 .coach-onboarding-fill { height: 100%; background: var(--amber); border-radius: 2px; transition: width .3s; }

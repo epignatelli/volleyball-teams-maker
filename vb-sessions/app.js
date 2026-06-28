@@ -2854,19 +2854,19 @@ async function openProfileScreen(uid) {
       u.createdAt ? `<div class="detail-meta-row"><span class="detail-meta-label">Joined</span><span>${_formatDate(u.createdAt)}</span></div>` : '',
     ].filter(Boolean).join('');
 
+    const _sec = (title, body) =>
+      `<details class="detail-section" open>
+         <summary class="detail-section-title collapsible-title">${title}</summary>
+         ${body}
+       </details>`;
+
     // Player section — everyone is a player, but only render if there's something to show
-    const playerSection = (metaRows || u.bio) ? `
-      <div class="detail-section">
-        <div class="detail-section-title">Player</div>
+    const playerSection = (metaRows || u.bio) ? _sec('Player', `
         ${u.bio ? `<div class="detail-description" style="margin-bottom:10px">${esc(u.bio)}</div>` : ''}
-        ${metaRows ? `<div class="detail-meta-grid">${metaRows}</div>` : ''}
-      </div>` : '';
+        ${metaRows ? `<div class="detail-meta-grid">${metaRows}</div>` : ''}`) : '';
 
     const _roleCheck  = `<span class="role-status-active">Active</span>`;
-    const rolesSection = isOwn ? `
-      <div class="detail-section">
-        <div class="detail-section-title">Membership</div>
-        <div class="role-status-list">
+    const rolesSection = isOwn ? _sec('Membership', `<div class="role-status-list">
           <div class="role-status-row">
             <span class="role-status-name">Player</span>
             ${_roleCheck}
@@ -2899,8 +2899,7 @@ async function openProfileScreen(uid) {
                 ? `<div style="display:flex;align-items:center;gap:8px"><span class="role-status-locked">Declined</span><button class="role-status-btn" onclick="_showPhotoConsentModal(null)">Give consent →</button></div>`
                 : `<button class="role-status-btn" onclick="_showPhotoConsentModal(null)">Decide →</button>`}
           </div>
-        </div>
-      </div>` : '';
+        </div>`) : '';
 
     const ownActions = isOwn ? `
       <div class="profile-actions">
@@ -2917,10 +2916,7 @@ async function openProfileScreen(uid) {
       `<button class="role-action-${hasRole ? 'revoke' : 'grant'} ${cls}" data-uid="${esc(targetUid)}" data-role="${role}"
          onclick="${hasRole ? 'revokeRole' : 'grantRole'}(this,this.dataset.uid,this.dataset.role)">${hasRole ? 'Revoke' : 'Grant'}</button>`;
 
-    const adminSection = _isAdmin && !isOwn ? `
-      <div class="detail-section">
-        <div class="detail-section-title">Membership</div>
-        <div class="role-status-list">
+    const adminSection = _isAdmin && !isOwn ? _sec('Membership', `<div class="role-status-list">
           <div class="role-status-row">
             <span class="role-status-name">Player</span>
             ${_activeTag}
@@ -2976,7 +2972,7 @@ async function openProfileScreen(uid) {
         </div>
         ${_isOwner && !hasOwner ? `
         <button class="role-action-revoke" style="margin-top:12px;width:100%" data-uid="${esc(targetUid)}" onclick="banUser(this.dataset.uid)">Remove user</button>` : ''}
-      </div>` : '';
+        `) : '';
 
     const showHistory = isOwn || _isAdmin;
     const showCoach   = (hasCoach || roles.includes('admin') || roles.includes('owner')) && _isAdmin;
@@ -3030,10 +3026,7 @@ async function openProfileScreen(uid) {
       .map((s, i) => ({ s, reg: seriesRegSnaps[i] }))
       .filter(({ reg }) => reg?.exists && reg.data().paymentStatus === 'paid');
 
-    const seriesPassSection = showHistory ? `
-      <div class="detail-section">
-        <div class="detail-section-title">Passes</div>
-        <div class="profile-history-list">
+    const seriesPassSection = showHistory ? _sec('Passes', `<div class="profile-history-list">
           ${myPasses.length ? myPasses.map(({ s, reg }) => {
               const r = reg.data();
               const cost = r.amountPaid > 0 ? `£${r.amountPaid}` : 'Free';
@@ -3045,8 +3038,7 @@ async function openProfileScreen(uid) {
             }).join('')
             : '<div class="empty-note">No passes yet.</div>'
           }
-        </div>
-      </div>` : '';
+        </div>`) : '';
 
     // ── Sessions (upcoming + past) ────────────────────────────────────────────
     const now = new Date(); now.setHours(0, 0, 0, 0);
@@ -3070,19 +3062,14 @@ async function openProfileScreen(uid) {
       </div>`;
     };
 
-    const sessionsSection = showHistory ? `
-      <div class="detail-section">
-        <div class="detail-section-title">Upcoming sessions</div>
-        <div class="profile-history-list">
+    const sessionsSection = showHistory ? (
+      _sec('Upcoming sessions', `<div class="profile-history-list">
           ${upcoming.length ? upcoming.map(_sessionRow).join('') : '<div class="empty-note">No upcoming sessions.</div>'}
-        </div>
-      </div>
-      <div class="detail-section">
-        <div class="detail-section-title">Past sessions</div>
-        <div class="profile-history-list">
+        </div>`) +
+      _sec('Past sessions', `<div class="profile-history-list">
           ${past.length ? past.map(_sessionRow).join('') : '<div class="empty-note">No past sessions yet.</div>'}
-        </div>
-      </div>` : '';
+        </div>`)
+    ) : '';
 
     // ── Coach payments ────────────────────────────────────────────────────────
     const coachPayRows = coachSessionsSnap?.docs.length
@@ -3102,11 +3089,8 @@ async function openProfileScreen(uid) {
         }).join('')
       : null;
 
-    const coachPaySection = coachPayRows != null ? `
-      <div class="detail-section">
-        <div class="detail-section-title">Coach payments</div>
-        <div class="profile-history-list">${coachPayRows}</div>
-      </div>` : '';
+    const coachPaySection = coachPayRows != null
+      ? _sec('Coach payments', `<div class="profile-history-list">${coachPayRows}</div>`) : '';
 
     // ── Coach public section ─────────────────────────────────────────────────
     const _posLabel  = { setter: 'Setter', hitter: 'Hitter', middle: 'Middle', libero: 'Libero' };
@@ -3181,17 +3165,11 @@ async function openProfileScreen(uid) {
         </div>
       </div>`;
     }) || [];
-    const coachBookingsSection = showCoachBookings && coachBookingRows.length
-      ? `<div class="detail-section">
-           <div class="detail-section-title">Booking requests</div>
-           ${coachBookingRows.join('')}
-         </div>`
-      : showCoachBookings
-        ? `<div class="detail-section">
-             <div class="detail-section-title">Booking requests</div>
-             <div class="empty-note">No pending requests.</div>
-           </div>`
-        : '';
+    const coachBookingsSection = showCoachBookings
+      ? _sec('Booking requests', coachBookingRows.length
+          ? coachBookingRows.join('')
+          : '<div class="empty-note">No pending requests.</div>')
+      : '';
 
     // ── Player: outgoing booking requests ────────────────────────────────────────
     const playerBookingRows = playerBookingsSnap?.docs.map(d => {
@@ -3208,11 +3186,7 @@ async function openProfileScreen(uid) {
       </div>`;
     }) || [];
     const playerBookingsSection = showPlayerBookings && playerBookingRows.length
-      ? `<div class="detail-section">
-           <div class="detail-section-title">My 1-1 requests</div>
-           ${playerBookingRows.join('')}
-         </div>`
-      : '';
+      ? _sec('My 1-1 requests', playerBookingRows.join('')) : '';
 
     body.innerHTML = `
       <div class="profile-screen-card">
@@ -5777,11 +5751,11 @@ function _renderCoachOnboarding() {
   const done = items.filter(i => i.done).length;
   el.style.display = '';
   el.innerHTML = `
-    <div class="coach-onboarding">
-      <div class="coach-onboarding-header">
+    <details class="coach-onboarding" open>
+      <summary class="coach-onboarding-header collapsible-title">
         <strong>Complete your coach profile</strong>
         <span class="coach-onboarding-progress">${done}/${items.length}</span>
-      </div>
+      </summary>
       <div class="coach-onboarding-bar">
         <div class="coach-onboarding-fill" style="width:${Math.round(done/items.length*100)}%"></div>
       </div>
@@ -5794,7 +5768,7 @@ function _renderCoachOnboarding() {
         `).join('')}
       </ul>
       <button class="cta-btn cta-btn--sm" onclick="openEditProfile()">Edit coach profile →</button>
-    </div>
+    </details>
   `;
 }
 
