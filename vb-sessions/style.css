@@ -1043,16 +1043,34 @@ body {
 .hbar-note { font-size: 10px; color: var(--muted); margin-left: 4px; }
 
 /* ── Venues screen ───────────────────────────────────────────────────────── */
-.venue-card {
-  background: var(--surface); border: 1px solid var(--border);
-  border-radius: var(--radius-md); padding: 14px 16px;
-  margin-bottom: 8px; cursor: pointer;
-  display: flex; flex-direction: column; gap: 4px;
-  transition: border-color .15s;
+.venue-avatar { background: rgba(240,165,0,.15); color: var(--amber); }
+
+/* ── Venue detail ────────────────────────────────────────────────────────── */
+.venue-detail-header {
+  display: flex; align-items: center; gap: 14px;
+  padding: 20px 0 16px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 4px;
 }
-.venue-card:active { border-color: var(--border2); }
-.venue-card-name { font-size: 15px; font-weight: 600; }
-.venue-card-meta { font-size: 12px; color: var(--muted); }
+.venue-detail-initial {
+  width: 52px; height: 52px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Barlow Condensed', system-ui, sans-serif;
+  font-size: 22px; font-weight: 700;
+  background: rgba(240,165,0,.15); color: var(--amber);
+}
+.venue-detail-name    { font-size: 18px; font-weight: 700; }
+.venue-detail-address { font-size: 13px; color: var(--muted); margin-top: 2px; }
+.venue-map-link {
+  display: flex; align-items: center; gap: 10px;
+  padding: 14px 0; border-bottom: 1px solid var(--border);
+  color: var(--amber); text-decoration: none; font-size: 14px;
+  margin-bottom: 4px;
+}
+.venue-map-link:hover { text-decoration: underline; }
+.venue-map-pin  { font-size: 18px; flex-shrink: 0; }
+.venue-map-arrow { margin-left: auto; font-size: 16px; opacity: .7; }
+.venue-detail-section { margin: 4px 0 16px; }
 
 /* session form — venue row */
 .venue-field-row { display: flex; gap: 8px; align-items: center; }

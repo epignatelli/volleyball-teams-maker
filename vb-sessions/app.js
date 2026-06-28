@@ -440,6 +440,7 @@ async function _routeFromHash() {
   if (hash === 'finances')      { if (_isAdmin) openFinancesScreen(); else renderHome(); return; }
   if (hash === 'insights')      { if (_isAdmin) openInsightsScreen(); else renderHome(); return; }
   if (hash === 'venues')        { if (_isAdmin) openVenuesScreen();   else renderHome(); return; }
+  if (hash.startsWith('venue/')) { if (_isAdmin) { await openVenueDetail(hash.slice(6)); } else renderHome(); return; }
   if (hash === 'admin')         { if (_isAdmin) openAdminScreen();    else renderHome(); return; }
   if (hash === 'series')        { openSeriesScreen(); return; }
   if (hash === 'coach') {
@@ -5056,17 +5057,75 @@ async function renderVenues() {
     if (!_allVenues.length) {
       list.innerHTML = '<div class="home-empty">No venues yet. Add one below.</div>'; return;
     }
-    list.innerHTML = _allVenues.map(v => `
-      <div class="venue-card" onclick="openVenueForm('${v.id}')">
-        <div class="venue-card-name">${esc(v.name)}</div>
-        ${v.address    ? `<div class="venue-card-meta">${esc(v.address)}</div>` : ''}
-        ${v.costPerHour > 0 ? `<div class="venue-card-meta">£${v.costPerHour}/hr</div>` : ''}
-        ${v.contact    ? `<div class="venue-card-meta">${esc(v.contact)}</div>` : ''}
-      </div>`).join('');
+    list.innerHTML = _allVenues.map(v => {
+      const initial = (v.name || '?')[0].toUpperCase();
+      const meta    = [v.address, v.costPerHour > 0 ? `£${v.costPerHour}/hr` : '', v.contact].filter(Boolean).join(' · ');
+      return `
+      <div class="user-row" onclick="openVenueDetail('${v.id}')">
+        <div class="user-avatar user-avatar--initials venue-avatar">${esc(initial)}</div>
+        <div class="user-info">
+          <div class="user-name">${esc(v.name)}</div>
+          ${meta ? `<div class="user-meta">${esc(meta)}</div>` : ''}
+        </div>
+      </div>`;
+    }).join('');
   } catch(e) {
     list.innerHTML = '<div class="home-empty">Couldn\'t load venues.</div>';
     console.error(e);
   }
+}
+
+// ── Venue detail ──
+
+async function openVenueDetail(id) {
+  if (!_isAdmin) return;
+  if (!_allVenues.length) await _loadVenues();
+  const v = _allVenues.find(x => x.id === id);
+  if (!v) { openVenuesScreen(); return; }
+  _setHash(`venue/${id}`);
+  showScreen('venue-detail');
+  _setNav('sub', null);
+  _setTitle(v.name);
+  _setBack(() => openVenuesScreen());
+  renderVenueDetail(v);
+}
+
+function renderVenueDetail(v) {
+  const content  = document.getElementById('venue-detail-content');
+  const mapsUrl  = safeUrl(v.mapsUrl)
+    || (v.address ? `https://www.google.com/maps/search/${encodeURIComponent(v.address)}` : null);
+
+  content.innerHTML = `
+    <div class="venue-detail-header">
+      <div class="venue-detail-initial">${esc((v.name || '?')[0].toUpperCase())}</div>
+      <div>
+        <div class="venue-detail-name">${esc(v.name)}</div>
+        ${v.address ? `<div class="venue-detail-address">${esc(v.address)}</div>` : ''}
+      </div>
+    </div>
+
+    ${mapsUrl ? `
+    <a class="venue-map-link" href="${esc(mapsUrl)}" target="_blank" rel="noopener">
+      <span class="venue-map-pin">📍</span>
+      <span>${v.address ? esc(v.address) : 'Open in Maps'}</span>
+      <span class="venue-map-arrow">↗</span>
+    </a>` : ''}
+
+    <div class="venue-detail-section">
+      ${v.costPerHour > 0 ? `
+        <div class="user-row" style="cursor:default">
+          <div class="user-info"><div class="user-name">Cost per hour</div></div>
+          <div class="user-meta">£${v.costPerHour}</div>
+        </div>` : ''}
+      ${v.contact ? `
+        <div class="user-row" style="cursor:default">
+          <div class="user-info"><div class="user-name">Contact</div></div>
+          <div class="user-meta">${esc(v.contact)}</div>
+        </div>` : ''}
+    </div>
+
+    <button class="cta-btn secondary-btn" style="margin-top:8px" onclick="openVenueForm('${v.id}')">Edit venue</button>
+  `;
 }
 
 // ── Venue form (create / edit) ──
