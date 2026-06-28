@@ -5760,7 +5760,6 @@ function _renderCoachOnboarding() {
     { label: 'Set your levels',         done: !!(u.coachLevels && u.coachLevels.length) },
     { label: 'Set your availability',   done: !!(u.coachAvailability && u.coachAvailability.length) },
     { label: 'Set your 1-1 rate',       done: !!(u.coachRate && u.coachRate > 0) },
-    { label: 'Connect Stripe',          done: !!_providerOnboardingComplete },
   ];
 
   const allDone = items.every(i => i.done);
