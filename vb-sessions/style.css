@@ -599,10 +599,15 @@ body {
 .form-fields { display: flex; flex-direction: column; gap: 12px; }
 .form-section-header {
   font-family: var(--sport); font-size: 11px; font-weight: 700;
-  letter-spacing: .08em; text-transform: uppercase; color: var(--amber);
-  padding: 6px 0 2px; border-top: 1px solid var(--border); margin-top: 4px;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--muted);
+  padding: 10px 20px 8px;
+  background: var(--surface2);
+  border-top: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  margin: 0 -20px;
 }
-.form-section-header:first-child { border-top: none; margin-top: 0; }
+.form-fields > .form-section-header:first-child { border-top: none; }
+#coach-profile-section { display: flex; flex-direction: column; gap: 12px; margin-top: 8px; }
 .field-row   { display: flex; gap: 12px; }
 .field-row .field { flex: 1; min-width: 0; }
 
