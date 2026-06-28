@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Levels — Roots Volleyball</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;800&family=Barlow:wght@400;500&display=swap">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:       #0d0f14;
+    --surface:  #161920;
+    --border:   rgba(255,255,255,.08);
+    --text:     #f0f2f8;
+    --muted:    #7a80a0;
+    --amber:    #f0a500;
+    --amber-bg: rgba(240,165,0,.12);
+    --green:    #22c97a;
+    --green-bg: rgba(34,201,122,.13);
+    --blue:     #60a5fa;
+    --blue-bg:  rgba(96,165,250,.13);
+    --purple:   #a78bfa;
+    --purple-bg:rgba(167,139,250,.13);
+    --sport: 'Barlow Condensed', system-ui, sans-serif;
+    --body:  'Barlow', system-ui, sans-serif;
+  }
+
+  body {
+    background: var(--bg); color: var(--text);
+    font-family: var(--body); font-size: 15px; line-height: 1.6;
+    padding: 0 0 80px;
+  }
+
+  header {
+    background: var(--bg);
+    border-bottom: 1px solid var(--border);
+    padding: 0 20px;
+    display: flex; align-items: center; gap: 12px; height: 54px;
+    position: sticky; top: 0; z-index: 10;
+  }
+  .logo {
+    font-family: var(--sport); font-size: 13px; font-weight: 800;
+    letter-spacing: .16em; text-transform: uppercase;
+    color: var(--amber); text-decoration: none;
+  }
+  .header-sep { color: var(--border); }
+  .header-title {
+    font-family: var(--sport); font-size: 13px; font-weight: 700;
+    letter-spacing: .06em; text-transform: uppercase; color: var(--muted);
+  }
+
+  .page { max-width: 680px; margin: 0 auto; padding: 32px 20px 0; }
+
+  h1 {
+    font-family: var(--sport); font-size: 32px; font-weight: 800;
+    letter-spacing: .02em; margin-bottom: 8px;
+  }
+  .intro {
+    font-size: 14px; color: var(--muted); line-height: 1.65; margin-bottom: 32px;
+    border-left: 3px solid var(--amber); padding-left: 14px;
+  }
+
+  .level-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 20px; margin-bottom: 16px;
+  }
+  .level-card-header {
+    display: flex; align-items: center; gap: 12px; margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+  .badge {
+    font-family: var(--sport); font-size: 11px; font-weight: 700;
+    letter-spacing: .06em; text-transform: uppercase;
+    padding: 3px 9px; border-radius: 99px; border: 1px solid;
+  }
+  .badge-beginner     { background: rgba(34,201,122,.13);   color: #22c97a; border-color: rgba(34,201,122,.35); }
+  .badge-intermediate { background: rgba(96,165,250,.13);   color: #60a5fa; border-color: rgba(96,165,250,.35); }
+  .badge-advanced     { background: rgba(240,165,0,.12);    color: #f0a500; border-color: rgba(240,165,0,.35); }
+  .badge-competitive  { background: rgba(248,113,113,.13);  color: #f87171; border-color: rgba(248,113,113,.35); }
+
+  .lva-tag {
+    font-family: var(--sport); font-size: 11px; font-weight: 600;
+    letter-spacing: .06em; text-transform: uppercase; color: var(--muted);
+    background: rgba(255,255,255,.05); border: 1px solid var(--border);
+    padding: 3px 9px; border-radius: 99px;
+  }
+  .approval-tag {
+    font-family: var(--sport); font-size: 10px; font-weight: 700;
+    letter-spacing: .06em; text-transform: uppercase;
+    color: var(--amber); background: var(--amber-bg);
+    border: 1px solid rgba(240,165,0,.3); padding: 3px 9px; border-radius: 99px;
+  }
+
+  .level-summary { font-size: 14px; color: var(--muted); margin-bottom: 14px; line-height: 1.6; }
+
+  .skill-grid { display: flex; flex-direction: column; gap: 8px; }
+  .skill-row { display: flex; gap: 10px; font-size: 13px; }
+  .skill-label {
+    font-family: var(--sport); font-size: 11px; font-weight: 700;
+    letter-spacing: .06em; text-transform: uppercase; color: var(--muted);
+    min-width: 90px; padding-top: 1px; flex-shrink: 0;
+  }
+  .skill-val { color: var(--text); }
+
+  .note {
+    font-size: 13px; color: var(--muted); background: var(--amber-bg);
+    border: 1px solid rgba(240,165,0,.2); border-radius: 8px;
+    padding: 12px 14px; margin-bottom: 24px; line-height: 1.6;
+  }
+  .note strong { color: var(--amber); }
+
+  h2 {
+    font-family: var(--sport); font-size: 13px; font-weight: 700;
+    letter-spacing: .1em; text-transform: uppercase; color: var(--muted);
+    margin: 32px 0 12px;
+  }
+
+  @media (max-width: 480px) {
+    h1 { font-size: 26px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <a class="logo" href="/vb-sessions/">Roots</a>
+  <span class="header-sep">/</span>
+  <span class="header-title">Levels</span>
+</header>
+
+<div class="page">
+
+  <h1>Levels</h1>
+  <p class="intro">
+    Our levels exist to keep every session safe and enjoyable for everyone on court.
+    Players are expected to be honest about their ability and to bring good sportsmanship regardless of level.
+    If you sign up for a session above your level you may be asked to leave without a refund.
+  </p>
+
+  <div class="note">
+    <strong>Pre-approval required</strong> for Advanced and Competitive sessions.
+    Attend a Rep or Clinic session to get rated before booking.
+  </div>
+
+  <!-- BEGINNER -->
+  <div class="level-card">
+    <div class="level-card-header">
+      <span class="badge badge-beginner">Beginner</span>
+      <span class="lva-tag">Recreational</span>
+    </div>
+    <p class="level-summary">
+      New to volleyball or still building the basics. You're learning the rules, technique, and rotations. These sessions focus on development and fun — not intensity.
+    </p>
+    <div class="skill-grid">
+      <div class="skill-row"><span class="skill-label">Serving</span><span class="skill-val">Can get a serve in from the baseline most of the time (any style)</span></div>
+      <div class="skill-row"><span class="skill-label">Passing</span><span class="skill-val">Can direct a free ball toward the setter zone</span></div>
+      <div class="skill-row"><span class="skill-label">Setting</span><span class="skill-val">Can bump or overhand set a good pass to an attacker</span></div>
+      <div class="skill-row"><span class="skill-label">Attacking</span><span class="skill-val">Understands the approach; attack is not a safety hazard</span></div>
+      <div class="skill-row"><span class="skill-label">Rotations</span><span class="skill-val">Aware of social rotation; learning 5-1 / 6-2 concepts</span></div>
+    </div>
+  </div>
+
+  <!-- INTERMEDIATE -->
+  <div class="level-card">
+    <div class="level-card-header">
+      <span class="badge badge-intermediate">Intermediate</span>
+      <span class="lva-tag">LVA Division 3</span>
+    </div>
+    <p class="level-summary">
+      You play regularly and are comfortable on court. You understand rotations and can execute the core skills of your position with reasonable consistency. May not have played on an organised team, but you know the game.
+    </p>
+    <div class="skill-grid">
+      <div class="skill-row"><span class="skill-label">Serving</span><span class="skill-val">Overhand from baseline, in 8/10 times</span></div>
+      <div class="skill-row"><span class="skill-label">Passing</span><span class="skill-val">7/10 passes in the setter zone; rarely aces</span></div>
+      <div class="skill-row"><span class="skill-label">Setting</span><span class="skill-val">Can hand-set outside and opposite on good passes</span></div>
+      <div class="skill-row"><span class="skill-label">Attacking</span><span class="skill-val">Consistent 3–4 step approach; ball in 8/10 attempts</span></div>
+      <div class="skill-row"><span class="skill-label">Rotations</span><span class="skill-val">Understands 5-1 / 6-2 and transitions; correct position 8/10</span></div>
+    </div>
+  </div>
+
+  <!-- ADVANCED -->
+  <div class="level-card">
+    <div class="level-card-header">
+      <span class="badge badge-advanced">Advanced</span>
+      <span class="lva-tag">LVA Divisions 1–2</span>
+      <span class="approval-tag">Pre-approval required</span>
+    </div>
+    <p class="level-summary">
+      Played on an organised team with coaching. Strong fundamentals, some advanced skills (jump serves, combinations), and a clear positional role. You read the game and can adapt when things go wrong.
+    </p>
+    <div class="skill-grid">
+      <div class="skill-row"><span class="skill-label">Serving</span><span class="skill-val">Consistent jump float or topspin; targets opponents' weaknesses</span></div>
+      <div class="skill-row"><span class="skill-label">Passing</span><span class="skill-val">5/10 in-system passes regardless of serve type</span></div>
+      <div class="skill-row"><span class="skill-label">Setting</span><span class="skill-val">Runs an offense with a game plan; can set tempo balls and fix bad passes</span></div>
+      <div class="skill-row"><span class="skill-label">Attacking</span><span class="skill-val">25 %+ efficiency; multiple swing types and locations</span></div>
+      <div class="skill-row"><span class="skill-label">Blocking</span><span class="skill-val">Effective line and cross blocks; solid 1v1 capability</span></div>
+      <div class="skill-row"><span class="skill-label">Defense</span><span class="skill-val">30 %+ dig rate; understands positioning shifts</span></div>
+    </div>
+  </div>
+
+  <!-- COMPETITIVE -->
+  <div class="level-card">
+    <div class="level-card-header">
+      <span class="badge badge-competitive">Competitive</span>
+      <span class="lva-tag">LVA Première · Superleague</span>
+      <span class="approval-tag">Pre-approval required</span>
+    </div>
+    <p class="level-summary">
+      Elite-level play. College, club, semi-professional, or international experience. Exceptional volleyball IQ, physical ability, and the ability to perform consistently under pressure for the full session.
+    </p>
+    <div class="skill-grid">
+      <div class="skill-row"><span class="skill-label">Serving</span><span class="skill-val">9/10 float, 7/10 topspin to intended location; advanced techniques</span></div>
+      <div class="skill-row"><span class="skill-label">Passing</span><span class="skill-val">60 %+ in-system; commands reception; takes more than a third of the court</span></div>
+      <div class="skill-row"><span class="skill-label">Setting</span><span class="skill-val">Adapts game plan in real time; runs all combinations; fixes bad passes consistently</span></div>
+      <div class="skill-row"><span class="skill-label">Attacking</span><span class="skill-val">30 %+ efficiency; hits all court locations with power and accuracy</span></div>
+      <div class="skill-row"><span class="skill-label">Blocking</span><span class="skill-val">1+ block/set; line, seam, cross, hard cross and split block</span></div>
+      <div class="skill-row"><span class="skill-label">Defense</span><span class="skill-val">40 %+ dig rate; chases every ball; excellent pattern recognition</span></div>
+    </div>
+  </div>
+
+  <h2>Not sure where you fit?</h2>
+  <p style="font-size:14px;color:var(--muted);line-height:1.65">
+    Come to one of our open Rep or Clinic sessions — they're designed for exactly this.
+    A coach will watch you play and advise the right level for your game.
+    It's also the path to getting pre-approved for Advanced and Competitive sessions.
+  </p>
+
+</div>
+</body>
+</html>

@@ -5055,6 +5055,10 @@ window.openLevelInfo = function(activeLevel) {
         <button class="panel-close" onclick="document.getElementById('level-info-overlay').remove()">✕</button>
       </div>
       <div style="display:flex;flex-direction:column;gap:4px;padding-top:16px">${rows}</div>
+      <a href="levels.html" target="_blank" rel="noopener"
+         style="display:block;margin-top:20px;font-size:13px;color:var(--amber);text-decoration:none">
+        Full level guide ↗
+      </a>
     </div>`;
   el.addEventListener('click', () => el.remove());
   document.body.appendChild(el);

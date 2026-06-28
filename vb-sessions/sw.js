@@ -1,5 +1,5 @@
-const CACHE = 'vb-sessions-v171';
-const ASSETS = ['./', './index.html', './app.js', './style.css', './manifest.json'];
+const CACHE = 'vb-sessions-v172';
+const ASSETS = ['./', './index.html', './app.js', './style.css', './manifest.json', './levels.html'];
 
 self.addEventListener('install', e => {
   e.waitUntil(caches.open(CACHE).then(c => c.addAll(ASSETS)));
