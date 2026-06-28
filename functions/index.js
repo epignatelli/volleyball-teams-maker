@@ -58,6 +58,7 @@ async function _syncPublicProfile(db, uid, data) {
     level:             data.level             || null,
     gender:            data.gender            || null,
     positions:         data.positions         || [],
+    bio:               data.bio               || null,
     createdAt:         data.createdAt         || null,
     roles:             publicRoles,
     isProvider:        publicRoles.includes('provider'),

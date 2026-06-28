@@ -384,6 +384,9 @@
       <button class="panel-close" onclick="closeEditProfile()">✕</button>
     </div>
     <div class="form-fields">
+
+      <div class="form-section-header">Player</div>
+
       <div class="field">
         <label class="field-label">Name</label>
         <input class="field-input" type="text" id="edit-profile-name" placeholder="Your name" maxlength="80"
@@ -417,6 +420,11 @@
           <label class="pos-toggle libero"><input type="checkbox" value="libero" />L · Libero</label>
         </div>
       </div>
+      <div class="field">
+        <label class="field-label">Bio <span class="field-optional">(optional)</span></label>
+        <textarea class="field-input field-textarea" id="edit-profile-bio" maxlength="280" rows="3" placeholder="Where you play, what you love about volleyball…"></textarea>
+      </div>
+
       <div class="field" id="coach-request-field">
         <button class="coach-request-btn" id="coach-request-btn" onclick="requestCoachStatus()">Request coach status →</button>
         <div class="field-hint">An admin will review your request.</div>
@@ -429,9 +437,11 @@
         <button class="cta-btn" id="provider-stripe-btn" onclick="startProviderOnboarding()">Set up payments →</button>
         <div class="field-hint">Connect your bank account to receive payments from your sessions.</div>
       </div>
+
       <div id="coach-profile-section" style="display:none">
+        <div class="form-section-header">Coach</div>
         <div class="field">
-          <label class="field-label">Bio</label>
+          <label class="field-label">Bio <span class="field-optional">(optional)</span></label>
           <textarea class="field-input field-textarea" id="pf-coach-bio" maxlength="280" placeholder="What you coach, your approach, experience…"></textarea>
         </div>
         <div class="field">

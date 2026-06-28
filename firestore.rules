@@ -174,7 +174,8 @@ service cloud.firestore {
                     && request.resource.data.diff(resource.data)
                          .affectedKeys().hasOnly([
                            'name','email','photoURL','updatedAt',
-                           'gender','level','positions','coachRequest','providerRequest',
+                           'gender','level','positions','bio',
+                           'coachRequest','providerRequest',
                            'photoConsent','termsAccepted','ageConsent',
                            'coachBio','coachPositions','coachLevels','coachStyles','coachRate','coach1to1Enabled',
                            'coachAvailability'

@@ -2844,6 +2844,14 @@ async function openProfileScreen(uid) {
       u.createdAt ? `<div class="detail-meta-row"><span class="detail-meta-label">Joined</span><span>${_formatDate(u.createdAt)}</span></div>` : '',
     ].filter(Boolean).join('');
 
+    // Player section — everyone is a player, but only render if there's something to show
+    const playerSection = (metaRows || u.bio) ? `
+      <div class="detail-section">
+        <div class="detail-section-title">Player</div>
+        ${u.bio ? `<div class="detail-description" style="margin-bottom:10px">${esc(u.bio)}</div>` : ''}
+        ${metaRows ? `<div class="detail-meta-grid">${metaRows}</div>` : ''}
+      </div>` : '';
+
     const _roleCheck  = `<span class="role-status-active">Active</span>`;
     const _roleLocked = `<span class="role-status-locked">Invitation only</span>`;
     const rolesSection = isOwn ? `
@@ -3204,7 +3212,7 @@ async function openProfileScreen(uid) {
           <div class="profile-hero-name">${esc(u.name || '—')}</div>
           ${roleBadges ? `<div class="profile-role-badges">${roleBadges}</div>` : ''}
         </div>
-        ${metaRows ? `<div class="detail-section"><div class="detail-meta-grid">${metaRows}</div></div>` : ''}
+        ${playerSection}
         ${coachProfileSection}
         ${book1to1Btn}
         ${rolesSection}
@@ -4779,6 +4787,7 @@ async function openEditProfile() {
     document.getElementById('edit-profile-name').value    = data.name || _currentUser.displayName || '';
     document.getElementById('edit-profile-gender').value  = data.gender || '';
     document.getElementById('edit-profile-level').value   = data.level  || '';
+    document.getElementById('edit-profile-bio').value     = data.bio   || '';
     const posSet = new Set(data.positions || []);
     document.querySelectorAll('#edit-profile-positions input').forEach(cb => {
       cb.checked = posSet.has(cb.value);
@@ -4844,12 +4853,15 @@ async function saveProfile() {
     coachAvailability:  Array.from(document.querySelectorAll('.avail-slot.active')).map(b => b.dataset.slot),
   } : {};
 
+  const bio = document.getElementById('edit-profile-bio').value.trim() || null;
+
   try {
     await _userRef(_currentUser.uid).update({
       name,
       gender:    gender || null,
       level:     level  || null,
       positions,
+      bio,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
       ...coachData,
     });
