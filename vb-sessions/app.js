@@ -1433,10 +1433,13 @@ function _renderDetail(session, attendees, isAttending, waitingList, myWaitingLi
                 ? `<span class="att-chip photo-chip">Photo ✓</span>`
                 : _isAdmin && a.photoConsent === false
                   ? `<span class="att-chip nophoto-chip">No photo</span>` : '';
-              const removeBtn = _isAdmin
-                ? `<button class="attendee-remove-btn" onclick="removeAttendee('${session.id}','${a.id}')">Remove attendee</button>` : '';
-              const subLine = passChip || payChip || photoChip || removeBtn
-                ? `<div class="attendee-sub attendee-chips-row">${passChip}${payChip}${photoChip}${removeBtn}</div>` : '';
+              const statusChips = passChip || payChip || photoChip
+                ? `<div class="attendee-chips-row">${passChip}${payChip}${photoChip}</div>` : '';
+              const subLine = _isAdmin || statusChips
+                ? `<div class="attendee-sub attendee-sub-row">
+                     ${_isAdmin ? `<button class="attendee-remove-btn" onclick="removeAttendee('${session.id}','${a.id}')">Remove attendee</button>` : ''}
+                     ${statusChips}
+                   </div>` : '';
               return `
               <div class="attendee-row">
                 <div class="attendee-main">
