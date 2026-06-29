@@ -25,16 +25,18 @@ html, body {
 
 /* ── Top bar ── */
 #topbar {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: space-between;
-  padding: 0 12px;
+  gap: 6px;
+  padding: 0 10px;
   height: var(--bar-h);
   border-bottom: 1px solid var(--border);
   flex-shrink: 0;
-  position: relative;
   z-index: 1;
 }
+
+.top-left { display: flex; gap: 6px; align-items: center; }
 
 #set-label {
   font-size: 13px;
@@ -42,8 +44,10 @@ html, body {
   letter-spacing: .1em;
   text-transform: uppercase;
   color: var(--muted);
-  position: absolute;
-  left: 50%; transform: translateX(-50%);
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .top-btn {
@@ -77,8 +81,6 @@ html, body {
 @media (orientation: portrait) and (max-width: 600px) {
   #court { flex-direction: column; }
   #divider { width: 100% !important; height: 1px !important; }
-  .minus-btn { top: 12px; bottom: auto !important; }
-  #panel-a .minus-btn { left: auto !important; right: 12px; }
 }
 
 /* ── Panels ── */
