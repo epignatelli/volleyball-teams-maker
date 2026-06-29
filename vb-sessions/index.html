@@ -415,13 +415,14 @@
         <textarea class="field-input field-textarea" id="edit-profile-bio" maxlength="280" rows="3" placeholder="Where you play, what you love about volleyball…"></textarea>
       </div>
 
+      <div class="field" id="stripe-connect-field" style="display:none">
+        <button class="cta-btn coach-stripe-cta" id="stripe-connect-btn" onclick="startProviderOnboarding(this)">Connect Stripe to receive payments →</button>
+        <div class="field-hint">Required to receive payments as a coach, referee, or host.</div>
+      </div>
+
       <div class="field" id="coach-request-field">
         <button class="coach-request-btn" id="coach-request-btn" onclick="requestCoachStatus()">Request coach status →</button>
         <div class="field-hint">An admin will review your request.</div>
-      </div>
-      <div class="field" id="provider-stripe-field" style="display:none">
-        <button class="cta-btn" id="provider-stripe-btn" onclick="startProviderOnboarding()">Set up payments →</button>
-        <div class="field-hint">Connect your bank account to receive payments from your sessions.</div>
       </div>
 
       <div id="coach-profile-section" style="display:none">
@@ -472,11 +473,6 @@
             <!-- rendered by _renderAvailGrid() -->
           </div>
         </div>
-        <div class="field" id="coach-stripe-field" style="display:none">
-          <label class="field-label">Payments</label>
-          <button class="cta-btn" id="coach-stripe-btn" onclick="startProviderOnboarding(this)">Connect Stripe →</button>
-          <p class="field-hint">Required to receive payments for 1-1 sessions.</p>
-        </div>
       </div>
 
       <div class="field" id="ref-request-field">
@@ -523,11 +519,6 @@
         <div class="field">
           <label class="field-label">Rate (£/session)</label>
           <input class="field-input" type="number" id="pf-ref-rate" min="0" step="5" placeholder="e.g. 30" />
-        </div>
-        <div class="field" id="ref-stripe-field" style="display:none">
-          <label class="field-label">Payments</label>
-          <button class="cta-btn" id="ref-stripe-btn" onclick="startProviderOnboarding(this)">Connect Stripe →</button>
-          <p class="field-hint">Required to receive payments for refereeing.</p>
         </div>
       </div>
     </div>

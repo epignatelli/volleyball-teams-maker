@@ -2951,6 +2951,14 @@ async function openProfileScreen(uid) {
         ${metaRows ? `<div class="detail-meta-grid">${metaRows}</div>` : ''}`) : '';
 
     const _roleCheck  = `<span class="role-status-active">Active</span>`;
+    const needsStripe = isOwn && !u.providerOnboardingComplete && (hasCoach || hasProvider || hasReferee);
+    const stripeRow = (isOwn && u.providerOnboardingComplete && (hasCoach || hasProvider || hasReferee))
+      ? `<div class="role-status-row">
+           <span class="role-status-name">Payments</span>
+           <span class="role-status-active">Connected</span>
+         </div>`
+      : '';
+
     const rolesSection = isOwn ? _sec('Membership', `<div class="role-status-list">
           <div class="role-status-row">
             <span class="role-status-name">Player</span>
@@ -2992,11 +3000,13 @@ async function openProfileScreen(uid) {
                 ? `<div style="display:flex;align-items:center;gap:8px"><span class="role-status-locked">Declined</span><button class="role-status-btn" onclick="_showPhotoConsentModal(null)">Give consent →</button></div>`
                 : `<button class="role-status-btn" onclick="_showPhotoConsentModal(null)">Decide →</button>`}
           </div>
+          ${stripeRow}
         </div>`) : '';
 
     const ownActions = isOwn ? `
       <div class="profile-actions">
         <button class="cta-btn secondary-btn" onclick="openEditProfile()">Edit profile →</button>
+        ${needsStripe ? `<button class="cta-btn coach-stripe-cta" id="profile-stripe-btn" onclick="startProviderOnboarding(this)">Connect Stripe →</button>` : ''}
         <button class="cta-btn secondary-btn" onclick="handleAuthClick()">Sign out</button>
       </div>` : '';
 
@@ -3243,9 +3253,6 @@ async function openProfileScreen(uid) {
             ${styleMeta  ? `<div class="detail-meta-row"><span class="detail-meta-label">Style</span><span>${esc(styleMeta)}</span></div>` : ''}
             ${rateLine   ? `<div class="detail-meta-row"><span class="detail-meta-label">1-1</span><span>${esc(rateLine)}</span></div>` : ''}
             ${availMeta  ? `<div class="detail-meta-row"><span class="detail-meta-label">Availability</span><span>${esc(availMeta)}</span></div>` : ''}
-            ${isOwn && u.providerOnboardingComplete ? `<div class="detail-meta-row"><span class="detail-meta-label">Payments</span><span class="role-status-active">Connected</span></div>` : ''}
-          </div>
-          ${isOwn && !u.providerOnboardingComplete ? `<button class="cta-btn coach-stripe-cta" onclick="startProviderOnboarding(this)">Connect Stripe to receive payments →</button>` : ''}
           ${clinicRows.length ? `
             <div class="detail-section-title" style="margin-top:4px">Upcoming clinics</div>
             <div class="profile-history-list">${clinicRows.join('')}</div>
@@ -3288,9 +3295,6 @@ async function openProfileScreen(uid) {
             ${typeMeta  ? `<div class="detail-meta-row"><span class="detail-meta-label">Types</span><span>${esc(typeMeta)}</span></div>` : ''}
             ${rateLine  ? `<div class="detail-meta-row"><span class="detail-meta-label">Rate</span><span>${esc(rateLine)}</span></div>` : ''}
             ${availMeta ? `<div class="detail-meta-row"><span class="detail-meta-label">Availability</span><span>${esc(availMeta)}</span></div>` : ''}
-            ${isOwn && u.providerOnboardingComplete ? `<div class="detail-meta-row"><span class="detail-meta-label">Payments</span><span class="role-status-active">Connected</span></div>` : ''}
-          </div>
-          ${isOwn && !u.providerOnboardingComplete ? `<button class="cta-btn coach-stripe-cta" onclick="startProviderOnboarding(this)">Connect Stripe to receive payments →</button>` : ''}
         </details>`;
     })() : '';
 
@@ -3387,14 +3391,14 @@ async function openProfileScreen(uid) {
           <div class="profile-hero-name">${esc(u.name || '—')}</div>
           ${roleBadges ? `<div class="profile-role-badges">${roleBadges}</div>` : ''}
         </div>
+        ${rolesSection}
+        ${adminSection}
+        ${ownActions}
         ${playerSection}
         ${coachProfileSection}
         ${book1to1Btn}
         ${refProfileSection}
         ${refRequestBtn}
-        ${rolesSection}
-        ${adminSection}
-        ${ownActions}
         ${coachBookingsSection}
         ${coachPaySection}
         ${playerBookingsSection}
@@ -5112,17 +5116,12 @@ async function openEditProfile() {
     });
     _updateCoachRequestBtn(data);
     _updateRefRequestBtn(data);
-    const stripeField = document.getElementById('provider-stripe-field');
+    const stripeField = document.getElementById('stripe-connect-field');
     if (stripeField) {
-      const isProvider   = (data.roles || []).includes('provider');
-      const needsStripe  = isProvider && !data.providerOnboardingComplete;
+      const roles        = data.roles || [];
+      const needsStripe  = !data.providerOnboardingComplete
+                        && (roles.includes('coach') || roles.includes('provider') || roles.includes('referee'));
       stripeField.style.display = needsStripe ? '' : 'none';
-    }
-    const coachStripeField = document.getElementById('coach-stripe-field');
-    if (coachStripeField) {
-      const isCoachRole  = (data.roles || []).includes('coach');
-      const needsStripe  = isCoachRole && !data.providerOnboardingComplete;
-      coachStripeField.style.display = needsStripe ? '' : 'none';
     }
     // Coach profile section — show only when user has coach role
     const coachSection = document.getElementById('coach-profile-section');
@@ -5157,12 +5156,6 @@ async function openEditProfile() {
         document.querySelectorAll('.pf-ref-type').forEach(cb => { cb.checked = refTypeSet.has(cb.value); });
         _renderAvailGridTo('pf-ref-avail-grid', data.refAvailability || []);
       }
-    }
-    const refStripeField = document.getElementById('ref-stripe-field');
-    if (refStripeField) {
-      const isRef       = (data.roles || []).includes('referee');
-      const needsStripe = isRef && !data.providerOnboardingComplete;
-      refStripeField.style.display = needsStripe ? '' : 'none';
     }
   } catch(e) {
     console.error('Load profile failed:', e);
@@ -5334,7 +5327,7 @@ async function cancelProviderRequest() {
 }
 
 async function startProviderOnboarding(btn) {
-  if (!btn) btn = document.getElementById('provider-stripe-btn') || document.getElementById('coach-stripe-btn');
+  if (!btn) btn = document.getElementById('stripe-connect-btn') || document.getElementById('profile-stripe-btn');
   if (btn) { btn.disabled = true; btn.textContent = 'Opening…'; }
   try {
     const { url } = await callFn('providerOnboardingLink', { uid: _currentUser.uid });
