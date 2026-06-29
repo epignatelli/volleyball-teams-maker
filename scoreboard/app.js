@@ -284,9 +284,6 @@ function render() {
   // Footer — target info
   document.getElementById('target-label').textContent = `first to ${target}`;
 
-  // Undo button
-  document.getElementById('undo-btn').disabled = _history.length === 0;
-
   // Dim panels when match is over
   const done = _matchOver();
   document.getElementById('panel-a').classList.toggle('match-done', done);
