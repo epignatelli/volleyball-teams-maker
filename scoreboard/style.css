@@ -7,7 +7,12 @@
   --accent:  #FFD600;
   --bar-h:   48px;
   --foot-h:  40px;
+  --color-a: #FFD600;   /* Bauhaus yellow */
+  --color-b: #1D6FD8;   /* Bauhaus blue */
 }
+
+#panel-a { --team-color: var(--color-a); }
+#panel-b { --team-color: var(--color-b); }
 
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -115,7 +120,7 @@ html, body {
 .serve-dot {
   width: 11px; height: 11px;
   border-radius: 50%;
-  background: var(--accent);
+  background: #fff;
   opacity: 0;
   transition: opacity .15s;
   cursor: pointer;
@@ -128,7 +133,8 @@ html, body {
   font-weight: 700;
   letter-spacing: .1em;
   text-transform: uppercase;
-  color: var(--muted);
+  color: var(--team-color);
+  opacity: .7;
   cursor: text;
   white-space: nowrap;
 }
@@ -139,9 +145,9 @@ html, body {
   font-weight: 700;
   letter-spacing: .1em;
   text-transform: uppercase;
-  color: var(--text);
+  color: var(--team-color);
   background: var(--surface);
-  border: 1px solid var(--accent);
+  border: 1px solid var(--team-color);
   border-radius: 4px;
   padding: 2px 6px;
   outline: none;
@@ -163,8 +169,8 @@ html, body {
   flex-shrink: 0;
 }
 .set-dot.filled {
-  background: var(--accent);
-  border-color: var(--accent);
+  background: var(--team-color);
+  border-color: var(--team-color);
 }
 
 /* ── Score ── */
@@ -173,7 +179,7 @@ html, body {
   font-weight: 900;
   line-height: 1;
   letter-spacing: -.02em;
-  color: var(--text);
+  color: var(--team-color);
   pointer-events: none;
 }
 
@@ -192,15 +198,16 @@ html, body {
   font-size: 20px;
   font-weight: 700;
   line-height: 1;
-  color: var(--muted);
+  color: var(--team-color);
   background: none;
-  border: 1px solid var(--border);
+  border: 1px solid color-mix(in srgb, var(--team-color) 30%, transparent);
   border-radius: 8px;
   padding: 5px 14px;
   cursor: pointer;
+  opacity: .6;
 }
 #panel-a .minus-btn { right: auto; left: 14px; }
-.minus-btn:active { background: var(--surface); color: var(--text); }
+.minus-btn:active { opacity: 1; background: color-mix(in srgb, var(--team-color) 10%, transparent); }
 
 /* ── Footer ── */
 #footbar {
