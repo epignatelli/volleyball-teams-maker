@@ -1383,7 +1383,6 @@ details.detail-section > * + * { margin-top: 12px; }
 details:not([open]) .collapsible-title::after { transform: rotate(0deg); }
 
 .coach-stripe-cta {
-  margin-top: 12px; width: 100%;
   background: var(--amber-bg); border: 1px solid rgba(240,165,0,.4);
   color: var(--amber) !important;
 }
