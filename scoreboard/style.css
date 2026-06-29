@@ -182,7 +182,7 @@ html, body {
 
 /* ── Score ── */
 .score {
-  font-size: clamp(80px, 28vmin, 220px);
+  font-size: clamp(100px, 40vmin, 280px);
   font-weight: 900;
   line-height: 1;
   letter-spacing: -.02em;
