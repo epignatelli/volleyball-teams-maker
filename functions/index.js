@@ -2186,6 +2186,70 @@ exports.notifyRefRequest = onDocumentCreated({
   );
 });
 
+// ── notifyCoachApplication ────────────────────────────────────────────────────
+// Triggered when a coach applies for a session slot.
+// Emails the session provider so they can assign from the session detail.
+exports.notifyCoachApplication = onDocumentCreated({
+  document: 'sessions/{sessionId}/coachApplications/{uid}',
+  region:   REGION_FIRESTORE,
+  secrets:  [GMAIL_APP_PASSWORD],
+}, async (event) => {
+  const db          = getFirestore();
+  const { sessionId } = event.params;
+  const app         = event.data.data();
+  const sessionSnap = await db.collection('sessions').doc(sessionId).get();
+  if (!sessionSnap.exists) return;
+  const session     = sessionSnap.data();
+  if (!session.providerUid) return;
+  const providerSnap = await db.collection('users').doc(session.providerUid).get();
+  if (!providerSnap.exists || !providerSnap.data().email) return;
+  const provider    = providerSnap.data();
+  const sessionUrl  = `${APP_URL}#session/${sessionId}`;
+  const dateStr     = session.date?.toDate
+    ? session.date.toDate().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
+    : '';
+  await sendEmail(
+    provider.email,
+    `New coach application — ${session.venue || 'your session'}${dateStr ? ` · ${dateStr}` : ''}`,
+    _emailHtml(`Hi ${provider.name || 'there'},`, [
+      `<strong>${_hEsc(app.name || 'Someone')}</strong> has applied as a coach for your session${session.venue ? ` at <strong>${_hEsc(session.venue)}</strong>` : ''}${dateStr ? ` on <strong>${dateStr}</strong>` : ''}.`,
+      `Open the session to review and assign them.`,
+    ], null, sessionUrl, 'View session →')
+  );
+});
+
+// ── notifyRefApplication ──────────────────────────────────────────────────────
+// Triggered when a referee applies for a session slot.
+// Emails the session provider so they can assign from the session detail.
+exports.notifyRefApplication = onDocumentCreated({
+  document: 'sessions/{sessionId}/refApplications/{uid}',
+  region:   REGION_FIRESTORE,
+  secrets:  [GMAIL_APP_PASSWORD],
+}, async (event) => {
+  const db          = getFirestore();
+  const { sessionId } = event.params;
+  const app         = event.data.data();
+  const sessionSnap = await db.collection('sessions').doc(sessionId).get();
+  if (!sessionSnap.exists) return;
+  const session     = sessionSnap.data();
+  if (!session.providerUid) return;
+  const providerSnap = await db.collection('users').doc(session.providerUid).get();
+  if (!providerSnap.exists || !providerSnap.data().email) return;
+  const provider    = providerSnap.data();
+  const sessionUrl  = `${APP_URL}#session/${sessionId}`;
+  const dateStr     = session.date?.toDate
+    ? session.date.toDate().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' })
+    : '';
+  await sendEmail(
+    provider.email,
+    `New referee application — ${session.venue || 'your session'}${dateStr ? ` · ${dateStr}` : ''}`,
+    _emailHtml(`Hi ${provider.name || 'there'},`, [
+      `<strong>${_hEsc(app.name || 'Someone')}</strong> has applied as a referee for your session${session.venue ? ` at <strong>${_hEsc(session.venue)}</strong>` : ''}${dateStr ? ` on <strong>${dateStr}</strong>` : ''}.`,
+      `Open the session to review and assign them.`,
+    ], null, sessionUrl, 'View session →')
+  );
+});
+
 function _actionHtml(title, message) {
   const adminUrl = 'https://epignatelli.com/apps/vb-sessions/#users';
   return `<!DOCTYPE html><html><body style="font-family:sans-serif;max-width:480px;margin:60px auto;padding:24px;color:#111">

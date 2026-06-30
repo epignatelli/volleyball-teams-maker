@@ -922,6 +922,15 @@ body {
 .session-badge.coach-badge-lg    { background: var(--green-bg);         border: 1px solid rgba(34,201,122,.35);  color: var(--green); }
 .session-badge.ref-badge-lg      { background: rgba(56,189,248,.13);    border: 1px solid rgba(56,189,248,.35);  color: #38bdf8; }
 .user-flag.ref-badge             { color: #38bdf8; background: rgba(56,189,248,.13); border-color: rgba(56,189,248,.35); }
+.session-badge.ref-needed-badge { background: rgba(56,189,248,.12); border: 1px solid rgba(56,189,248,.35); color: #38bdf8; }
+.ref-slot-card { border-left: 3px solid #38bdf8; }
+.ref-apply-btn { margin-top: 10px; width: 100%; }
+.ref-apply-btn.applied { opacity: .6; }
+.ref-applicant-row { display: flex; align-items: center; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid var(--border); font-size: 14px; }
+.applications-group { margin-bottom: 12px; }
+.applications-group-label { font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; }
+.application-row { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid var(--border); }
+.application-name { font-size: 15px; font-weight: 500; }
 .ref-cert-badges { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 8px; }
 .ref-cert-badge {
   font-size: 11px; font-weight: 700; padding: 3px 10px; border-radius: 99px;

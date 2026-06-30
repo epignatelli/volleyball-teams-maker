@@ -914,7 +914,15 @@ async function renderHome() {
   const container = document.getElementById('home-content');
   container.innerHTML = '<div class="home-empty">Loading…</div>';
   try {
-    const snap = await _sessionsRef().orderBy('date', 'asc').get();
+    const [snap, coachSlotsSnap, refSlotsSnap] = await Promise.all([
+      _sessionsRef().orderBy('date', 'asc').get(),
+      (_isCoach && _currentUser)
+        ? _sessionsRef().where('coachSlotOpen', '==', true).get()
+        : Promise.resolve(null),
+      (_isReferee && _currentUser)
+        ? _sessionsRef().where('refSlotOpen', '==', true).get()
+        : Promise.resolve(null),
+    ]);
     let sessions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
     if (_activeSeriesFilter) {
       sessions = sessions.filter(s => s.seriesId === _activeSeriesFilter.id);
@@ -1028,7 +1036,45 @@ async function renderHome() {
         <div class="session-group-label">Past</div>
         ${past.map(_renderSessionCard).join('')}
       </div>` : '';
-    container.innerHTML = providerBannerHtml + bannerHtml + upcomingHtml + pastHtml;
+    const now2 = new Date(); now2.setHours(0,0,0,0);
+    const _openFutureSlots = (slotSnap, uidField) => slotSnap
+      ? slotSnap.docs
+          .map(d => ({ id: d.id, ...d.data() }))
+          .filter(s => !s[uidField] && s.status === 'open' && (s.date?.toDate?.() || new Date(s.date)) >= now2)
+          .sort((a, b) => {
+            const da = a.date?.toDate?.() || new Date(a.date);
+            const db = b.date?.toDate?.() || new Date(b.date);
+            return da - db;
+          })
+      : [];
+
+    const _buildAppsMap = async (slots, subcol) => {
+      if (!slots.length) return new Map();
+      const docs = await Promise.all(slots.map(s =>
+        getDb().collection('sessions').doc(s.id).collection(subcol).doc(_currentUser.uid).get()
+      ));
+      return new Map(docs.map((d, i) => [slots[i].id, d.exists]));
+    };
+
+    const coachSlots = _openFutureSlots(coachSlotsSnap, 'coachUid');
+    const refSlots   = _openFutureSlots(refSlotsSnap,   'refUid');
+    const [coachAppsMap, refAppsMap] = await Promise.all([
+      _buildAppsMap(coachSlots, 'coachApplications'),
+      _buildAppsMap(refSlots,   'refApplications'),
+    ]);
+
+    const coachSlotsHtml = coachSlots.length
+      ? `<div class="session-group">
+          <div class="session-group-label">Open coach slots</div>
+          ${coachSlots.map(s => _renderCoachSlotCard(s, coachAppsMap.get(s.id) || false)).join('')}
+        </div>` : '';
+    const refSlotsHtml = refSlots.length
+      ? `<div class="session-group">
+          <div class="session-group-label">Open ref slots</div>
+          ${refSlots.map(s => _renderRefSlotCard(s, refAppsMap.get(s.id) || false)).join('')}
+        </div>` : '';
+
+    container.innerHTML = coachSlotsHtml + refSlotsHtml + providerBannerHtml + bannerHtml + upcomingHtml + pastHtml;
 
   } catch(e) {
     container.innerHTML = '<div class="home-empty">Couldn\'t load sessions. Check your connection.</div>';
@@ -1148,6 +1194,8 @@ function _renderSessionCard(s) {
         ${typeLabel    ? `<span class="session-badge type-${esc(s.type)}">${esc(typeLabel)}</span>` : ''}
         ${genderLabel  ? `<span class="session-badge gender-${esc(s.gender)}">${esc(genderLabel)}</span>` : ''}
         ${_isAdmin && s.coach && s.coachFee > 0 && s.status === 'closed' ? _coachPayBadge(s) : ''}
+        ${s.coachSlotOpen && !s.coachUid ? `<span class="session-badge ref-needed-badge">Coach needed</span>` : ''}
+        ${s.refSlotOpen && !s.refUid ? `<span class="session-badge ref-needed-badge">Ref needed</span>` : ''}
         <span class="session-aside-counts">
           <span class="session-meta-item">👥 ${countStr}</span>
           <span class="session-meta-item">${esc(costStr)}</span>
@@ -1236,7 +1284,22 @@ async function openSession(id) {
       } catch(e) { /* non-critical */ }
     }
 
-    _renderDetail(session, attendees, isAttending, waitingList, myWaitingListPos, content, footer, seriesReg);
+    const isHost = _isAdmin || (_currentUser && session.providerUid === _currentUser.uid);
+    let coachApps = [], refApps = [];
+    if (isHost && (session.coachSlotOpen || session.refSlotOpen)) {
+      const [cSnap, rSnap] = await Promise.all([
+        session.coachSlotOpen
+          ? getDb().collection('sessions').doc(id).collection('coachApplications').orderBy('createdAt', 'asc').get().catch(() => null)
+          : Promise.resolve(null),
+        session.refSlotOpen
+          ? getDb().collection('sessions').doc(id).collection('refApplications').orderBy('createdAt', 'asc').get().catch(() => null)
+          : Promise.resolve(null),
+      ]);
+      if (cSnap) coachApps = cSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+      if (rSnap) refApps   = rSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    }
+
+    _renderDetail(session, attendees, isAttending, waitingList, myWaitingListPos, content, footer, seriesReg, coachApps, refApps);
   } catch(e) {
     content.innerHTML = `<div class="home-empty">Taking longer than usual… <button class="link-btn" onclick="location.reload()">Tap here to reload</button></div>`;
     console.error(e);
@@ -1465,7 +1528,7 @@ window.voteForTeam = async function(btn) {
   }
 };
 
-function _renderDetail(session, attendees, isAttending, waitingList, myWaitingListPos, content, footer, seriesReg) {
+function _renderDetail(session, attendees, isAttending, waitingList, myWaitingListPos, content, footer, seriesReg, coachApps = [], refApps = []) {
   const knownCount     = _currentUser ? attendees.length : (session.attendeeCount || 0);
   const spotsLeft      = _spotsLeft(session, knownCount);
   const isCancelled    = session.status === 'cancelled';
@@ -1491,7 +1554,14 @@ function _renderDetail(session, attendees, isAttending, waitingList, myWaitingLi
         })()}</span></div>` : ''}
         <div class="detail-meta-row"><span class="detail-meta-label">Date</span><span>${esc(_formatDate(session.date))}${session.time ? ` at ${esc(session.time)}` : ''}</span></div>
         ${session.type ? `<div class="detail-meta-row"><span class="detail-meta-label">Type</span><span><span class="session-badge type-${esc(session.type)}">${esc(SESSION_TYPES.find(t => t.value === session.type)?.label || session.type)}</span></span></div>` : ''}
-        ${session.coach ? `<div class="detail-meta-row"><span class="detail-meta-label">Coach</span><span>${esc(session.coach)}</span></div>` : ''}
+        ${session.coach
+          ? `<div class="detail-meta-row"><span class="detail-meta-label">Coach</span><span>${esc(session.coach)}</span></div>`
+          : session.coachSlotOpen
+            ? `<div class="detail-meta-row"><span class="detail-meta-label">Coach</span><span><span class="session-badge ref-needed-badge">Slot open</span></span></div>`
+            : ''}
+        ${session.refName ? `<div class="detail-meta-row"><span class="detail-meta-label">Referee</span><span>${esc(session.refName)}</span></div>`
+          : session.refSlotOpen ? `<div class="detail-meta-row"><span class="detail-meta-label">Referee</span><span><span class="session-badge ref-needed-badge">Slot open</span></span></div>` : ''}
+        ${_isAdmin && session.refFee > 0 ? `<div class="detail-meta-row"><span class="detail-meta-label">Ref fee</span><span>£${Number(session.refFee).toFixed(2)}</span></div>` : ''}
         ${levelLabel ? `<div class="detail-meta-row"><span class="detail-meta-label">Level</span><span><button class="detail-link" onclick="openLevelInfo('${esc(session.level)}')">${esc(levelLabel)} ↗</button></span></div>` : ''}
         <div class="detail-meta-row"><span class="detail-meta-label">Cost</span><span>${esc(_formatPlayerPrice(session.cost, session.absorbFee))}</span></div>
         <div class="detail-meta-row"><span class="detail-meta-label">Spots</span><span>${knownCount} / ${session.maxPlayers}${isCancelled ? '' : ` · ${spotsLeft} left`}${(() => {
@@ -1515,7 +1585,7 @@ function _renderDetail(session, attendees, isAttending, waitingList, myWaitingLi
         })()}
         ${deadlineStr ? `<div class="detail-meta-row"><span class="detail-meta-label">Deadline</span><span${deadlinePassed ? ' style="color:var(--red)"' : ''}>${esc(deadlineStr)}${deadlinePassed ? ' · closed' : ''}</span></div>` : ''}
         ${isCancelled ? `<div class="detail-meta-row"><span class="detail-badge cancelled">Cancelled</span></div>` : ''}
-        ${_isAdmin && session.coach && session.coachFee != null ? `<div class="detail-meta-row"><span class="detail-meta-label">Coach fee</span><span>£${Number(session.coachFee).toFixed(2)} ${_coachPayStatusWidget(session)}</span></div>` : ''}
+        ${_isAdmin && (session.coach || session.coachSlotOpen) && session.coachFee > 0 ? `<div class="detail-meta-row"><span class="detail-meta-label">Coach fee</span><span>£${Number(session.coachFee).toFixed(2)} ${session.coach ? _coachPayStatusWidget(session) : ''}</span></div>` : ''}
         ${_isAdmin && session.createdAt ? `<div class="detail-meta-row"><span class="detail-meta-label">Created</span><span>${esc(_formatDate(session.createdAt))}</span></div>` : ''}
       </div>
       ${session.description ? `<p class="detail-description">${esc(session.description)}</p>` : ''}
@@ -1527,6 +1597,29 @@ function _renderDetail(session, attendees, isAttending, waitingList, myWaitingLi
         </div>` : '';
       })() : ''}
     </div>
+
+    ${(coachApps.length || refApps.length) ? `
+    <div class="detail-section">
+      <div class="detail-section-title">Applications</div>
+      ${coachApps.length ? `
+        <div class="applications-group">
+          <div class="applications-group-label">Coach</div>
+          ${coachApps.map(a => `
+            <div class="application-row">
+              <span class="application-name">${esc(a.name || '—')}</span>
+              <button class="cta-btn cta-btn--sm" onclick="assignCoach('${esc(session.id)}','${esc(a.uid)}','${esc(a.name||'')}',this)">Assign</button>
+            </div>`).join('')}
+        </div>` : ''}
+      ${refApps.length ? `
+        <div class="applications-group">
+          <div class="applications-group-label">Referee</div>
+          ${refApps.map(a => `
+            <div class="application-row">
+              <span class="application-name">${esc(a.name || '—')}</span>
+              <button class="cta-btn cta-btn--sm" onclick="assignReferee('${esc(session.id)}','${esc(a.uid)}','${esc(a.name||'')}',this)">Assign</button>
+            </div>`).join('')}
+        </div>` : ''}
+    </div>` : ''}
 
     <div class="detail-section">
       <div class="detail-section-title">Attendees (${knownCount})</div>
@@ -3857,29 +3950,6 @@ async function openSessionCreateInline() {
         <label class="field-label">Description</label>
         <textarea class="field-input field-textarea" id="ie-description" placeholder="What to expect, skill level, what to bring…" maxlength="400"></textarea>
       </div>
-      ${_isAdmin ? `
-      <div class="field-row">
-        <div class="field">
-          <label class="field-label">Coach</label>
-          <select class="field-input field-select" id="ie-coach-select" onchange="_ieOnCoachChange()">
-            <option value="">None</option>
-          </select>
-          <input class="field-input" type="text" id="ie-coach-custom" placeholder="Coach name"
-            maxlength="60" autocomplete="off" autocorrect="off" spellcheck="false"
-            style="display:none;margin-top:6px" />
-        </div>
-        <div class="field">
-          <label class="field-label">Level</label>
-          <select class="field-input field-select" id="ie-level">
-            <option value="">Any level</option>
-            <option value="beginner">Beginner</option>
-            <option value="improver">Intermediate</option>
-            <option value="intermediate">Advanced</option>
-            <option value="advanced">Competitive</option>
-            <option value="competitive">Elite</option>
-          </select>
-        </div>
-      </div>` : `
       <div class="field">
         <label class="field-label">Level</label>
         <select class="field-input field-select" id="ie-level">
@@ -3890,7 +3960,7 @@ async function openSessionCreateInline() {
           <option value="advanced">Competitive</option>
           <option value="competitive">Elite</option>
         </select>
-      </div>`}
+      </div>
       <div class="field-row">
         <div class="field">
           <label class="field-label">Max players</label>
@@ -3904,16 +3974,6 @@ async function openSessionCreateInline() {
             <span class="toggle-label-text">Waive booking fee</span>
           </label>` : ''}
         </div>
-      </div>
-      ${_isAdmin ? `
-      <div class="field">
-        <label class="field-label">Coach fee (£)</label>
-        <input class="field-input" type="number" id="ie-coach-fee" min="0" step="0.5" inputmode="decimal" placeholder="50" />
-        <div class="field-hint">Amount paid to the coach after the session closes.</div>
-      </div>` : ''}
-      <div class="field">
-        <label class="field-label">Registration deadline</label>
-        <input class="field-input" type="datetime-local" id="ie-deadline" />
       </div>
       <div class="field">
         <label class="toggle-row">
@@ -3932,6 +3992,35 @@ async function openSessionCreateInline() {
         </div>
         <div class="pos-targets-total" id="ie-pos-total"></div>
       </div>
+      ${_isAdmin ? `
+      <div class="field" id="ie-coach-field">
+        <label class="field-label">Coach</label>
+        <label class="toggle-row">
+          <input type="checkbox" id="ie-coach-slot" onchange="_ieOnCoachSlotChange()" />
+          <span class="toggle-label-text">This session needs a coach</span>
+        </label>
+        <div id="ie-coach-details" style="display:none;margin-top:10px">
+          <select class="field-input field-select" id="ie-coach-select" style="margin-bottom:6px">
+            <option value="">Open — any coach can apply</option>
+          </select>
+          <input class="field-input" type="number" id="ie-coach-fee" min="0" step="0.5" inputmode="decimal" placeholder="0" />
+          <div class="field-hint">Coach fee (£) — 0 for volunteer</div>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">Referee</label>
+        <label class="toggle-row">
+          <input type="checkbox" id="ie-ref-slot" onchange="_ieOnRefSlotChange()" />
+          <span class="toggle-label-text">This session needs a referee</span>
+        </label>
+        <div id="ie-ref-details" style="display:none;margin-top:10px">
+          <select class="field-input field-select" id="ie-ref-select" style="margin-bottom:6px">
+            <option value="">Open — any referee can apply</option>
+          </select>
+          <input class="field-input" type="number" id="ie-ref-fee" min="0" step="0.5" inputmode="decimal" placeholder="0" />
+          <div class="field-hint">Ref fee (£) — 0 for volunteer</div>
+        </div>
+      </div>` : ''}
       ${!_isAdmin ? `
       <label class="form-insurance-label">
         <input type="checkbox" id="ie-insurance" />
@@ -3944,7 +4033,7 @@ async function openSessionCreateInline() {
     <button class="cta-btn secondary-btn" onclick="goHome()">Cancel</button>
     <button class="cta-btn" id="ie-save-btn" onclick="_submitInlineCreate()">Create session</button>`;
 
-  if (_isAdmin) await _ieLoadCoachOptions('', '');
+  if (_isAdmin) await Promise.all([_ieLoadCoachOptions('', ''), _ieLoadRefOptions('')]);
 }
 
 async function openClinicCreateInline() {
@@ -3957,8 +4046,8 @@ async function openClinicCreateInline() {
     typeEl.disabled = true;
   }
   // Hide coach-related admin fields when the coach is the organiser
-  const coachRow = document.getElementById('ie-coach-row');
-  if (coachRow && _isCoach && !_isAdmin) coachRow.style.display = 'none';
+  const coachField = document.getElementById('ie-coach-field');
+  if (coachField && _isCoach && !_isAdmin) coachField.style.display = 'none';
 }
 
 function _ieUpdatePosTotal() {
@@ -4016,19 +4105,24 @@ window._submitInlineCreate = async function() {
   const absorbFee   = absorbEl ? absorbEl.checked : false;
   const coachFeeEl  = document.getElementById('ie-coach-fee');
   const coachFee    = coachFeeEl ? (parseFloat(coachFeeEl.value) || 0) : 0;
+  const refSlotEl   = document.getElementById('ie-ref-slot');
+  const refSlotOpen = refSlotEl ? refSlotEl.checked : false;
+  const refSel      = document.getElementById('ie-ref-select');
+  const refUidVal   = refSel?.value || '';
+  const refNameVal  = refUidVal ? (document.querySelector(`#ie-ref-select option[value="${refUidVal}"]`)?.textContent || '') : '';
+  const refFeeEl    = document.getElementById('ie-ref-fee');
+  const refFeeVal   = refFeeEl ? (parseFloat(refFeeEl.value) || 0) : 0;
   const askPos      = document.getElementById('ie-ask-positions').checked;
-  const deadlineStr = document.getElementById('ie-deadline').value;
   const seriesSelEl = document.getElementById('ie-series');
   const seriesIdVal = seriesSelEl?.value || '';
   const seriesObj   = _allSeries.find(sr => sr.id === seriesIdVal);
 
-  const coachSel    = _isAdmin ? (document.getElementById('ie-coach-select')?.value || '') : '';
-  const coachUidVal = _isAdmin && coachSel && coachSel !== '__custom__' ? coachSel : '';
-  const coachVal    = _isAdmin
-    ? (coachSel === '__custom__'
-        ? (document.getElementById('ie-coach-custom')?.value.trim() || '')
-        : (coachSel ? (document.querySelector(`#ie-coach-select option[value="${coachSel}"]`)?.textContent || '') : ''))
-    : '';
+  const coachSlotEl = document.getElementById('ie-coach-slot');
+  const coachSlotOpen = coachSlotEl ? coachSlotEl.checked : false;
+  const coachSel    = document.getElementById('ie-coach-select')?.value || '';
+  const coachUidVal = coachSlotOpen && coachSel ? coachSel : '';
+  const coachVal    = coachUidVal
+    ? (document.querySelector(`#ie-coach-select option[value="${coachUidVal}"]`)?.textContent || '') : '';
 
   const posTargets = (() => {
     if (!askPos) return null;
@@ -4057,6 +4151,7 @@ window._submitInlineCreate = async function() {
     venueId,
     coach:                _isCoachOnly ? (_currentUser.displayName || '') : coachVal,
     coachUid:             _isCoachOnly ? _currentUser.uid : coachUidVal,
+    coachSlotOpen:        _isCoachOnly ? false : coachSlotOpen,
     level:                document.getElementById('ie-level').value,
     type:                 document.getElementById('ie-type').value,
     gender:               document.getElementById('ie-gender').value,
@@ -4064,6 +4159,10 @@ window._submitInlineCreate = async function() {
     maxPlayers:           maxVal,
     cost:                 costVal,
     coachFee,
+    refSlotOpen,
+    refUid:               refSlotOpen ? refUidVal : '',
+    refName:              refSlotOpen ? refNameVal : '',
+    refFee:               refSlotOpen ? refFeeVal : 0,
     absorbFee,
     playerPrice:          absorbFee ? costVal : _playerPrice(costVal),
     providerUid:          _currentUser.uid,
@@ -4073,7 +4172,6 @@ window._submitInlineCreate = async function() {
     seriesId:             seriesIdVal || null,
     seriesName:           seriesObj?.name || '',
     attendeeCount:        0,
-    registrationDeadline: deadlineStr ? firebase.firestore.Timestamp.fromDate(new Date(deadlineStr)) : null,
     ...(insuranceEl ? { insuranceDeclaredBy: _currentUser.uid, insuranceDeclaredAt: firebase.firestore.FieldValue.serverTimestamp() } : {}),
   };
 
@@ -4110,11 +4208,6 @@ async function openSessionEditInline(sessionId) {
   const footer  = document.getElementById('detail-footer');
 
   const dateVal = s.date?.toDate ? s.date.toDate().toISOString().slice(0, 10) : '';
-  let deadlineVal = '';
-  if (s.registrationDeadline) {
-    const d = s.registrationDeadline.toDate ? s.registrationDeadline.toDate() : new Date(s.registrationDeadline);
-    deadlineVal = new Date(d.getTime() - d.getTimezoneOffset() * 60000).toISOString().slice(0, 16);
-  }
 
   const venueOpts = _venueSelectOpts(s.venueId);
   const seriesOpts = '<option value="">None</option>' + _allSeries.map(sr =>
@@ -4166,26 +4259,10 @@ async function openSessionEditInline(sessionId) {
         <label class="field-label">Description</label>
         <textarea class="field-input field-textarea" id="ie-description" placeholder="What to expect, skill level, what to bring…" maxlength="400">${esc(s.description||'')}</textarea>
       </div>
-      ${_isAdmin ? `
-      <div class="field-row" id="ie-coach-field">
-        <div class="field">
-          <label class="field-label">Coach</label>
-          <select class="field-input field-select" id="ie-coach-select" onchange="_ieOnCoachChange()">
-            <option value="">None</option>
-          </select>
-          <input class="field-input" type="text" id="ie-coach-custom" placeholder="Coach name"
-            maxlength="60" autocomplete="off" autocorrect="off" spellcheck="false"
-            style="display:none;margin-top:6px" />
-        </div>
-        <div class="field">
-          <label class="field-label">Level</label>
-          <select class="field-input field-select" id="ie-level">${levelOpts}</select>
-        </div>
-      </div>` : `
       <div class="field">
         <label class="field-label">Level</label>
         <select class="field-input field-select" id="ie-level">${levelOpts}</select>
-      </div>`}
+      </div>
       <div class="field-row">
         <div class="field">
           <label class="field-label">Max players</label>
@@ -4199,16 +4276,6 @@ async function openSessionEditInline(sessionId) {
             <span class="toggle-label-text">Waive booking fee</span>
           </label>` : ''}
         </div>
-      </div>
-      ${_isAdmin ? `
-      <div class="field">
-        <label class="field-label">Coach fee (£)</label>
-        <input class="field-input" type="number" id="ie-coach-fee" min="0" step="0.5" inputmode="decimal" placeholder="50" value="${s.coachFee!=null?s.coachFee:''}" />
-        <div class="field-hint">Amount paid to the coach after the session closes.</div>
-      </div>` : ''}
-      <div class="field">
-        <label class="field-label">Registration deadline</label>
-        <input class="field-input" type="datetime-local" id="ie-deadline" value="${deadlineVal}" />
       </div>
       <div class="field">
         <label class="toggle-row">
@@ -4228,6 +4295,36 @@ async function openSessionEditInline(sessionId) {
         <div class="pos-targets-total" id="ie-pos-total"></div>
       </div>
       ${_isAdmin ? `
+      <div class="field" id="ie-coach-field">
+        <label class="field-label">Coach</label>
+        <label class="toggle-row">
+          <input type="checkbox" id="ie-coach-slot"${s.coachSlotOpen?' checked':''} onchange="_ieOnCoachSlotChange()" />
+          <span class="toggle-label-text">This session needs a coach</span>
+        </label>
+        <div id="ie-coach-details" style="display:${s.coachSlotOpen?'':'none'};margin-top:10px">
+          <select class="field-input field-select" id="ie-coach-select" style="margin-bottom:6px">
+            <option value="">Open — any coach can apply</option>
+          </select>
+          <input class="field-input" type="number" id="ie-coach-fee" min="0" step="0.5" inputmode="decimal" placeholder="0" value="${s.coachFee!=null?s.coachFee:''}" />
+          <div class="field-hint">Coach fee (£) — 0 for volunteer</div>
+          <div id="ie-coach-applicants"></div>
+        </div>
+      </div>
+      <div class="field">
+        <label class="field-label">Referee</label>
+        <label class="toggle-row">
+          <input type="checkbox" id="ie-ref-slot"${s.refSlotOpen?' checked':''} onchange="_ieOnRefSlotChange()" />
+          <span class="toggle-label-text">This session needs a referee</span>
+        </label>
+        <div id="ie-ref-details" style="display:${s.refSlotOpen?'':'none'};margin-top:10px">
+          <select class="field-input field-select" id="ie-ref-select" style="margin-bottom:6px">
+            <option value="">Open — any referee can apply</option>
+          </select>
+          <input class="field-input" type="number" id="ie-ref-fee" min="0" step="0.5" inputmode="decimal" placeholder="0" value="${s.refFee!=null?s.refFee:''}" />
+          <div class="field-hint">Ref fee (£) — 0 for volunteer</div>
+          <div id="ie-ref-applicants"></div>
+        </div>
+      </div>
       <div class="field">
         <label class="field-label">Status</label>
         <select class="field-input field-select" id="ie-status">${statusOpts}</select>
@@ -4240,12 +4337,17 @@ async function openSessionEditInline(sessionId) {
     <button class="cta-btn" id="ie-save-btn" onclick="_submitInlineEdit('${sessionId}')">Save changes</button>`;
 
   _ieUpdatePosTotal();
-  if (_isAdmin) await _ieLoadCoachOptions(s.coach, s.coachUid);
+  if (_isAdmin) {
+    await Promise.all([_ieLoadCoachOptions(s.coachUid || ''), _ieLoadRefOptions(s.refUid || '')]);
+    await Promise.all([
+      s.coachSlotOpen ? _ieLoadCoachApplicants(sessionId) : Promise.resolve(),
+      s.refSlotOpen   ? _ieLoadRefApplicants(sessionId)   : Promise.resolve(),
+    ]);
+  }
 }
 
-async function _ieLoadCoachOptions(currentCoach, currentCoachUid) {
-  const sel    = document.getElementById('ie-coach-select');
-  const custom = document.getElementById('ie-coach-custom');
+async function _ieLoadCoachOptions(currentCoachUid) {
+  const sel = document.getElementById('ie-coach-select');
   if (!sel) return;
   try {
     const snap = await _usersRef().where('roles', 'array-contains', 'coach').get();
@@ -4254,31 +4356,203 @@ async function _ieLoadCoachOptions(currentCoach, currentCoachUid) {
       if (!name) return;
       const opt = document.createElement('option');
       opt.value = d.id; opt.textContent = name;
+      if (d.id === currentCoachUid) opt.selected = true;
       sel.appendChild(opt);
     });
   } catch(e) { console.error('Failed to load coaches:', e); }
-  const customOpt = document.createElement('option');
-  customOpt.value = '__custom__'; customOpt.textContent = 'Custom…';
-  sel.appendChild(customOpt);
+}
 
-  if (currentCoachUid && Array.from(sel.options).find(o => o.value === currentCoachUid)) {
-    sel.value = currentCoachUid;
-    custom.style.display = 'none'; custom.value = '';
-  } else if (currentCoach) {
-    sel.value = '__custom__';
-    custom.style.display = ''; custom.value = currentCoach;
-  } else {
-    sel.value = ''; custom.style.display = 'none'; custom.value = '';
+window._ieOnCoachSlotChange = function() {
+  const checked = document.getElementById('ie-coach-slot')?.checked;
+  const details = document.getElementById('ie-coach-details');
+  if (details) details.style.display = checked ? '' : 'none';
+};
+
+window._ieOnRefSlotChange = function() {
+  const checked = document.getElementById('ie-ref-slot')?.checked;
+  const details = document.getElementById('ie-ref-details');
+  if (details) details.style.display = checked ? '' : 'none';
+};
+
+async function _ieLoadRefOptions(currentRefUid) {
+  const sel = document.getElementById('ie-ref-select');
+  if (!sel) return;
+  try {
+    const snap = await _usersRef().where('roles', 'array-contains', 'referee').get();
+    snap.docs.forEach(d => {
+      const name = d.data().name || d.data().email || '';
+      if (!name) return;
+      const opt = document.createElement('option');
+      opt.value = d.id; opt.textContent = name;
+      if (d.id === currentRefUid) opt.selected = true;
+      sel.appendChild(opt);
+    });
+  } catch(e) { console.error('Failed to load referees:', e); }
+}
+
+async function _ieLoadCoachApplicants(sessionId) {
+  const container = document.getElementById('ie-coach-applicants');
+  if (!container) return;
+  try {
+    const snap = await getDb().collection('sessions').doc(sessionId)
+      .collection('coachApplications').orderBy('createdAt', 'asc').get();
+    if (!snap.docs.length) {
+      container.innerHTML = '<div class="field-hint" style="margin-top:8px">No applications yet.</div>';
+      return;
+    }
+    container.innerHTML = `
+      <div class="field-label" style="margin-top:10px">Applicants</div>
+      ${snap.docs.map(d => {
+        const a = d.data();
+        return `<div class="ref-applicant-row">
+          <span>${esc(a.name || '—')}</span>
+          <button class="cta-btn cta-btn--sm" onclick="assignCoach('${esc(sessionId)}','${esc(a.uid)}','${esc(a.name || '')}',this)">Assign</button>
+        </div>`;
+      }).join('')}`;
+  } catch(e) { console.error('Load coach applicants failed:', e); }
+}
+
+async function _ieLoadRefApplicants(sessionId) {
+  const container = document.getElementById('ie-ref-applicants');
+  if (!container) return;
+  try {
+    const snap = await getDb().collection('sessions').doc(sessionId)
+      .collection('refApplications').orderBy('createdAt', 'asc').get();
+    if (!snap.docs.length) {
+      container.innerHTML = '<div class="field-hint" style="margin-top:8px">No applications yet.</div>';
+      return;
+    }
+    container.innerHTML = `
+      <div class="field-label" style="margin-top:10px">Applicants</div>
+      ${snap.docs.map(d => {
+        const a = d.data();
+        return `<div class="ref-applicant-row">
+          <span>${esc(a.name || '—')}</span>
+          <button class="cta-btn cta-btn--sm" onclick="assignReferee('${esc(sessionId)}','${esc(a.uid)}','${esc(a.name || '')}',this)">Assign</button>
+        </div>`;
+      }).join('')}`;
+  } catch(e) { console.error('Load applicants failed:', e); }
+}
+
+function _renderRefSlotCard(s, applied) {
+  const dateStr  = _formatDate(s.date);
+  const timeStr  = s.time || '';
+  const levelLabel = { any: 'Any level', beginner: 'Beginner', improver: 'Improver', intermediate: 'Advanced', advanced: 'Competitive', competitive: 'Elite' }[s.level] || 'Any level';
+  const feeStr   = s.refFee > 0 ? `£${Number(s.refFee).toFixed(2)}` : 'Volunteer';
+  return `
+    <div class="session-card ref-slot-card">
+      <div class="session-card-row" onclick="openSession('${s.id}')">
+        <div class="session-date">${esc(dateStr)}${timeStr ? ` · ${esc(timeStr)}` : ''}</div>
+      </div>
+      <div class="session-venue" onclick="openSession('${s.id}')">${esc(s.venue || '—')}</div>
+      ${s.description ? `<div class="session-desc" onclick="openSession('${s.id}')">${esc(s.description)}</div>` : ''}
+      <div class="session-card-meta">
+        <span class="session-badge level level-${esc(s.level || 'any')}">${esc(levelLabel)}</span>
+        <span class="session-badge">${esc(feeStr)}</span>
+      </div>
+      <button class="cta-btn ref-apply-btn${applied ? ' applied' : ''}"
+        ${applied ? 'disabled' : `onclick="applyAsReferee('${s.id}',this)"`}>
+        ${applied ? 'Applied ✓' : 'Apply as referee'}
+      </button>
+    </div>`;
+}
+
+async function applyAsReferee(sessionId, btn) {
+  if (!_isReferee || !_currentUser) return;
+  btn.disabled = true;
+  btn.textContent = 'Applying…';
+  try {
+    await getDb().collection('sessions').doc(sessionId)
+      .collection('refApplications').doc(_currentUser.uid)
+      .set({
+        uid:       _currentUser.uid,
+        name:      _currentUserDoc?.name || _currentUser.displayName || '',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    btn.textContent = 'Applied ✓';
+    btn.classList.add('applied');
+    showToast('Application sent!');
+  } catch(e) {
+    console.error('Apply failed:', e);
+    btn.disabled = false;
+    btn.textContent = 'Apply as referee';
+    showToast('Couldn\'t apply. Try again.', 'error');
   }
 }
 
-window._ieOnCoachChange = function() {
-  const sel    = document.getElementById('ie-coach-select');
-  const custom = document.getElementById('ie-coach-custom');
-  const isCustom = sel.value === '__custom__';
-  custom.style.display = isCustom ? '' : 'none';
-  if (isCustom) custom.focus();
-};
+async function assignReferee(sessionId, refUid, refName, btn) {
+  if (!_isAdmin) return;
+  if (btn) { btn.disabled = true; btn.textContent = 'Assigning…'; }
+  try {
+    await _sessionRef(sessionId).update({ refUid, refName, refSlotOpen: false });
+    showToast(`${refName || 'Referee'} assigned.`);
+    await openSession(sessionId);
+  } catch(e) {
+    console.error('Assign failed:', e);
+    if (btn) { btn.disabled = false; btn.textContent = 'Assign'; }
+    showToast('Couldn\'t assign. Try again.', 'error');
+  }
+}
+
+function _renderCoachSlotCard(s, applied) {
+  const dateStr    = _formatDate(s.date);
+  const timeStr    = s.time || '';
+  const levelLabel = { any: 'Any level', beginner: 'Beginner', improver: 'Improver', intermediate: 'Advanced', advanced: 'Competitive', competitive: 'Elite' }[s.level] || 'Any level';
+  const feeStr     = s.coachFee > 0 ? `£${Number(s.coachFee).toFixed(2)}` : 'Volunteer';
+  return `
+    <div class="session-card ref-slot-card">
+      <div class="session-card-row" onclick="openSession('${s.id}')">
+        <div class="session-date">${esc(dateStr)}${timeStr ? ` · ${esc(timeStr)}` : ''}</div>
+      </div>
+      <div class="session-venue" onclick="openSession('${s.id}')">${esc(s.venue || '—')}</div>
+      ${s.description ? `<div class="session-desc" onclick="openSession('${s.id}')">${esc(s.description)}</div>` : ''}
+      <div class="session-card-meta">
+        <span class="session-badge level level-${esc(s.level || 'any')}">${esc(levelLabel)}</span>
+        <span class="session-badge">${esc(feeStr)}</span>
+      </div>
+      <button class="cta-btn ref-apply-btn${applied ? ' applied' : ''}"
+        ${applied ? 'disabled' : `onclick="applyAsCoach('${s.id}',this)"`}>
+        ${applied ? 'Applied ✓' : 'Apply as coach'}
+      </button>
+    </div>`;
+}
+
+async function applyAsCoach(sessionId, btn) {
+  if (!_isCoach || !_currentUser) return;
+  btn.disabled = true;
+  btn.textContent = 'Applying…';
+  try {
+    await getDb().collection('sessions').doc(sessionId)
+      .collection('coachApplications').doc(_currentUser.uid)
+      .set({
+        uid:       _currentUser.uid,
+        name:      _currentUserDoc?.name || _currentUser.displayName || '',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    btn.textContent = 'Applied ✓';
+    btn.classList.add('applied');
+    showToast('Application sent!');
+  } catch(e) {
+    console.error('Apply failed:', e);
+    btn.disabled = false;
+    btn.textContent = 'Apply as coach';
+    showToast('Couldn\'t apply. Try again.', 'error');
+  }
+}
+
+async function assignCoach(sessionId, coachUid, coachName, btn) {
+  if (!_isAdmin) return;
+  if (btn) { btn.disabled = true; btn.textContent = 'Assigning…'; }
+  try {
+    await _sessionRef(sessionId).update({ coachUid, coach: coachName, coachSlotOpen: false });
+    showToast(`${coachName || 'Coach'} assigned.`);
+    await openSession(sessionId);
+  } catch(e) {
+    console.error('Assign coach failed:', e);
+    if (btn) { btn.disabled = false; btn.textContent = 'Assign'; }
+    showToast('Couldn\'t assign. Try again.', 'error');
+  }
+}
 
 window._submitInlineEdit = async function(sessionId) {
   const errorEl = document.getElementById('ie-error');
@@ -4313,21 +4587,25 @@ window._submitInlineEdit = async function(sessionId) {
   const costVal     = parseFloat(document.getElementById('ie-cost').value) || 0;
   const absorbEl    = document.getElementById('ie-absorb-fee');
   const absorbFee   = absorbEl ? absorbEl.checked : (!!_currentSession?.absorbFee);
+  const coachSlotElE = document.getElementById('ie-coach-slot');
+  const coachSlotOpen = coachSlotElE ? coachSlotElE.checked : (_currentSession?.coachSlotOpen || false);
+  const coachSelE    = document.getElementById('ie-coach-select');
+  const coachUidValE = coachSlotOpen && coachSelE?.value ? coachSelE.value : '';
+  const coachValE    = coachUidValE
+    ? (document.querySelector(`#ie-coach-select option[value="${coachUidValE}"]`)?.textContent || '') : '';
   const coachFeeEl  = document.getElementById('ie-coach-fee');
   const coachFee    = coachFeeEl ? (parseFloat(coachFeeEl.value) || 0) : (_currentSession?.coachFee || 0);
+  const refSlotEl   = document.getElementById('ie-ref-slot');
+  const refSlotOpen = refSlotEl ? refSlotEl.checked : (_currentSession?.refSlotOpen || false);
+  const refSel      = document.getElementById('ie-ref-select');
+  const refUidVal   = refSel?.value || '';
+  const refNameVal  = refUidVal ? (document.querySelector(`#ie-ref-select option[value="${refUidVal}"]`)?.textContent || '') : '';
+  const refFeeEl    = document.getElementById('ie-ref-fee');
+  const refFeeVal   = refFeeEl ? (parseFloat(refFeeEl.value) || 0) : (_currentSession?.refFee || 0);
   const askPos      = document.getElementById('ie-ask-positions').checked;
-  const deadlineStr = document.getElementById('ie-deadline').value;
   const seriesSelEl = document.getElementById('ie-series');
   const seriesIdVal = seriesSelEl?.value || '';
   const seriesObj   = _allSeries.find(sr => sr.id === seriesIdVal);
-
-  const coachSel    = _isAdmin ? (document.getElementById('ie-coach-select')?.value || '') : '';
-  const coachUidVal = _isAdmin && coachSel && coachSel !== '__custom__' ? coachSel : '';
-  const coachVal    = _isAdmin
-    ? (coachSel === '__custom__'
-        ? (document.getElementById('ie-coach-custom')?.value.trim() || '')
-        : (coachSel ? (document.querySelector(`#ie-coach-select option[value="${coachSel}"]`)?.textContent || '') : ''))
-    : '';
 
   const posTargets = (() => {
     if (!askPos) return null;
@@ -4344,8 +4622,9 @@ window._submitInlineEdit = async function(sessionId) {
     time:                 document.getElementById('ie-time').value,
     venue:                venueObj?.name || '',
     venueId,
-    coach:                coachVal,
-    coachUid:             coachUidVal,
+    coach:                coachSlotOpen ? coachValE : (_currentSession?.coach || ''),
+    coachUid:             coachSlotOpen ? coachUidValE : (_currentSession?.coachUid || ''),
+    coachSlotOpen,
     level:                document.getElementById('ie-level').value,
     type:                 document.getElementById('ie-type').value,
     gender:               document.getElementById('ie-gender').value,
@@ -4353,6 +4632,10 @@ window._submitInlineEdit = async function(sessionId) {
     maxPlayers:           maxVal,
     cost:                 costVal,
     coachFee,
+    refSlotOpen,
+    refUid:               refSlotOpen ? refUidVal : '',
+    refName:              refSlotOpen ? refNameVal : '',
+    refFee:               refSlotOpen ? refFeeVal : 0,
     absorbFee,
     playerPrice:          absorbFee ? costVal : _playerPrice(costVal),
     status:               _isAdmin ? (document.getElementById('ie-status')?.value || 'open') : (_currentSession?.status || 'open'),
@@ -4360,9 +4643,6 @@ window._submitInlineEdit = async function(sessionId) {
     positionTargets:      posTargets,
     seriesId:             seriesIdVal || null,
     seriesName:           seriesObj?.name || '',
-    registrationDeadline: deadlineStr
-      ? firebase.firestore.Timestamp.fromDate(new Date(deadlineStr))
-      : null,
   };
 
   try {
