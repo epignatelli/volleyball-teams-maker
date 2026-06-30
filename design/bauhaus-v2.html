@@ -1,0 +1,697 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bauhaus v2 — Roots</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&display=swap" rel="stylesheet" />
+<style>
+
+/* ── Authentic Bauhaus token set ─────────────────────────────────────────── */
+:root {
+  /* Primary triad — Itten / Hue Atlas */
+  --y:   #E8C018;   /* ochre yellow  — dominant  ~65% of chromatic surface */
+  --b:   #1E3878;   /* ink blue      — secondary ~25% */
+  --r:   #C8302A;   /* brick red     — accent    ~10% */
+
+  /* Grounds */
+  --white: #F5F5F0;
+  --black: #111111;
+
+  /* Neutrals */
+  --mid:   #888888;
+  --rule-light: rgba(0,0,0,0.09);
+  --rule-dark:  rgba(255,255,255,0.10);
+
+  --sport: 'Barlow Condensed', system-ui, sans-serif;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: #000;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* ── Skin wrapper ────────────────────────────────────────────────────────── */
+.skin { max-width: 390px; margin: 0 auto; }
+.skin-light { background: var(--white); color: var(--black); }
+.skin-dark  { background: var(--black); color: var(--white); }
+
+/* ── Version banner ──────────────────────────────────────────────────────── */
+.ver-banner {
+  padding: 10px 16px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.ver-title {
+  font-family: var(--sport); font-size: 11px; font-weight: 700;
+  letter-spacing: .14em; text-transform: uppercase;
+}
+.ver-sub { font-size: 11px; color: var(--mid); margin-top: 1px; }
+
+/* ── Top bar ─────────────────────────────────────────────────────────────── */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  height: 48px; padding: 0 16px;
+}
+.topbar-light { border-bottom: 1px solid var(--rule-light); }
+.topbar-dark  { border-bottom: 1px solid var(--rule-dark);  }
+
+.wordmark {
+  font-family: var(--sport); font-size: 22px; font-weight: 900;
+  letter-spacing: .06em; text-transform: uppercase;
+}
+.wordmark-light { color: var(--black); }
+.wordmark-dark  { color: var(--white); }
+.wordmark em {
+  font-style: normal;
+  /* Yellow dot — the one decorative element that's structural */
+  color: var(--y);
+}
+
+/* Avatar: blue square — circle=blue per Kandinsky but square is identity */
+.avatar {
+  width: 28px; height: 28px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--sport); font-size: 12px; font-weight: 900;
+}
+.avatar-light { background: var(--black); color: var(--y); }
+.avatar-dark  { background: var(--y);     color: var(--black); }
+
+/* ── Nav tabs ────────────────────────────────────────────────────────────── */
+.tabs {
+  display: flex; overflow-x: auto; scrollbar-width: none;
+  border-bottom: 1px solid var(--rule-light);
+}
+.tabs-dark { border-bottom-color: var(--rule-dark); }
+.tabs::-webkit-scrollbar { display: none; }
+
+.tab {
+  flex: none; height: 36px; padding: 0 14px;
+  background: none; border: none; border-bottom: 3px solid transparent;
+  font-family: var(--sport); font-size: 11px; font-weight: 700;
+  letter-spacing: .10em; text-transform: uppercase;
+  cursor: pointer; transition: color .1s, border-color .1s, background .1s;
+  white-space: nowrap;
+}
+.tab-light       { color: var(--mid); }
+.tab-light.on    { color: var(--black); border-bottom-color: var(--y); background: rgba(232,192,24,.10); }
+.tab-dark        { color: #555; }
+.tab-dark.on     { color: var(--white); border-bottom-color: var(--y); background: rgba(232,192,24,.08); }
+
+/* ── Section header ──────────────────────────────────────────────────────── */
+/* Left-edge colour bar instead of underline — more Bauhaus */
+.sh {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 16px 10px;
+  border-left: 4px solid var(--y);
+  margin-left: 0;
+  font-family: var(--sport); font-size: 10px; font-weight: 700;
+  letter-spacing: .14em; text-transform: uppercase;
+}
+.sh-light { color: var(--mid); border-bottom: 1px solid var(--rule-light); }
+.sh-dark  { color: #555;       border-bottom: 1px solid var(--rule-dark);  }
+
+/* ── Session list ────────────────────────────────────────────────────────── */
+.session {
+  display: flex; align-items: flex-start; gap: 14px;
+  padding: 14px 16px;
+}
+.session-light { border-bottom: 1px solid var(--rule-light); }
+.session-dark  { border-bottom: 1px solid var(--rule-dark);  }
+.session:first-of-type { border-top: 1px solid var(--rule-light); }
+.sessions-dark .session:first-of-type { border-top-color: var(--rule-dark); }
+
+/* Date block: the geometric anchor */
+.date { flex-shrink: 0; width: 40px; text-align: center; }
+.date-day {
+  font-family: var(--sport); font-size: 28px; font-weight: 900;
+  line-height: 1;
+}
+.date-day-light { color: var(--black); }
+.date-day-dark  { color: var(--white); }
+.date-mon {
+  font-family: var(--sport); font-size: 10px; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase;
+  color: var(--mid);
+}
+
+.session-body { flex: 1; min-width: 0; }
+.session-name {
+  font-family: var(--sport); font-size: 16px; font-weight: 700;
+  letter-spacing: .02em; text-transform: uppercase; line-height: 1.1;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  margin-bottom: 3px;
+}
+.session-name-light { color: var(--black); }
+.session-name-dark  { color: var(--white); }
+.session-meta {
+  font-size: 12px; color: var(--mid);
+  display: flex; align-items: center; gap: 5px;
+}
+.dot-sep { font-size: 8px; }
+
+.session-right { flex-shrink: 0; text-align: right; padding-top: 2px; }
+
+/* Badges — outline only, no fill */
+/* Kandinsky: triangle=yellow (action/CTA), circle=blue (info/available), square=red (stop/error) */
+.badge {
+  font-family: var(--sport); font-size: 9px; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase;
+  padding: 2px 6px; border: 1px solid currentColor;
+  display: inline-block;
+}
+.badge-open   { color: var(--b); }    /* blue — info, available */
+.badge-full   { color: var(--mid); }
+.badge-closed { color: var(--r); }    /* red — stop */
+.spots {
+  font-size: 11px; color: var(--mid); margin-top: 3px;
+  font-family: var(--sport); font-weight: 600; letter-spacing: .02em;
+}
+
+/* ── Role badges ─────────────────────────────────────────────────────────── */
+.role-badges { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 5px; }
+.rb {
+  font-family: var(--sport); font-size: 9px; font-weight: 700;
+  letter-spacing: .10em; text-transform: uppercase;
+  padding: 2px 5px; border: 1px solid currentColor;
+}
+/* All paid roles = yellow (earned), referee = blue (informational cert) */
+.rb-paid { color: var(--y); }
+.rb-ref  { color: var(--b); }
+
+/* ── Buttons ─────────────────────────────────────────────────────────────── */
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; padding: 16px; }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 5px;
+  height: 38px; padding: 0 18px; border: none; cursor: pointer;
+  font-family: var(--sport); font-size: 13px; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase; transition: opacity .1s;
+}
+.btn:active { opacity: .75; }
+.btn-sm { height: 28px; padding: 0 10px; font-size: 11px; }
+
+/* Primary: yellow block — dominant colour doing its job */
+.btn-primary-light { background: var(--y);     color: var(--black); }
+.btn-primary-dark  { background: var(--y);     color: var(--black); }
+
+/* Ghost: structure outline */
+.btn-ghost-light { background: none; border: 1px solid rgba(0,0,0,.25);   color: var(--black); }
+.btn-ghost-dark  { background: none; border: 1px solid rgba(255,255,255,.25); color: var(--white); }
+
+/* Danger: red — accent, ~10% usage only */
+.btn-danger { background: none; border: 1px solid var(--r); color: var(--r); }
+
+/* Stripe: yellow tint */
+.btn-stripe-light { background: rgba(232,192,24,.12); border: 1px solid rgba(232,192,24,.4); color: #8a6e00; }
+.btn-stripe-dark  { background: rgba(232,192,24,.10); border: 1px solid rgba(232,192,24,.35); color: var(--y); }
+
+/* ── Profile hero ────────────────────────────────────────────────────────── */
+.profile-hero {
+  display: flex; align-items: center; gap: 14px;
+  padding: 20px 16px 16px;
+}
+.profile-hero-light { border-bottom: 1px solid var(--rule-light); }
+.profile-hero-dark  { border-bottom: 1px solid var(--rule-dark); }
+
+/* Avatar: yellow square — geometric, Bauhaus */
+.profile-av {
+  width: 52px; height: 52px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--sport); font-size: 22px; font-weight: 900;
+}
+.profile-av-light { background: var(--black); color: var(--y); }
+.profile-av-dark  { background: var(--y);     color: var(--black); }
+
+.profile-name {
+  font-family: var(--sport); font-size: 22px; font-weight: 900;
+  letter-spacing: .03em; text-transform: uppercase; line-height: 1.1;
+}
+.profile-name-light { color: var(--black); }
+.profile-name-dark  { color: var(--white); }
+
+/* ── Membership table ────────────────────────────────────────────────────── */
+.mem { width: 100%; border-collapse: collapse; }
+.mem tr { border-bottom: 1px solid var(--rule-light); }
+.mem-dark tr { border-bottom-color: var(--rule-dark); }
+.mem td { padding: 10px 16px; font-size: 12px; }
+.mem-label {
+  font-family: var(--sport); font-size: 11px; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase;
+  width: 90px;
+}
+.mem-label-light { color: var(--mid); }
+.mem-label-dark  { color: #555; }
+.mem-val { text-align: right; }
+
+/* Status indicators — Kandinsky circle for "active/available" */
+.status-active {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: var(--sport); font-size: 10px; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--b);
+}
+/* The circle: blue, Kandinsky */
+.status-active::before {
+  content: ''; display: inline-block;
+  width: 6px; height: 6px; border-radius: 50%;
+  background: var(--b);
+}
+.status-pending {
+  font-family: var(--sport); font-size: 10px; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--y);
+}
+/* Dark mode overrides */
+.status-active-dark { color: var(--y); }
+.status-active-dark::before { background: var(--y); }
+
+/* ── Filter bar ──────────────────────────────────────────────────────────── */
+.fbar {
+  display: flex; height: 40px;
+}
+.fbar-light { background: var(--white); border-top: 1px solid var(--rule-light); }
+.fbar-dark  { background: #1a1a1a;     border-top: 1px solid var(--rule-dark); }
+.fb {
+  flex: 1; background: none; border: none;
+  font-family: var(--sport); font-size: 10px; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase;
+  cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 4px;
+  transition: background .1s, color .1s;
+}
+.fb-light { color: var(--mid); border-right: 1px solid var(--rule-light); }
+.fb-dark  { color: #555;       border-right: 1px solid var(--rule-dark); }
+.fb:last-child { border-right: none; }
+.fb-light.on { background: rgba(232,192,24,.15); color: var(--black); }
+.fb-dark.on  { background: rgba(232,192,24,.10); color: var(--y); }
+
+/* yellow triangle marker for active filter — Kandinsky */
+.fb.on::before {
+  content: '▲';
+  font-size: 5px;
+  color: var(--y);
+}
+
+/* ── Coach card ──────────────────────────────────────────────────────────── */
+.coach-card {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 14px 16px;
+  cursor: pointer;
+}
+.coach-card-light { border-bottom: 1px solid var(--rule-light); }
+.coach-card-dark  { border-bottom: 1px solid var(--rule-dark); }
+.coach-av {
+  width: 36px; height: 36px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--sport); font-size: 14px; font-weight: 900;
+}
+.coach-av-light { background: var(--y); color: var(--black); }
+.coach-av-dark  { background: rgba(232,192,24,.15); color: var(--y); }
+.coach-name {
+  font-family: var(--sport); font-size: 15px; font-weight: 700;
+  letter-spacing: .02em; text-transform: uppercase; margin-bottom: 3px;
+}
+.coach-name-light { color: var(--black); }
+.coach-name-dark  { color: var(--white); }
+.chips { display: flex; gap: 4px; flex-wrap: wrap; }
+.chip {
+  font-family: var(--sport); font-size: 9px; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase;
+  padding: 1px 5px; border: 1px solid currentColor;
+}
+.chip-pos   { color: var(--b); }
+.chip-style { color: var(--mid); }
+.chip-rate  { color: var(--y); background: rgba(232,192,24,.10); }
+.chip-rate-dark { color: var(--y); }
+
+/* ── Separator between skins ─────────────────────────────────────────────── */
+.gap {
+  height: 3px; background: var(--y);
+  margin: 0 auto; max-width: 390px;
+}
+.gap2 { background: #000; height: 2px; max-width: 390px; margin: 0 auto; }
+
+</style>
+</head>
+<body>
+
+
+<!-- ══════════════════════════════════════════
+     LIGHT — authentic Bauhaus primaries
+══════════════════════════════════════════ -->
+<div class="skin skin-light">
+
+  <!-- version label -->
+  <div class="ver-banner" style="background:var(--y)">
+    <div>
+      <div class="ver-title" style="color:var(--black)">Bauhaus · Light ground</div>
+      <div class="ver-sub" style="color:rgba(0,0,0,.5)">Yellow #E8C018 · Blue #1E3878 · Red #C8302A</div>
+    </div>
+  </div>
+
+  <!-- top bar -->
+  <div class="topbar topbar-light">
+    <span class="wordmark wordmark-light">R<em>·</em>OOTS</span>
+    <div class="avatar avatar-light">EP</div>
+  </div>
+
+  <!-- nav tabs -->
+  <div class="tabs">
+    <button class="tab tab-light on">Sessions</button>
+    <button class="tab tab-light">Passes</button>
+    <button class="tab tab-light">Coaches</button>
+    <button class="tab tab-light">Refs</button>
+  </div>
+
+  <!-- section header — left yellow bar -->
+  <div class="sh sh-light">Upcoming</div>
+
+  <!-- session list -->
+  <div>
+    <div class="session session-light">
+      <div class="date">
+        <div class="date-day date-day-light">14</div>
+        <div class="date-mon">Jul</div>
+      </div>
+      <div class="session-body">
+        <div class="session-name session-name-light">Brixton Rec · 6-a-side</div>
+        <div class="session-meta">
+          <span>19:00</span><span class="dot-sep">·</span>
+          <span>Intermediate</span><span class="dot-sep">·</span>
+          <span>Mixed</span>
+        </div>
+      </div>
+      <div class="session-right">
+        <div class="badge badge-open">Open</div>
+        <div class="spots">3 spots</div>
+      </div>
+    </div>
+
+    <div class="session session-light">
+      <div class="date">
+        <div class="date-day date-day-light">16</div>
+        <div class="date-mon">Jul</div>
+      </div>
+      <div class="session-body">
+        <div class="session-name session-name-light">Crystal Palace NSC</div>
+        <div class="session-meta">
+          <span>18:30</span><span class="dot-sep">·</span>
+          <span>Advanced</span><span class="dot-sep">·</span>
+          <span>Women</span>
+        </div>
+      </div>
+      <div class="session-right">
+        <div class="badge badge-full">Full</div>
+      </div>
+    </div>
+
+    <div class="session session-light">
+      <div class="date">
+        <div class="date-day date-day-light">19</div>
+        <div class="date-mon">Jul</div>
+      </div>
+      <div class="session-body">
+        <div class="session-name session-name-light">Clapham Common Open</div>
+        <div class="session-meta">
+          <span>10:00</span><span class="dot-sep">·</span>
+          <span>Beginner</span><span class="dot-sep">·</span>
+          <span>Mixed</span>
+        </div>
+      </div>
+      <div class="session-right">
+        <div class="badge badge-closed">Closed</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- buttons -->
+  <div class="btn-row">
+    <button class="btn btn-primary-light">Join session</button>
+    <button class="btn btn-ghost-light">Edit profile</button>
+    <button class="btn btn-sm btn-danger">Revoke</button>
+    <button class="btn btn-sm btn-stripe-light">Connect Stripe →</button>
+  </div>
+
+  <!-- coach directory -->
+  <div class="sh sh-light" style="margin-top:4px">Coaches</div>
+  <div>
+    <div class="coach-card coach-card-light">
+      <div class="coach-av coach-av-light">JS</div>
+      <div>
+        <div class="coach-name coach-name-light">Jamie Sherwood</div>
+        <div class="chips">
+          <span class="chip chip-pos">S</span>
+          <span class="chip chip-pos">H</span>
+          <span class="chip chip-style">Technical</span>
+          <span class="chip chip-rate" style="background:rgba(232,192,24,.15)">£45/hr</span>
+        </div>
+      </div>
+    </div>
+    <div class="coach-card coach-card-light">
+      <div class="coach-av coach-av-light">MR</div>
+      <div>
+        <div class="coach-name coach-name-light">Maria Rossi</div>
+        <div class="chips">
+          <span class="chip chip-pos">M</span>
+          <span class="chip chip-style">Conditioning</span>
+          <span class="chip chip-style">Mental</span>
+          <span class="chip chip-rate" style="background:rgba(232,192,24,.15)">£60/hr</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- profile -->
+  <div class="sh sh-light" style="margin-top:4px">Profile</div>
+  <div class="profile-hero profile-hero-light">
+    <div class="profile-av profile-av-light">EP</div>
+    <div>
+      <div class="profile-name profile-name-light">Eduardo<br>Pignatelli</div>
+      <div class="role-badges">
+        <span class="rb rb-paid">Coach</span>
+        <span class="rb rb-ref">Referee</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="sh sh-light">Membership</div>
+  <table class="mem">
+    <tr>
+      <td class="mem-label mem-label-light">Player</td>
+      <td class="mem-val"><span class="status-active">Active</span></td>
+    </tr>
+    <tr>
+      <td class="mem-label mem-label-light">Coach</td>
+      <td class="mem-val">
+        <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px">
+          <button class="btn btn-sm btn-danger">Revoke</button>
+          <span class="status-active">Active</span>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td class="mem-label mem-label-light">Referee</td>
+      <td class="mem-val"><span class="status-pending">Pending</span></td>
+    </tr>
+    <tr>
+      <td class="mem-label mem-label-light">Host</td>
+      <td class="mem-val"><button class="btn btn-sm btn-ghost-light">Request →</button></td>
+    </tr>
+    <tr>
+      <td class="mem-label mem-label-light">Payments</td>
+      <td class="mem-val"><button class="btn btn-sm btn-stripe-light">Connect Stripe →</button></td>
+    </tr>
+  </table>
+
+  <!-- filter bar -->
+  <div style="margin-top:24px">
+    <div class="fbar fbar-light">
+      <button class="fb fb-light on">Open</button>
+      <button class="fb fb-light">Type</button>
+      <button class="fb fb-light on">Advanced</button>
+      <button class="fb fb-light">Day</button>
+      <button class="fb fb-light">Time</button>
+    </div>
+  </div>
+
+</div><!-- /skin-light -->
+
+<div class="gap"></div>
+<div class="gap2"></div>
+<div class="gap" style="background:#1E3878"></div>
+
+
+<!-- ══════════════════════════════════════════
+     DARK — authentic Bauhaus primaries
+══════════════════════════════════════════ -->
+<div class="skin skin-dark">
+
+  <div class="ver-banner" style="background:var(--black);border-bottom:3px solid var(--y)">
+    <div>
+      <div class="ver-title" style="color:var(--white)">Bauhaus · Dark ground</div>
+      <div class="ver-sub">Yellow #E8C018 · Blue #1E3878 · Red #C8302A</div>
+    </div>
+  </div>
+
+  <div class="topbar topbar-dark">
+    <span class="wordmark wordmark-dark">R<em>·</em>OOTS</span>
+    <div class="avatar avatar-dark">EP</div>
+  </div>
+
+  <div class="tabs tabs-dark">
+    <button class="tab tab-dark on">Sessions</button>
+    <button class="tab tab-dark">Passes</button>
+    <button class="tab tab-dark">Coaches</button>
+    <button class="tab tab-dark">Refs</button>
+  </div>
+
+  <div class="sh sh-dark">Upcoming</div>
+
+  <div>
+    <div class="session session-dark" style="border-top:1px solid var(--rule-dark)">
+      <div class="date">
+        <div class="date-day date-day-dark">14</div>
+        <div class="date-mon">Jul</div>
+      </div>
+      <div class="session-body">
+        <div class="session-name session-name-dark">Brixton Rec · 6-a-side</div>
+        <div class="session-meta">
+          <span>19:00</span><span class="dot-sep">·</span>
+          <span>Intermediate</span><span class="dot-sep">·</span>
+          <span>Mixed</span>
+        </div>
+      </div>
+      <div class="session-right">
+        <!-- open on dark: use yellow (the light-on-dark primary) -->
+        <div class="badge" style="color:var(--y)">Open</div>
+        <div class="spots">3 spots</div>
+      </div>
+    </div>
+
+    <div class="session session-dark">
+      <div class="date">
+        <div class="date-day date-day-dark">16</div>
+        <div class="date-mon">Jul</div>
+      </div>
+      <div class="session-body">
+        <div class="session-name session-name-dark">Crystal Palace NSC</div>
+        <div class="session-meta">
+          <span>18:30</span><span class="dot-sep">·</span>
+          <span>Advanced</span><span class="dot-sep">·</span>
+          <span>Women</span>
+        </div>
+      </div>
+      <div class="session-right">
+        <div class="badge badge-full">Full</div>
+      </div>
+    </div>
+
+    <div class="session session-dark">
+      <div class="date">
+        <div class="date-day date-day-dark">19</div>
+        <div class="date-mon">Jul</div>
+      </div>
+      <div class="session-body">
+        <div class="session-name session-name-dark">Clapham Common Open</div>
+        <div class="session-meta">
+          <span>10:00</span><span class="dot-sep">·</span>
+          <span>Beginner</span><span class="dot-sep">·</span>
+          <span>Mixed</span>
+        </div>
+      </div>
+      <div class="session-right">
+        <div class="badge badge-closed">Closed</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="btn-row">
+    <button class="btn btn-primary-dark">Join session</button>
+    <button class="btn btn-ghost-dark">Edit profile</button>
+    <button class="btn btn-sm btn-danger">Revoke</button>
+    <button class="btn btn-sm btn-stripe-dark">Connect Stripe →</button>
+  </div>
+
+  <div class="sh sh-dark" style="margin-top:4px">Coaches</div>
+  <div>
+    <div class="coach-card coach-card-dark" style="border-top:1px solid var(--rule-dark)">
+      <div class="coach-av coach-av-dark">JS</div>
+      <div>
+        <div class="coach-name coach-name-dark">Jamie Sherwood</div>
+        <div class="chips">
+          <span class="chip" style="color:var(--y)">S</span>
+          <span class="chip" style="color:var(--y)">H</span>
+          <span class="chip chip-style">Technical</span>
+          <span class="chip chip-rate chip-rate-dark">£45/hr</span>
+        </div>
+      </div>
+    </div>
+    <div class="coach-card coach-card-dark">
+      <div class="coach-av coach-av-dark">MR</div>
+      <div>
+        <div class="coach-name coach-name-dark">Maria Rossi</div>
+        <div class="chips">
+          <span class="chip" style="color:var(--y)">M</span>
+          <span class="chip chip-style">Conditioning</span>
+          <span class="chip chip-rate chip-rate-dark">£60/hr</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="sh sh-dark" style="margin-top:4px">Profile</div>
+  <div class="profile-hero profile-hero-dark">
+    <div class="profile-av profile-av-dark">EP</div>
+    <div>
+      <div class="profile-name profile-name-dark">Eduardo<br>Pignatelli</div>
+      <div class="role-badges">
+        <span class="rb" style="color:var(--y)">Coach</span>
+        <span class="rb" style="color:var(--y)">Referee</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="sh sh-dark">Membership</div>
+  <table class="mem mem-dark">
+    <tr>
+      <td class="mem-label mem-label-dark">Player</td>
+      <td class="mem-val">
+        <span class="status-active status-active-dark">Active</span>
+      </td>
+    </tr>
+    <tr>
+      <td class="mem-label mem-label-dark">Coach</td>
+      <td class="mem-val">
+        <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px">
+          <button class="btn btn-sm btn-danger">Revoke</button>
+          <span class="status-active status-active-dark">Active</span>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td class="mem-label mem-label-dark">Referee</td>
+      <td class="mem-val"><span class="status-pending">Pending</span></td>
+    </tr>
+    <tr>
+      <td class="mem-label mem-label-dark">Host</td>
+      <td class="mem-val"><button class="btn btn-sm btn-ghost-dark">Request →</button></td>
+    </tr>
+    <tr>
+      <td class="mem-label mem-label-dark">Payments</td>
+      <td class="mem-val"><button class="btn btn-sm btn-stripe-dark">Connect Stripe →</button></td>
+    </tr>
+  </table>
+
+  <div style="margin-top:24px">
+    <div class="fbar fbar-dark">
+      <button class="fb fb-dark on">Open</button>
+      <button class="fb fb-dark">Type</button>
+      <button class="fb fb-dark on">Advanced</button>
+      <button class="fb fb-dark">Day</button>
+      <button class="fb fb-dark">Time</button>
+    </div>
+  </div>
+
+</div><!-- /skin-dark -->
+
+</body>
+</html>

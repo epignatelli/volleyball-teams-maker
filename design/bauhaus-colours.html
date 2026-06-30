@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bauhaus Colour — Roots</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&display=swap" rel="stylesheet" />
+<style>
+
+/* ══════════════════════════════════════
+   CURRENT palette (dark navy tinted)
+══════════════════════════════════════ */
+.skin-current {
+  --bg:      #0f1117;
+  --surface: #1a1d27;
+  --rule:    rgba(255,255,255,0.08);
+  --text:    #f0f2f8;
+  --muted:   #7a80a0;
+  --y:       #f0a500;   /* amber */
+  --r:       #f87171;   /* soft red */
+  --g:       #22c97a;   /* green */
+  --b:       #38bdf8;   /* sky blue */
+  --p:       #a78bfa;   /* purple */
+}
+
+/* ══════════════════════════════════════
+   BAUHAUS palette — primary triad
+   Background: pure black
+   Yellow: saturated, clean
+   Red:    flat primary
+   Blue:   primary Bauhaus blue
+   No purple, no teal, no sky
+══════════════════════════════════════ */
+.skin-bauhaus {
+  --bg:      #111111;
+  --surface: #1a1a1a;
+  --rule:    rgba(255,255,255,0.10);
+  --text:    #f5f5f0;
+  --muted:   #666666;
+  --y:       #FFD600;   /* Bauhaus yellow — pure, high-sat */
+  --r:       #E63946;   /* Bauhaus red — flat primary */
+  --g:       #2EC4B6;   /* keep teal for gender/open states */
+  --b:       #1D6FD8;   /* Bauhaus blue — deeper, not sky */
+  --p:       #E63946;   /* no purple — red does the job */
+}
+
+/* ── Reset ── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  -webkit-font-smoothing: antialiased;
+  font-size: 14px;
+}
+
+/* ── Skin wrapper ── */
+.skin {
+  padding: 0 0 40px;
+  background: var(--bg);
+  color: var(--text);
+}
+
+/* ── Label banner ── */
+.skin-banner {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 20px;
+  border-bottom: 3px solid var(--y);
+  margin-bottom: 0;
+}
+.skin-banner-title {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 13px; font-weight: 900; letter-spacing: .12em; text-transform: uppercase;
+  color: var(--text);
+}
+.skin-banner-sub {
+  font-size: 11px; color: var(--muted); margin-top: 1px;
+}
+
+/* ── Palette strip ── */
+.palette-strip {
+  display: grid; grid-template-columns: repeat(5, 1fr); height: 36px;
+}
+.ps { display: flex; align-items: flex-end; padding: 4px 6px; }
+.ps span {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+}
+
+/* ── Top bar ── */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  height: 46px; padding: 0 16px;
+  border-bottom: 1px solid var(--rule);
+}
+.wordmark {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 20px; font-weight: 900; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--text);
+}
+.wordmark em { color: var(--y); font-style: normal; }
+.avatar-block {
+  width: 26px; height: 26px;
+  background: var(--y);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 12px; font-weight: 900; color: #111;
+}
+
+/* ── Tabs ── */
+.tabs {
+  display: flex; border-bottom: 1px solid var(--rule);
+  overflow-x: auto; scrollbar-width: none;
+}
+.tab {
+  flex: none; height: 34px; padding: 0 14px; background: none; border: none;
+  border-bottom: 2px solid transparent; cursor: pointer;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 11px; font-weight: 700; letter-spacing: .10em; text-transform: uppercase;
+  color: var(--muted); transition: color .12s, border-color .12s;
+}
+.tab.active { color: var(--text); border-bottom-color: var(--y); }
+
+/* ── Session cards ── */
+.section { padding: 0 20px; }
+.session { display: flex; align-items: flex-start; gap: 14px;
+           padding: 14px 0; border-bottom: 1px solid var(--rule); }
+.session:first-child { border-top: 1px solid var(--rule); margin-top: 16px; }
+
+.date-block { flex-shrink: 0; width: 38px; text-align: center; }
+.date-day {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 26px; font-weight: 900; line-height: 1; color: var(--text);
+}
+.date-mon {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--muted);
+}
+.session-body { flex: 1; min-width: 0; }
+.session-name {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 15px; font-weight: 700; letter-spacing: .02em; text-transform: uppercase;
+  margin-bottom: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.session-meta { font-size: 12px; color: var(--muted); display: flex; gap: 6px; }
+.sep { color: var(--rule); }
+.session-right { flex-shrink: 0; text-align: right; }
+.badge {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 9px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  padding: 2px 5px; border: 1px solid currentColor; display: inline-block;
+}
+.badge-open   { color: var(--g); }
+.badge-full   { color: var(--muted); }
+.spots { font-size: 11px; color: var(--muted); margin-top: 2px; }
+
+/* ── Role badges ── */
+.role-badges { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+.rb {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 9px; font-weight: 700; letter-spacing: .10em; text-transform: uppercase;
+  padding: 2px 5px; border: 1px solid currentColor;
+}
+
+/* ── Buttons ── */
+.btns { display: flex; gap: 8px; flex-wrap: wrap; padding: 16px 20px 0; }
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 38px; padding: 0 18px; border: none; cursor: pointer;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+}
+.btn-sm { height: 28px; padding: 0 10px; font-size: 11px; }
+.btn-y  { background: var(--y);  color: #111; }
+.btn-ghost { background: none; border: 1px solid var(--rule); color: var(--text); }
+.btn-r  { background: none; border: 1px solid var(--r); color: var(--r); }
+.btn-stripe { background: rgba(255,214,0,.08); border: 1px solid rgba(255,214,0,.3); color: var(--y); }
+
+/* ── Membership section ── */
+.mem-table { width: 100%; border-collapse: collapse; }
+.mem-table tr { border-bottom: 1px solid var(--rule); }
+.mem-table td { padding: 9px 0; font-size: 12px; }
+.mem-label {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--muted); width: 80px;
+}
+.mem-val { text-align: right; }
+.active-tag {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--g);
+}
+.pending-tag {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--y);
+}
+
+/* ── Section header ── */
+.sh {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+  color: var(--muted); padding: 16px 0 8px;
+  border-bottom: 1px solid var(--rule);
+  display: flex; align-items: center; justify-content: space-between;
+}
+
+/* ── Profile ── */
+.profile-hero {
+  display: flex; align-items: center; gap: 14px;
+  padding: 18px 0 16px; border-bottom: 1px solid var(--rule);
+}
+.profile-av {
+  width: 48px; height: 48px; flex-shrink: 0;
+  background: var(--y);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 20px; font-weight: 900; color: #111;
+}
+.profile-name {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 20px; font-weight: 900; letter-spacing: .03em; text-transform: uppercase;
+  line-height: 1.1;
+}
+
+/* ── Filter bar ── */
+.fbar {
+  display: flex; background: var(--surface);
+  border-top: 1px solid var(--rule); height: 40px;
+}
+.fb {
+  flex: 1; background: none;
+  border: none; border-right: 1px solid var(--rule);
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--muted); cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 3px;
+}
+.fb:last-child { border-right: none; }
+.fb.on { color: var(--y); background: rgba(255,214,0,.06); }
+.fb-dot { width: 3px; height: 3px; background: var(--y); display: none; }
+.fb.on .fb-dot { display: block; }
+
+/* ── Divider between skins ── */
+.skin-gap {
+  height: 24px; background: #000;
+  display: flex; align-items: center; justify-content: center;
+}
+.skin-gap span {
+  font-family: 'Barlow Condensed', sans-serif;
+  font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+  color: #444;
+}
+
+</style>
+</head>
+<body style="background:#000">
+
+<!-- ════════════════════════════════════════════
+     SKIN A — CURRENT
+════════════════════════════════════════════ -->
+<div class="skin skin-current">
+
+  <div class="skin-banner">
+    <div>
+      <div class="skin-banner-title">A · Current</div>
+      <div class="skin-banner-sub">Navy-tinted bg · Amber · Multi-hue roles</div>
+    </div>
+  </div>
+
+  <!-- palette -->
+  <div class="palette-strip">
+    <div class="ps" style="background:#f0a500"><span style="color:#111">Amber</span></div>
+    <div class="ps" style="background:#22c97a"><span style="color:#111">Green</span></div>
+    <div class="ps" style="background:#38bdf8"><span style="color:#111">Sky</span></div>
+    <div class="ps" style="background:#a78bfa"><span style="color:#111">Purple</span></div>
+    <div class="ps" style="background:#f87171"><span style="color:#111">Red</span></div>
+  </div>
+
+  <div class="topbar">
+    <span class="wordmark">R<em>·</em>OOTS</span>
+    <div class="avatar-block" style="background:var(--y);color:#111">EP</div>
+  </div>
+  <div class="tabs">
+    <button class="tab active">Sessions</button>
+    <button class="tab">Passes</button>
+    <button class="tab">Coaches</button>
+    <button class="tab">Refs</button>
+  </div>
+
+  <div class="section">
+    <div class="session">
+      <div class="date-block"><div class="date-day">14</div><div class="date-mon">Jul</div></div>
+      <div class="session-body">
+        <div class="session-name">Brixton Rec · 6-a-side</div>
+        <div class="session-meta"><span>19:00</span><span class="sep">·</span><span>Intermediate</span><span class="sep">·</span><span>Mixed</span></div>
+      </div>
+      <div class="session-right">
+        <div class="badge badge-open">Open</div>
+        <div class="spots">3 spots</div>
+      </div>
+    </div>
+    <div class="session">
+      <div class="date-block"><div class="date-day">16</div><div class="date-mon">Jul</div></div>
+      <div class="session-body">
+        <div class="session-name">Crystal Palace NSC</div>
+        <div class="session-meta"><span>18:30</span><span class="sep">·</span><span>Advanced</span><span class="sep">·</span><span>Women</span></div>
+      </div>
+      <div class="session-right"><div class="badge badge-full">Full</div></div>
+    </div>
+  </div>
+
+  <div class="btns">
+    <button class="btn btn-y">Join session</button>
+    <button class="btn btn-ghost">Edit profile</button>
+    <button class="btn btn-r btn-sm">Revoke</button>
+    <button class="btn btn-stripe">Connect Stripe →</button>
+  </div>
+
+  <div class="section" style="padding-top:0">
+    <div class="profile-hero">
+      <div class="profile-av">EP</div>
+      <div>
+        <div class="profile-name">Eduardo<br>Pignatelli</div>
+        <div class="role-badges">
+          <span class="rb" style="color:var(--g)">Coach</span>
+          <span class="rb" style="color:var(--b)">Referee</span>
+          <span class="rb" style="color:#2dd4bf">Host</span>
+        </div>
+      </div>
+    </div>
+    <div class="sh">Membership</div>
+    <table class="mem-table">
+      <tr><td class="mem-label">Player</td><td class="mem-val"><span class="active-tag">Active</span></td></tr>
+      <tr><td class="mem-label">Coach</td><td class="mem-val"><span class="active-tag">Active</span></td></tr>
+      <tr><td class="mem-label">Referee</td><td class="mem-val"><span class="pending-tag">Pending</span></td></tr>
+      <tr><td class="mem-label">Host</td><td class="mem-val"><button class="btn btn-ghost btn-sm">Request →</button></td></tr>
+      <tr><td class="mem-label">Payments</td><td class="mem-val"><button class="btn btn-stripe btn-sm">Connect Stripe →</button></td></tr>
+    </table>
+  </div>
+
+  <div style="margin-top:12px">
+    <div class="fbar">
+      <button class="fb on"><span class="fb-dot"></span>Open</button>
+      <button class="fb">Type</button>
+      <button class="fb on"><span class="fb-dot"></span>Advanced</button>
+      <button class="fb">Day</button>
+    </div>
+  </div>
+
+</div>
+
+
+<!-- ════════════════════════════════════════════
+     SKIN B — BAUHAUS PRIMARIES (dark)
+════════════════════════════════════════════ -->
+<div class="skin-gap"><span>↓ bauhaus primaries</span></div>
+
+<div class="skin skin-bauhaus">
+
+  <div class="skin-banner">
+    <div>
+      <div class="skin-banner-title">B · Bauhaus primaries · dark</div>
+      <div class="skin-banner-sub">Pure black · Yellow · Red · Blue — no purple, no teal</div>
+    </div>
+  </div>
+
+  <!-- palette -->
+  <div class="palette-strip">
+    <div class="ps" style="background:#FFD600"><span style="color:#111">Yellow</span></div>
+    <div class="ps" style="background:#E63946"><span style="color:#fff">Red</span></div>
+    <div class="ps" style="background:#1D6FD8"><span style="color:#fff">Blue</span></div>
+    <div class="ps" style="background:#111111;border-bottom:1px solid #333"><span style="color:#555">Black</span></div>
+    <div class="ps" style="background:#f5f5f0"><span style="color:#111">White</span></div>
+  </div>
+
+  <div class="topbar">
+    <span class="wordmark">R<em>·</em>OOTS</span>
+    <div class="avatar-block" style="background:var(--y);color:#111">EP</div>
+  </div>
+  <div class="tabs">
+    <button class="tab active">Sessions</button>
+    <button class="tab">Passes</button>
+    <button class="tab">Coaches</button>
+    <button class="tab">Refs</button>
+  </div>
+
+  <div class="section">
+    <div class="session">
+      <div class="date-block"><div class="date-day">14</div><div class="date-mon">Jul</div></div>
+      <div class="session-body">
+        <div class="session-name">Brixton Rec · 6-a-side</div>
+        <div class="session-meta"><span>19:00</span><span class="sep">·</span><span>Intermediate</span><span class="sep">·</span><span>Mixed</span></div>
+      </div>
+      <div class="session-right">
+        <!-- open = blue in Bauhaus (blue = information, availability) -->
+        <div class="badge" style="color:var(--b)">Open</div>
+        <div class="spots">3 spots</div>
+      </div>
+    </div>
+    <div class="session">
+      <div class="date-block"><div class="date-day">16</div><div class="date-mon">Jul</div></div>
+      <div class="session-body">
+        <div class="session-name">Crystal Palace NSC</div>
+        <div class="session-meta"><span>18:30</span><span class="sep">·</span><span>Advanced</span><span class="sep">·</span><span>Women</span></div>
+      </div>
+      <div class="session-right">
+        <div class="badge" style="color:var(--r)">Full</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="btns">
+    <!-- Primary CTA: yellow -->
+    <button class="btn" style="background:var(--y);color:#111">Join session</button>
+    <!-- Ghost: white outline -->
+    <button class="btn btn-ghost">Edit profile</button>
+    <!-- Danger: red outline -->
+    <button class="btn btn-sm" style="border:1px solid var(--r);color:var(--r);background:none;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;display:inline-flex;align-items:center;height:28px;padding:0 10px">Revoke</button>
+    <!-- Stripe: yellow tint -->
+    <button class="btn" style="background:rgba(255,214,0,.08);border:1px solid rgba(255,214,0,.3);color:var(--y);font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;display:inline-flex;align-items:center;height:38px;padding:0 18px">Connect Stripe →</button>
+  </div>
+
+  <div class="section" style="padding-top:0">
+    <div class="profile-hero">
+      <div class="profile-av">EP</div>
+      <div>
+        <div class="profile-name">Eduardo<br>Pignatelli</div>
+        <!-- roles: yellow for all earned roles; blue for ref as it's informational -->
+        <div class="role-badges">
+          <span class="rb" style="color:var(--y)">Coach</span>
+          <span class="rb" style="color:var(--b)">Referee</span>
+          <span class="rb" style="color:var(--y)">Host</span>
+        </div>
+      </div>
+    </div>
+    <div class="sh">Membership</div>
+    <table class="mem-table">
+      <tr><td class="mem-label">Player</td><td class="mem-val"><span style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--b)">Active</span></td></tr>
+      <tr><td class="mem-label">Coach</td><td class="mem-val"><span style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--b)">Active</span></td></tr>
+      <tr><td class="mem-label">Referee</td><td class="mem-val"><span style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--y)">Pending</span></td></tr>
+      <tr><td class="mem-label">Host</td><td class="mem-val"><button class="btn btn-ghost btn-sm">Request →</button></td></tr>
+      <tr><td class="mem-label">Payments</td><td class="mem-val"><button class="btn btn-sm" style="background:rgba(255,214,0,.08);border:1px solid rgba(255,214,0,.3);color:var(--y);font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;display:inline-flex;align-items:center;height:28px;padding:0 10px">Connect Stripe →</button></td></tr>
+    </table>
+  </div>
+
+  <div style="margin-top:12px">
+    <div class="fbar">
+      <button class="fb on"><span class="fb-dot"></span>Open</button>
+      <button class="fb">Type</button>
+      <button class="fb on"><span class="fb-dot"></span>Advanced</button>
+      <button class="fb">Day</button>
+    </div>
+  </div>
+
+</div>
+
+
+<!-- ════════════════════════════════════════════
+     SKIN C — BAUHAUS PRIMARIES (light)
+     Inverted: white ground, black type
+     More authentic to original Bauhaus print work
+════════════════════════════════════════════ -->
+<div class="skin-gap"><span>↓ bauhaus light (bonus)</span></div>
+
+<div class="skin" style="--bg:#f5f5f0;--surface:#ebebeb;--rule:rgba(0,0,0,0.10);--text:#111;--muted:#888;--y:#FFD600;--r:#E63946;--g:#1D6FD8;--b:#1D6FD8">
+
+  <div class="skin-banner" style="border-bottom:3px solid #FFD600">
+    <div>
+      <div class="skin-banner-title" style="color:#111">C · Bauhaus primaries · light</div>
+      <div class="skin-banner-sub" style="color:#888">White ground — closer to original Bauhaus print work</div>
+    </div>
+  </div>
+
+  <div class="palette-strip">
+    <div class="ps" style="background:#FFD600"><span style="color:#111">Yellow</span></div>
+    <div class="ps" style="background:#E63946"><span style="color:#fff">Red</span></div>
+    <div class="ps" style="background:#1D6FD8"><span style="color:#fff">Blue</span></div>
+    <div class="ps" style="background:#111"><span style="color:#f5f5f0">Black</span></div>
+    <div class="ps" style="background:#f5f5f0;border-bottom:1px solid #ccc"><span style="color:#888">White</span></div>
+  </div>
+
+  <div class="topbar" style="border-bottom:1px solid rgba(0,0,0,0.10)">
+    <span style="font-family:'Barlow Condensed',sans-serif;font-size:20px;font-weight:900;letter-spacing:.08em;text-transform:uppercase;color:#111">R<span style="color:#FFD600">·</span>OOTS</span>
+    <div style="width:26px;height:26px;background:#111;display:flex;align-items:center;justify-content:center;font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:900;color:#FFD600">EP</div>
+  </div>
+  <div class="tabs" style="border-bottom:1px solid rgba(0,0,0,.10)">
+    <button class="tab active" style="color:#111;border-bottom-color:#FFD600">Sessions</button>
+    <button class="tab" style="color:#888">Passes</button>
+    <button class="tab" style="color:#888">Coaches</button>
+    <button class="tab" style="color:#888">Refs</button>
+  </div>
+
+  <div class="section">
+    <div class="session" style="border-bottom:1px solid rgba(0,0,0,.08)">
+      <div class="date-block">
+        <div class="date-day" style="color:#111">14</div>
+        <div class="date-mon" style="color:#888">Jul</div>
+      </div>
+      <div class="session-body">
+        <div class="session-name" style="color:#111">Brixton Rec · 6-a-side</div>
+        <div class="session-meta" style="color:#888"><span>19:00</span><span class="sep">·</span><span>Intermediate</span><span class="sep">·</span><span>Mixed</span></div>
+      </div>
+      <div class="session-right">
+        <div class="badge" style="color:#1D6FD8">Open</div>
+        <div class="spots" style="color:#888">3 spots</div>
+      </div>
+    </div>
+    <div class="session" style="border-bottom:1px solid rgba(0,0,0,.08)">
+      <div class="date-block">
+        <div class="date-day" style="color:#111">16</div>
+        <div class="date-mon" style="color:#888">Jul</div>
+      </div>
+      <div class="session-body">
+        <div class="session-name" style="color:#111">Crystal Palace NSC</div>
+        <div class="session-meta" style="color:#888"><span>18:30</span><span class="sep">·</span><span>Advanced</span><span class="sep">·</span><span>Women</span></div>
+      </div>
+      <div class="session-right"><div class="badge" style="color:#E63946">Full</div></div>
+    </div>
+  </div>
+
+  <div class="btns">
+    <button class="btn" style="background:#111;color:#FFD600;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;display:inline-flex;align-items:center;height:38px;padding:0 18px;border:none">Join session</button>
+    <button class="btn" style="background:none;border:1px solid rgba(0,0,0,.2);color:#111;font-family:'Barlow Condensed',sans-serif;font-size:13px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;display:inline-flex;align-items:center;height:38px;padding:0 18px">Edit profile</button>
+    <button class="btn btn-sm" style="border:1px solid #E63946;color:#E63946;background:none;font-family:'Barlow Condensed',sans-serif;font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;display:inline-flex;align-items:center;height:28px;padding:0 10px">Revoke</button>
+  </div>
+
+</div>
+
+</body>
+</html>

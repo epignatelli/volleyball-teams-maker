@@ -1,0 +1,719 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Bauhaus Preview — Roots</title>
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700;900&display=swap" rel="stylesheet" />
+<style>
+/* ── Tokens ──────────────────────────────────────────────────────────────── */
+:root {
+  --bg:       #0f1117;
+  --surface:  #14161f;
+  --rule:     rgba(255,255,255,0.10);
+  --rule2:    rgba(255,255,255,0.20);
+  --text:     #f0f2f8;
+  --muted:    #6b7194;
+  --amber:    #f0a500;
+  --amber-bg: rgba(240,165,0,0.10);
+  --green:    #22c97a;
+  --red:      #f87171;
+  --sky:      #38bdf8;
+  --sport:    'Barlow Condensed', system-ui, sans-serif;
+  --unit:     8px;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+  padding-bottom: 64px;
+}
+
+/* ── Layout helpers ──────────────────────────────────────────────────────── */
+.preview-section {
+  padding: 32px 20px 0;
+  max-width: 390px;
+  margin: 0 auto;
+}
+.preview-label {
+  font-family: var(--sport);
+  font-size: 10px; font-weight: 700;
+  letter-spacing: .14em; text-transform: uppercase;
+  color: var(--muted);
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 20px;
+}
+.divider {
+  border: none;
+  border-top: 1px solid var(--rule);
+  margin: 32px 0 0;
+}
+
+/* ═══════════════════════════════════════════
+   1. TOP BAR
+═══════════════════════════════════════════ */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  height: 48px; padding: 0 16px;
+  background: var(--bg);
+  border-bottom: 1px solid var(--rule);
+}
+.topbar-wordmark {
+  font-family: var(--sport);
+  font-size: 22px; font-weight: 900;
+  letter-spacing: .06em; text-transform: uppercase;
+  color: var(--text);
+}
+.topbar-wordmark span { color: var(--amber); }
+.topbar-avatar {
+  width: 28px; height: 28px;
+  background: var(--amber);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--sport); font-size: 13px; font-weight: 700;
+  color: #0f1117;
+}
+
+/* ── Tabs ── */
+.tabs {
+  display: flex;
+  border-bottom: 1px solid var(--rule);
+  overflow-x: auto; scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar { display: none; }
+.tab {
+  flex: none; padding: 0 16px; height: 36px;
+  background: none; border: none; border-bottom: 2px solid transparent;
+  font-family: var(--sport); font-size: 11px; font-weight: 700;
+  letter-spacing: .10em; text-transform: uppercase;
+  color: var(--muted); cursor: pointer;
+  transition: color .12s, border-color .12s;
+}
+.tab.active { color: var(--text); border-bottom-color: var(--amber); }
+
+/* ═══════════════════════════════════════════
+   2. SESSION CARDS  (flat, rule-separated)
+═══════════════════════════════════════════ */
+.session-list { display: flex; flex-direction: column; }
+
+.session-card {
+  display: flex; align-items: flex-start; gap: 14px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--rule);
+  cursor: pointer;
+}
+.session-card:first-child { border-top: 1px solid var(--rule); }
+
+/* Date block: the "Bauhaus block" — strong geometric anchor */
+.session-date-block {
+  flex-shrink: 0; width: 40px; text-align: center;
+  display: flex; flex-direction: column; align-items: center; gap: 0;
+}
+.session-date-day {
+  font-family: var(--sport); font-size: 26px; font-weight: 900;
+  line-height: 1; color: var(--text);
+}
+.session-date-mon {
+  font-family: var(--sport); font-size: 10px; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase;
+  color: var(--muted);
+}
+
+.session-body { flex: 1; min-width: 0; }
+.session-name {
+  font-family: var(--sport); font-size: 16px; font-weight: 700;
+  letter-spacing: .02em; text-transform: uppercase;
+  color: var(--text); margin-bottom: 2px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.session-meta {
+  font-size: 12px; color: var(--muted);
+  display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+}
+.session-meta-sep { color: var(--rule2); }
+
+.session-right {
+  flex-shrink: 0; display: flex; flex-direction: column;
+  align-items: flex-end; gap: 6px;
+}
+.badge {
+  font-family: var(--sport); font-size: 10px; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase;
+  padding: 2px 6px;
+  border: 1px solid currentColor;
+}
+.badge-open   { color: var(--green); }
+.badge-full   { color: var(--muted); }
+.badge-closed { color: var(--red);   }
+.session-spots {
+  font-family: var(--sport); font-size: 11px; font-weight: 600;
+  color: var(--muted);
+}
+
+/* ═══════════════════════════════════════════
+   3. BUTTONS
+═══════════════════════════════════════════ */
+.btn-row { display: flex; gap: 8px; flex-wrap: wrap; }
+
+/* Primary CTA: solid amber, no radius, condensed uppercase */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 40px; padding: 0 20px;
+  border: none; cursor: pointer;
+  font-family: var(--sport); font-size: 14px; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase;
+  transition: opacity .12s;
+}
+.btn:active { opacity: .75; }
+.btn-primary { background: var(--amber); color: #0f1117; }
+.btn-ghost   { background: none; border: 1px solid var(--rule2); color: var(--text); }
+.btn-danger  { background: none; border: 1px solid var(--red); color: var(--red); }
+.btn-stripe  { background: var(--amber-bg); border: 1px solid rgba(240,165,0,.35); color: var(--amber); }
+.btn-sm { height: 28px; padding: 0 10px; font-size: 11px; }
+
+/* ═══════════════════════════════════════════
+   4. PROFILE — membership section
+═══════════════════════════════════════════ */
+.profile-hero {
+  display: flex; align-items: center; gap: 14px;
+  padding: 20px 0 16px;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 0;
+}
+.profile-avatar {
+  width: 52px; height: 52px; flex-shrink: 0;
+  background: var(--amber);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--sport); font-size: 22px; font-weight: 900;
+  color: #0f1117;
+}
+.profile-name {
+  font-family: var(--sport); font-size: 22px; font-weight: 900;
+  letter-spacing: .03em; text-transform: uppercase;
+  line-height: 1.1;
+}
+.profile-role-badges { display: flex; gap: 4px; margin-top: 4px; flex-wrap: wrap; }
+.role-badge {
+  font-family: var(--sport); font-size: 9px; font-weight: 700;
+  letter-spacing: .10em; text-transform: uppercase;
+  padding: 2px 6px; border: 1px solid currentColor;
+}
+.role-badge-coach { color: var(--green); }
+.role-badge-ref   { color: var(--sky); }
+.role-badge-host  { color: #2dd4bf; }
+
+/* Membership table */
+.membership-table { width: 100%; border-collapse: collapse; }
+.membership-table tr { border-bottom: 1px solid var(--rule); }
+.membership-table td {
+  padding: 10px 0;
+  font-size: 13px;
+}
+.membership-table .col-role {
+  font-family: var(--sport); font-size: 13px; font-weight: 700;
+  letter-spacing: .04em; text-transform: uppercase;
+  color: var(--muted); width: 90px;
+}
+.membership-table .col-status { text-align: right; }
+.status-active {
+  font-family: var(--sport); font-size: 11px; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase;
+  color: var(--green);
+}
+.status-pending {
+  font-family: var(--sport); font-size: 11px; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase;
+  color: var(--amber);
+}
+
+/* ═══════════════════════════════════════════
+   5. FILTER BAR (bottom chrome)
+═══════════════════════════════════════════ */
+.fbar-preview {
+  background: var(--surface);
+  border-top: 1px solid var(--rule);
+  display: flex; align-items: stretch;
+  height: 42px;
+}
+.fbar-btn-p {
+  flex: 1; background: none; border: none;
+  border-right: 1px solid var(--rule);
+  font-family: var(--sport); font-size: 11px; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase;
+  color: var(--muted); cursor: pointer;
+  transition: color .12s, background .12s;
+  display: flex; align-items: center; justify-content: center; gap: 4px;
+}
+.fbar-btn-p:last-child { border-right: none; }
+.fbar-btn-p.active { color: var(--amber); background: var(--amber-bg); }
+.fbar-btn-p .dot {
+  width: 4px; height: 4px; background: var(--amber); display: none;
+}
+.fbar-btn-p.active .dot { display: block; }
+
+/* ═══════════════════════════════════════════
+   6. SECTION HEADER
+═══════════════════════════════════════════ */
+.section-header {
+  font-family: var(--sport); font-size: 11px; font-weight: 700;
+  letter-spacing: .12em; text-transform: uppercase;
+  color: var(--muted);
+  padding: 16px 0 8px;
+  border-bottom: 1px solid var(--rule);
+  margin-bottom: 0;
+  display: flex; align-items: center; justify-content: space-between;
+}
+
+/* ═══════════════════════════════════════════
+   7. COACH CARD (directory)
+═══════════════════════════════════════════ */
+.coach-card {
+  display: flex; align-items: flex-start; gap: 12px;
+  padding: 14px 0;
+  border-bottom: 1px solid var(--rule);
+  cursor: pointer;
+}
+.coach-avatar {
+  width: 36px; height: 36px; flex-shrink: 0;
+  background: rgba(34,201,122,.15);
+  display: flex; align-items: center; justify-content: center;
+  font-family: var(--sport); font-size: 15px; font-weight: 900;
+  color: var(--green);
+}
+.coach-name {
+  font-family: var(--sport); font-size: 15px; font-weight: 700;
+  letter-spacing: .02em; text-transform: uppercase;
+  margin-bottom: 2px;
+}
+.coach-chips { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+.chip {
+  font-family: var(--sport); font-size: 9px; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase;
+  padding: 1px 5px; border: 1px solid currentColor;
+}
+.chip-s  { color: var(--sky); }
+.chip-h  { color: var(--amber); }
+.chip-m  { color: var(--green); }
+.chip-style { color: var(--muted); }
+.chip-rate  { color: var(--amber); background: var(--amber-bg); }
+/* ═══════════════════════════════════════════
+   COLOUR SECTION
+═══════════════════════════════════════════ */
+.colour-grid {
+  display: grid; grid-template-columns: repeat(2, 1fr); gap: 1px;
+  background: var(--rule);
+  border: 1px solid var(--rule);
+  margin-bottom: 20px;
+}
+.colour-swatch {
+  display: flex; flex-direction: column; justify-content: flex-end;
+  height: 80px; padding: 8px 10px;
+}
+.colour-swatch-name {
+  font-family: var(--sport); font-size: 10px; font-weight: 700;
+  letter-spacing: .10em; text-transform: uppercase;
+}
+.colour-swatch-hex {
+  font-size: 11px; font-weight: 400; opacity: .7; margin-top: 1px;
+}
+.colour-pair {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 16px;
+  margin-bottom: 20px;
+}
+.colour-option {
+  padding: 16px;
+  background: var(--surface);
+  border: 1px solid var(--rule);
+}
+.colour-option-label {
+  font-family: var(--sport); font-size: 10px; font-weight: 700;
+  letter-spacing: .12em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 12px;
+}
+.colour-role-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 0; border-bottom: 1px solid var(--rule);
+  font-size: 12px;
+}
+.colour-role-row:last-child { border-bottom: none; }
+.colour-dot {
+  width: 8px; height: 8px; flex-shrink: 0;
+}
+.colour-role-name {
+  font-family: var(--sport); font-size: 11px; font-weight: 700;
+  letter-spacing: .05em; text-transform: uppercase;
+  color: var(--muted); flex: 1;
+}
+.colour-state-bar {
+  height: 3px; margin-bottom: 6px;
+}
+.colour-note {
+  font-size: 11px; color: var(--muted); line-height: 1.5;
+  border-left: 2px solid var(--amber); padding-left: 10px;
+  margin-bottom: 20px;
+}
+.compare-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 1px;
+  background: var(--rule); margin-bottom: 20px;
+}
+.compare-cell {
+  background: var(--bg); padding: 14px 12px;
+}
+.compare-cell-label {
+  font-family: var(--sport); font-size: 9px; font-weight: 700;
+  letter-spacing: .12em; text-transform: uppercase;
+  color: var(--muted); margin-bottom: 10px;
+}
+.badge-row { display: flex; gap: 5px; flex-wrap: wrap; }
+.b { font-family: var(--sport); font-size: 9px; font-weight: 700;
+     letter-spacing: .06em; text-transform: uppercase;
+     padding: 2px 6px; border: 1px solid currentColor; }
+</style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════
+     COLOUR SECTION
+══════════════════════════════════════ -->
+<div class="preview-section">
+  <div class="preview-label">The Bauhaus argument on colour</div>
+
+  <p class="colour-note">
+    Bauhaus colour theory (Itten, Albers) treats colour as signal, not decoration.
+    Every hue in the UI should answer: <em>what does this mean?</em>
+    The current palette is close — amber already feels like a Bauhaus primary.
+    The question is whether the five role/position colours are each earning their place.
+  </p>
+
+  <!-- Core palette -->
+  <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Core palette — keep as-is</div>
+  <div class="colour-grid" style="grid-template-columns:repeat(4,1fr);margin-bottom:24px">
+    <div class="colour-swatch" style="background:#f0a500">
+      <div class="colour-swatch-name" style="color:#0f1117">Amber</div>
+      <div class="colour-swatch-hex" style="color:#0f1117">#f0a500</div>
+    </div>
+    <div class="colour-swatch" style="background:#0f1117;border:1px solid rgba(255,255,255,.1)">
+      <div class="colour-swatch-name" style="color:#f0f2f8">Void</div>
+      <div class="colour-swatch-hex" style="color:#6b7194">#0f1117</div>
+    </div>
+    <div class="colour-swatch" style="background:#f0f2f8">
+      <div class="colour-swatch-name" style="color:#0f1117">White</div>
+      <div class="colour-swatch-hex" style="color:#666">#f0f2f8</div>
+    </div>
+    <div class="colour-swatch" style="background:#6b7194">
+      <div class="colour-swatch-name" style="color:#f0f2f8">Muted</div>
+      <div class="colour-swatch-hex" style="color:rgba(240,242,248,.6)">#6b7194</div>
+    </div>
+  </div>
+
+  <!-- Option A vs B -->
+  <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:10px">Role colours — two directions</div>
+
+  <div class="compare-row">
+    <!-- Option A: current (many hues) -->
+    <div class="compare-cell">
+      <div class="compare-cell-label">A · Current (5 hues)</div>
+      <div class="colour-role-row">
+        <div class="colour-dot" style="background:#22c97a"></div>
+        <span class="colour-role-name">Coach</span>
+        <span style="font-size:10px;color:#22c97a">green</span>
+      </div>
+      <div class="colour-role-row">
+        <div class="colour-dot" style="background:#38bdf8"></div>
+        <span class="colour-role-name">Referee</span>
+        <span style="font-size:10px;color:#38bdf8">sky</span>
+      </div>
+      <div class="colour-role-row">
+        <div class="colour-dot" style="background:#2dd4bf"></div>
+        <span class="colour-role-name">Host</span>
+        <span style="font-size:10px;color:#2dd4bf">teal</span>
+      </div>
+      <div class="colour-role-row">
+        <div class="colour-dot" style="background:#a78bfa"></div>
+        <span class="colour-role-name">Men</span>
+        <span style="font-size:10px;color:#a78bfa">purple</span>
+      </div>
+      <div class="colour-role-row">
+        <div class="colour-dot" style="background:#22c97a"></div>
+        <span class="colour-role-name">Women</span>
+        <span style="font-size:10px;color:#22c97a">green</span>
+      </div>
+      <div style="margin-top:10px">
+        <div class="badge-row">
+          <span class="b" style="color:#22c97a">Coach</span>
+          <span class="b" style="color:#38bdf8">Ref</span>
+          <span class="b" style="color:#2dd4bf">Host</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Option B: reduced (2 hues + amber) -->
+    <div class="compare-cell">
+      <div class="compare-cell-label">B · Reduced (2 hues)</div>
+      <div class="colour-role-row">
+        <div class="colour-dot" style="background:#f0a500"></div>
+        <span class="colour-role-name">Coach</span>
+        <span style="font-size:10px;color:#f0a500">amber</span>
+      </div>
+      <div class="colour-role-row">
+        <div class="colour-dot" style="background:#f0a500"></div>
+        <span class="colour-role-name">Referee</span>
+        <span style="font-size:10px;color:#f0a500">amber</span>
+      </div>
+      <div class="colour-role-row">
+        <div class="colour-dot" style="background:#f0a500"></div>
+        <span class="colour-role-name">Host</span>
+        <span style="font-size:10px;color:#f0a500">amber</span>
+      </div>
+      <div class="colour-role-row">
+        <div class="colour-dot" style="background:#a78bfa"></div>
+        <span class="colour-role-name">Men</span>
+        <span style="font-size:10px;color:#a78bfa">purple</span>
+      </div>
+      <div class="colour-role-row">
+        <div class="colour-dot" style="background:#22c97a"></div>
+        <span class="colour-role-name">Women</span>
+        <span style="font-size:10px;color:#22c97a">green</span>
+      </div>
+      <div style="margin-top:10px">
+        <div class="badge-row">
+          <span class="b" style="color:#f0a500">Coach</span>
+          <span class="b" style="color:#f0a500">Ref</span>
+          <span class="b" style="color:#f0a500">Host</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="colour-note" style="margin-bottom:20px">
+    <strong style="color:var(--text)">A</strong> — each role has its own identity; easier to scan at a glance but adds visual noise.<br><br>
+    <strong style="color:var(--text)">B</strong> — amber = "you can earn money here" (all paid roles share it); green/purple reserved purely for gender, which is the one distinction that affects team composition.
+    Cleaner, but roles are harder to tell apart in dense lists.
+  </p>
+
+  <!-- State colours -->
+  <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);margin-bottom:10px">State colours — no debate</div>
+  <div class="colour-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:8px">
+    <div class="colour-swatch" style="background:rgba(34,201,122,.12);border-bottom:2px solid #22c97a">
+      <div class="colour-swatch-name" style="color:#22c97a">Open</div>
+      <div class="colour-swatch-hex" style="color:#22c97a">#22c97a</div>
+    </div>
+    <div class="colour-swatch" style="background:rgba(248,113,113,.12);border-bottom:2px solid #f87171">
+      <div class="colour-swatch-name" style="color:#f87171">Error / closed</div>
+      <div class="colour-swatch-hex" style="color:#f87171">#f87171</div>
+    </div>
+    <div class="colour-swatch" style="background:rgba(240,165,0,.10);border-bottom:2px solid #f0a500">
+      <div class="colour-swatch-name" style="color:#f0a500">Pending / CTA</div>
+      <div class="colour-swatch-hex" style="color:#f0a500">#f0a500</div>
+    </div>
+  </div>
+  <p class="colour-note">
+    These three are functional primaries: green = go, red = stop/error, amber = action/pending.
+    They map to Itten's primary triad and should never be used decoratively.
+  </p>
+
+</div>
+
+<!-- ── TOP BAR ── -->
+<div class="topbar">
+  <span class="topbar-wordmark">R<span>·</span>OOTS</span>
+  <div class="topbar-avatar">EP</div>
+</div>
+<div class="tabs">
+  <button class="tab active">Sessions</button>
+  <button class="tab">Passes</button>
+  <button class="tab">Coaches</button>
+  <button class="tab">Refs</button>
+  <button class="tab">Admin</button>
+</div>
+
+<!-- ── SESSION LIST ── -->
+<div class="preview-section">
+  <div class="preview-label">Session list</div>
+  <div class="session-list">
+
+    <div class="session-card">
+      <div class="session-date-block">
+        <div class="session-date-day">14</div>
+        <div class="session-date-mon">Jul</div>
+      </div>
+      <div class="session-body">
+        <div class="session-name">Brixton Rec · 6-a-side</div>
+        <div class="session-meta">
+          <span>19:00</span>
+          <span class="session-meta-sep">·</span>
+          <span>Intermediate</span>
+          <span class="session-meta-sep">·</span>
+          <span>Mixed</span>
+        </div>
+      </div>
+      <div class="session-right">
+        <span class="badge badge-open">Open</span>
+        <span class="session-spots">3 spots</span>
+      </div>
+    </div>
+
+    <div class="session-card">
+      <div class="session-date-block">
+        <div class="session-date-day">16</div>
+        <div class="session-date-mon">Jul</div>
+      </div>
+      <div class="session-body">
+        <div class="session-name">Crystal Palace NSC</div>
+        <div class="session-meta">
+          <span>18:30</span>
+          <span class="session-meta-sep">·</span>
+          <span>Advanced</span>
+          <span class="session-meta-sep">·</span>
+          <span>Women</span>
+        </div>
+      </div>
+      <div class="session-right">
+        <span class="badge badge-full">Full</span>
+      </div>
+    </div>
+
+    <div class="session-card">
+      <div class="session-date-block">
+        <div class="session-date-day">19</div>
+        <div class="session-date-mon">Jul</div>
+      </div>
+      <div class="session-body">
+        <div class="session-name">Clapham Common Open</div>
+        <div class="session-meta">
+          <span>10:00</span>
+          <span class="session-meta-sep">·</span>
+          <span>Beginner</span>
+          <span class="session-meta-sep">·</span>
+          <span>Mixed</span>
+        </div>
+      </div>
+      <div class="session-right">
+        <span class="badge badge-open">Open</span>
+        <span class="session-spots">8 spots</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- ── BUTTONS ── -->
+<div class="preview-section">
+  <div class="preview-label">Buttons</div>
+  <div class="btn-row">
+    <button class="btn btn-primary">Join session</button>
+    <button class="btn btn-ghost">Edit profile</button>
+    <button class="btn btn-danger btn-sm">Revoke</button>
+    <button class="btn btn-stripe">Connect Stripe →</button>
+    <button class="btn btn-ghost btn-sm">Request →</button>
+  </div>
+</div>
+
+<!-- ── PROFILE ── -->
+<div class="preview-section">
+  <div class="preview-label">Profile — own view</div>
+  <div class="profile-hero">
+    <div class="profile-avatar">EP</div>
+    <div>
+      <div class="profile-name">Eduardo<br>Pignatelli</div>
+      <div class="profile-role-badges">
+        <span class="role-badge role-badge-coach">Coach</span>
+        <span class="role-badge role-badge-ref">Referee</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="section-header">
+    Membership
+    <button class="btn btn-ghost btn-sm">Edit →</button>
+  </div>
+  <table class="membership-table">
+    <tr>
+      <td class="col-role">Player</td>
+      <td class="col-status"><span class="status-active">Active</span></td>
+    </tr>
+    <tr>
+      <td class="col-role">Coach</td>
+      <td class="col-status">
+        <div style="display:flex;align-items:center;justify-content:flex-end;gap:8px">
+          <button class="btn btn-danger btn-sm">Revoke</button>
+          <span class="status-active">Active</span>
+        </div>
+      </td>
+    </tr>
+    <tr>
+      <td class="col-role">Referee</td>
+      <td class="col-status"><span class="status-pending">Pending</span></td>
+    </tr>
+    <tr>
+      <td class="col-role">Host</td>
+      <td class="col-status">
+        <button class="btn btn-ghost btn-sm">Request →</button>
+      </td>
+    </tr>
+    <tr>
+      <td class="col-role">Payments</td>
+      <td class="col-status">
+        <button class="btn btn-stripe btn-sm">Connect Stripe →</button>
+      </td>
+    </tr>
+  </table>
+</div>
+
+<!-- ── COACHES DIRECTORY ── -->
+<div class="preview-section">
+  <div class="preview-label">Coach directory</div>
+  <div class="session-list">
+    <div class="coach-card">
+      <div class="coach-avatar">JS</div>
+      <div>
+        <div class="coach-name">Jamie Sherwood</div>
+        <div style="font-size:12px;color:var(--muted)">Technical · £45/hr</div>
+        <div class="coach-chips">
+          <span class="chip chip-s">S</span>
+          <span class="chip chip-h">H</span>
+          <span class="chip chip-style">Technical</span>
+          <span class="chip chip-rate">£45/hr</span>
+        </div>
+      </div>
+    </div>
+    <div class="coach-card">
+      <div class="coach-avatar">MR</div>
+      <div>
+        <div class="coach-name">Maria Rossi</div>
+        <div style="font-size:12px;color:var(--muted)">Conditioning · Mental · £60/hr</div>
+        <div class="coach-chips">
+          <span class="chip chip-m">M</span>
+          <span class="chip chip-style">Conditioning</span>
+          <span class="chip chip-style">Mental</span>
+          <span class="chip chip-rate">£60/hr</span>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ── FILTER BAR ── -->
+<div style="max-width:390px;margin:32px auto 0">
+  <div style="font-family:'Barlow Condensed',sans-serif;font-size:10px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);padding:0 20px 8px">Filter bar</div>
+  <div class="fbar-preview">
+    <button class="fbar-btn-p active">
+      <span class="dot"></span>Open
+    </button>
+    <button class="fbar-btn-p">Type</button>
+    <button class="fbar-btn-p active">
+      <span class="dot"></span>Advanced
+    </button>
+    <button class="fbar-btn-p">Day</button>
+    <button class="fbar-btn-p">Time</button>
+  </div>
+</div>
+
+</body>
+</html>

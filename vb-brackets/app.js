@@ -316,22 +316,23 @@ function _renderSetup() {
 
   let teamsHtml = '';
   for (let g = 0; g < t.groupCount; g++) {
-    teamsHtml += `<div class="group-section">
-      <div class="group-heading">Group ${_groupLabel(g)}</div>
-      ${(byG[g]||[]).map(tm => `<span class="team-chip">${_esc(tm.name)}</span>`).join('')}
-    </div>`;
+    teamsHtml += `
+      <div class="sh">Group ${_groupLabel(g)}</div>
+      <div class="group-section" style="padding:10px 16px 12px">
+        ${(byG[g]||[]).map(tm => `<span class="team-chip">${_esc(tm.name)}</span>`).join('')}
+      </div>`;
   }
 
   _sc().innerHTML = `
     <div class="phase-setup">
-      <div class="setup-info">
+      <div class="sh">Format</div>
         <div class="setup-row"><span>Groups</span><span>${t.groupCount}</span></div>
         <div class="setup-row"><span>Teams per group</span><span>${t.teamsPerGroup}</span></div>
         <div class="setup-row"><span>Format</span><span>${t.roundsPerGroup === 2 ? 'Double round-robin' : 'Single round-robin'}</span></div>
         <div class="setup-row"><span>Advance → winners</span><span>${t.advanceWinners} per group</span></div>
         <div class="setup-row"><span>Advance → losers</span><span>${t.advanceLosers > 0 ? `${t.advanceLosers} per group` : 'None'}</span></div>
         <div class="setup-row"><span>Winners bracket</span><span>${t.winnersBracket === 'double' ? 'Double elimination' : 'Single elimination'}</span></div>
-      </div>
+      <div class="sh">Teams</div>
       <div class="teams-grid">${teamsHtml}</div>
       <div class="bottom-actions">
         ${canEdit
@@ -387,7 +388,7 @@ function _renderGroups() {
     const advW = t.advanceWinners, advL = t.advanceLosers;
 
     html += `<div class="group-block">
-      <div class="group-heading">Group ${_groupLabel(g)}</div>
+      <div class="sh">Group ${_groupLabel(g)}</div>
       <table class="standings-table">
         <thead><tr><th>#</th><th>Team</th><th>W</th><th>L</th><th>+/−</th></tr></thead>
         <tbody>
@@ -399,6 +400,7 @@ function _renderGroups() {
             </tr>`).join('')}
         </tbody>
       </table>
+      <div class="matches-sh">Matches</div>
       <div class="matches-list">
         ${(byG[g] || []).sort((a,b) => a.slot - b.slot).map(m => _matchCard(m, canEdit)).join('')}
       </div>
@@ -530,13 +532,13 @@ function _renderKnockout() {
   if (champ) html += `<div class="champion-banner">Champion: ${_esc(champ)}</div>`;
 
   html += `<div class="bracket-container">
-    <div class="bracket-phase-label">Winners bracket</div>
+    <div class="sh">Winners bracket</div>
     ${_renderBracket(wm, canEdit)}
   </div>`;
 
   if (lm.length > 0) {
     html += `<div class="bracket-container">
-      <div class="bracket-phase-label">Losers bracket</div>
+      <div class="sh">Losers bracket</div>
       ${_renderBracket(lm, canEdit)}
     </div>`;
   }

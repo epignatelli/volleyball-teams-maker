@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Wordmark exploration — R··TS</title>
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;700;900&display=swap" rel="stylesheet" />
+<style>
+:root {
+  --y: #E8C018;
+  --b: #1E3878;
+  --r: #C8302A;
+  --black: #111111;
+  --white: #F5F5F0;
+  --sport: 'Barlow Condensed', system-ui, sans-serif;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body { background: #000; font-family: var(--sport); -webkit-font-smoothing: antialiased; }
+
+/* ── Layout ── */
+.row {
+  display: flex; align-items: center;
+  padding: 28px 32px;
+  border-bottom: 1px solid #222;
+  gap: 32px;
+}
+.row:last-child { border-bottom: none; }
+.label {
+  font-size: 10px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
+  color: #444; min-width: 90px;
+}
+
+/* ── Base wordmark text ── */
+.wm {
+  font-family: var(--sport); font-weight: 900; letter-spacing: .04em;
+  text-transform: uppercase; line-height: 1; display: flex; align-items: center;
+}
+
+/* ── The OO replacement dots — inline circles via CSS ── */
+.oo {
+  display: inline-flex; align-items: center; gap: 0;
+  /* vertical alignment: match cap-height of surrounding letters */
+}
+
+/* Each dot scales with font-size via em */
+.dot-solid {
+  display: inline-block;
+  width: .38em; height: .38em;
+  border-radius: 50%;
+  margin: 0 .04em;
+  /* sits at optical centre of cap-height */
+  position: relative; top: .08em;
+}
+.dot-outline {
+  display: inline-block;
+  width: .38em; height: .38em;
+  border-radius: 50%;
+  border: .06em solid currentColor;
+  margin: 0 .04em;
+  position: relative; top: .08em;
+}
+
+/* ── VARIATIONS ─────────────────────────────────── */
+
+/* 1. Black ground, white letters, yellow dots */
+.v1 { font-size: 48px; color: var(--white); }
+.v1 .dot-solid { background: var(--y); }
+
+/* 2. Black ground, yellow letters, white dots */
+.v2 { font-size: 48px; color: var(--y); }
+.v2 .dot-solid { background: var(--white); }
+
+/* 3. Black ground, white + outline dots (yellow ring) */
+.v3 { font-size: 48px; color: var(--white); }
+.v3 .dot-outline { border-color: var(--y); color: var(--y); }
+
+/* 4. White ground, black letters, yellow dots */
+.v4 { font-size: 48px; color: var(--black); }
+.v4 .dot-solid { background: var(--y); }
+
+/* 5. White ground, all black, blue dots */
+.v5 { font-size: 48px; color: var(--black); }
+.v5 .dot-solid { background: var(--b); }
+
+/* 6. White ground, yellow full block wordmark */
+.v6-wrap { background: var(--y); padding: 14px 20px; display: inline-flex; }
+.v6 { font-size: 48px; color: var(--black); }
+.v6 .dot-solid { background: var(--black); }
+
+/* 7. Compact / app icon version (square) */
+.icon-wrap {
+  width: 64px; height: 64px;
+  background: var(--y);
+  display: flex; align-items: center; justify-content: center;
+}
+.icon-wm { font-size: 16px; color: var(--black); letter-spacing: .03em; }
+.icon-wm .dot-solid { background: var(--black); width: .45em; height: .45em; top: -.03em; }
+
+/* 8. Large hero / billboard */
+.v8 { font-size: 80px; color: var(--white); }
+.v8 .dot-solid { background: var(--y); width: .34em; height: .34em; }
+
+/* Topbar sizes */
+.topbar-demo {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 20px;
+  border-top: 1px solid #222;
+  margin-top: -1px;
+}
+.topbar-light { background: var(--white); }
+.topbar-dark  { background: var(--black); border-bottom: 1px solid #222; }
+.av {
+  width: 26px; height: 26px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 11px; font-weight: 900;
+}
+.av-dark  { background: var(--y); color: var(--black); }
+.av-light { background: var(--black); color: var(--y); }
+
+.v-topbar-dark  { font-size: 20px; color: var(--white); }
+.v-topbar-dark .dot-solid { background: var(--y); }
+.v-topbar-light { font-size: 20px; color: var(--black); }
+.v-topbar-light .dot-solid { background: var(--y); }
+
+</style>
+</head>
+<body>
+
+<!-- ── 1. White text, yellow dots ── -->
+<div class="row" style="background:#111">
+  <span class="label">A · white + yellow</span>
+  <span class="wm v1">R<span class="oo"><span class="dot-solid"></span><span class="dot-solid"></span></span>TS</span>
+</div>
+
+<!-- ── 2. Yellow text, white dots ── -->
+<div class="row" style="background:#111">
+  <span class="label">B · yellow + white</span>
+  <span class="wm v2">R<span class="oo"><span class="dot-solid"></span><span class="dot-solid"></span></span>TS</span>
+</div>
+
+<!-- ── 3. White text, yellow ring dots ── -->
+<div class="row" style="background:#111">
+  <span class="label">C · white + rings</span>
+  <span class="wm v3">R<span class="oo"><span class="dot-outline"></span><span class="dot-outline"></span></span>TS</span>
+</div>
+
+<!-- ── 4. Light ground, black + yellow dots ── -->
+<div class="row" style="background:var(--white)">
+  <span class="label" style="color:#aaa">D · light + yellow</span>
+  <span class="wm v4">R<span class="oo"><span class="dot-solid"></span><span class="dot-solid"></span></span>TS</span>
+</div>
+
+<!-- ── 5. Light ground, black + blue dots ── -->
+<div class="row" style="background:var(--white)">
+  <span class="label" style="color:#aaa">E · light + blue</span>
+  <span class="wm v5">R<span class="oo"><span class="dot-solid"></span><span class="dot-solid"></span></span>TS</span>
+</div>
+
+<!-- ── 6. Yellow block wordmark ── -->
+<div class="row" style="background:#111">
+  <span class="label">F · yellow block</span>
+  <div class="v6-wrap">
+    <span class="wm v6">R<span class="oo"><span class="dot-solid"></span><span class="dot-solid"></span></span>TS</span>
+  </div>
+</div>
+
+<!-- ── 7. App icon ── -->
+<div class="row" style="background:#111">
+  <span class="label">G · icon (64px)</span>
+  <div style="display:flex;gap:16px;align-items:center">
+    <div class="icon-wrap">
+      <span class="wm icon-wm">R<span class="oo"><span class="dot-solid"></span><span class="dot-solid"></span></span>TS</span>
+    </div>
+    <!-- Variants -->
+    <div style="width:64px;height:64px;background:var(--black);border:2px solid var(--y);display:flex;align-items:center;justify-content:center">
+      <span class="wm" style="font-size:16px;color:var(--y)">R<span class="oo"><span class="dot-solid" style="background:var(--white)"></span><span class="dot-solid" style="background:var(--white)"></span></span>TS</span>
+    </div>
+    <div style="width:64px;height:64px;background:var(--b);display:flex;align-items:center;justify-content:center">
+      <span class="wm" style="font-size:16px;color:var(--white)">R<span class="oo"><span class="dot-solid" style="background:var(--y)"></span><span class="dot-solid" style="background:var(--y)"></span></span>TS</span>
+    </div>
+  </div>
+</div>
+
+<!-- ── Dots alone ── -->
+<div class="row" style="background:#111;flex-wrap:wrap;gap:24px;padding:36px 32px">
+  <span class="label">H · mark alone</span>
+
+  <!-- Large on dark -->
+  <span style="display:inline-flex;align-items:center;gap:.12em">
+    <span class="dot-solid" style="width:28px;height:28px;background:var(--y);top:.08em;border-radius:50%;position:relative"></span>
+    <span class="dot-solid" style="width:28px;height:28px;background:var(--y);top:.08em;border-radius:50%;position:relative"></span>
+  </span>
+
+  <!-- On yellow block -->
+  <span style="background:var(--y);padding:14px 16px;display:inline-flex;align-items:center;gap:.12em">
+    <span style="width:24px;height:24px;background:var(--black);border-radius:50%;display:inline-block"></span>
+    <span style="width:24px;height:24px;background:var(--black);border-radius:50%;display:inline-block"></span>
+  </span>
+
+  <!-- Outline rings on dark -->
+  <span style="display:inline-flex;align-items:center;gap:.12em">
+    <span style="width:28px;height:28px;border:3px solid var(--y);border-radius:50%;display:inline-block"></span>
+    <span style="width:28px;height:28px;border:3px solid var(--y);border-radius:50%;display:inline-block"></span>
+  </span>
+
+  <!-- Blue dots -->
+  <span style="display:inline-flex;align-items:center;gap:.12em">
+    <span style="width:28px;height:28px;background:var(--b);border-radius:50%;display:inline-block"></span>
+    <span style="width:28px;height:28px;background:var(--b);border-radius:50%;display:inline-block"></span>
+  </span>
+</div>
+
+<!-- ── Mark at icon sizes ── -->
+<div class="row" style="background:#111;flex-wrap:wrap;gap:20px;padding:32px">
+  <span class="label">I · icon sizes</span>
+
+  <!-- 64px square -->
+  <div style="width:64px;height:64px;background:var(--y);display:flex;align-items:center;justify-content:center;gap:6px">
+    <span style="width:16px;height:16px;background:var(--black);border-radius:50%;display:inline-block"></span>
+    <span style="width:16px;height:16px;background:var(--black);border-radius:50%;display:inline-block"></span>
+  </div>
+
+  <!-- 48px square -->
+  <div style="width:48px;height:48px;background:var(--black);border:2px solid var(--y);display:flex;align-items:center;justify-content:center;gap:5px">
+    <span style="width:11px;height:11px;background:var(--y);border-radius:50%;display:inline-block"></span>
+    <span style="width:11px;height:11px;background:var(--y);border-radius:50%;display:inline-block"></span>
+  </div>
+
+  <!-- 40px blue -->
+  <div style="width:40px;height:40px;background:var(--b);display:flex;align-items:center;justify-content:center;gap:4px">
+    <span style="width:10px;height:10px;background:var(--white);border-radius:50%;display:inline-block"></span>
+    <span style="width:10px;height:10px;background:var(--white);border-radius:50%;display:inline-block"></span>
+  </div>
+
+  <!-- 32px on white -->
+  <div style="width:32px;height:32px;background:var(--white);display:flex;align-items:center;justify-content:center;gap:3px">
+    <span style="width:8px;height:8px;background:var(--black);border-radius:50%;display:inline-block"></span>
+    <span style="width:8px;height:8px;background:var(--black);border-radius:50%;display:inline-block"></span>
+  </div>
+</div>
+
+<!-- ── Mark at large / poster scale ── -->
+<div class="row" style="background:var(--white);padding:48px 32px;justify-content:center">
+  <span style="display:inline-flex;align-items:center;gap:16px">
+    <span style="width:72px;height:72px;background:var(--black);border-radius:50%;display:inline-block"></span>
+    <span style="width:72px;height:72px;background:var(--black);border-radius:50%;display:inline-block"></span>
+  </span>
+</div>
+
+<div class="row" style="background:var(--y);padding:48px 32px;justify-content:center">
+  <span style="display:inline-flex;align-items:center;gap:16px">
+    <span style="width:72px;height:72px;background:var(--black);border-radius:50%;display:inline-block"></span>
+    <span style="width:72px;height:72px;background:var(--black);border-radius:50%;display:inline-block"></span>
+  </span>
+</div>
+
+<!-- ── 8. Hero / billboard ── -->
+<div class="row" style="background:#111;padding:40px 32px">
+  <span class="wm v8">R<span class="oo"><span class="dot-solid"></span><span class="dot-solid"></span></span>TS</span>
+</div>
+
+<!-- ── In context: topbar dark ── -->
+<div class="topbar-demo topbar-dark">
+  <span class="wm v-topbar-dark">R<span class="oo"><span class="dot-solid"></span><span class="dot-solid"></span></span>TS</span>
+  <div class="av av-dark">EP</div>
+</div>
+
+<!-- ── In context: topbar light ── -->
+<div class="topbar-demo topbar-light">
+  <span class="wm v-topbar-light">R<span class="oo"><span class="dot-solid"></span><span class="dot-solid"></span></span>TS</span>
+  <div class="av av-light">EP</div>
+</div>
+
+</body>
+</html>
