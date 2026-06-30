@@ -137,6 +137,13 @@ body {
   font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
   color: var(--amber); padding-top: 6px; border-top: 1px solid var(--border);
 }
+.shuffle-btn {
+  background: none; border: none; cursor: pointer; font-family: var(--font);
+  font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase;
+  color: var(--muted); padding: 2px 0;
+  transition: color .15s;
+}
+.shuffle-btn:hover { color: var(--text); }
 .group-label {
   font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
   color: var(--amber); margin-top: 8px; margin-bottom: 4px;

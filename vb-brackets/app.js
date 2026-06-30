@@ -180,7 +180,10 @@ function _showCreate() {
         </select>
       </div>
       <p class="field-hint" id="cf-summary"></p>
-      <div class="section-divider">Teams</div>
+      <div class="section-divider" style="display:flex;align-items:center;justify-content:space-between">
+        <span>Teams</span>
+        <button type="button" class="shuffle-btn" onclick="_randomizeGroups()">⇄ Randomize</button>
+      </div>
       <div id="cf-teams"></div>
       <button type="submit" class="btn-primary" id="cf-submit">Create tournament</button>
     </form>`;
@@ -208,6 +211,29 @@ function _updateCreateForm() {
     }
   }
   tf.innerHTML = html;
+}
+
+function _randomizeGroups() {
+  const groups = parseInt(document.getElementById('cf-groups')?.value || 2);
+  const tpg    = parseInt(document.getElementById('cf-tpg')?.value || 4);
+
+  // Collect all current values
+  const names = [];
+  for (let g = 0; g < groups; g++)
+    for (let t = 0; t < tpg; t++)
+      names.push(document.getElementById(`ti-${g}-${t}`)?.value.trim() || '');
+
+  // Fisher-Yates shuffle
+  for (let i = names.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [names[i], names[j]] = [names[j], names[i]];
+  }
+
+  // Write back
+  let idx = 0;
+  for (let g = 0; g < groups; g++)
+    for (let t = 0; t < tpg; t++)
+      document.getElementById(`ti-${g}-${t}`).value = names[idx++];
 }
 
 async function _submitCreate(e) {
