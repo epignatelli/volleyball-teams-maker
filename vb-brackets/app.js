@@ -5,6 +5,7 @@ let _tournament = null;
 let _matches = [];
 let _unsubT = null;    // tournament onSnapshot unsub
 let _unsubM = null;    // matches onSnapshot unsub
+let _knockoutTab = 'bracket'; // 'bracket' | 'groups'
 
 // ── Firebase refs ──────────────────────────────────────────────────────────────
 const _db   = () => firebase.firestore();
@@ -278,7 +279,7 @@ async function _submitCreate(e) {
 // ── Tournament detail ──────────────────────────────────────────────────────────
 function _showTournament(id) {
   _unsub();
-  _tid = id; _tournament = null; _matches = [];
+  _tid = id; _tournament = null; _matches = []; _knockoutTab = 'bracket';
   _setTitle('…'); _setBack(true);
   _sc().innerHTML = `<div class="loading">Loading…</div>`;
 
@@ -370,11 +371,9 @@ async function _startGroups() {
 }
 
 // ── Phase: Groups ─────────────────────────────────────────────────────────────
-function _renderGroups() {
+function _buildGroupsHtml() {
   const t = _tournament;
-  const canEdit = _user && _user.uid === t.createdBy;
   const gm = _matches.filter(m => m.phase === 'group');
-  const allDone = gm.length > 0 && gm.every(m => m.winner);
 
   const byG = {};
   for (const m of gm) { if (!byG[m.group]) byG[m.group] = []; byG[m.group].push(m); }
@@ -402,11 +401,21 @@ function _renderGroups() {
       </table>
       <div class="matches-sh">Matches</div>
       <div class="matches-list">
-        ${(byG[g] || []).sort((a,b) => a.slot - b.slot).map(m => _matchCard(m, canEdit)).join('')}
+        ${(byG[g] || []).sort((a,b) => a.slot - b.slot).map(m => _matchCard(m, false)).join('')}
       </div>
     </div>`;
   }
   html += `</div>`;
+  return html;
+}
+
+function _renderGroups() {
+  const t = _tournament;
+  const canEdit = _user && _user.uid === t.createdBy;
+  const gm = _matches.filter(m => m.phase === 'group');
+  const allDone = gm.length > 0 && gm.every(m => m.winner);
+
+  let html = _buildGroupsHtml();
 
   html += `<div class="bottom-actions">`;
   if (canEdit && allDone) {
@@ -519,6 +528,11 @@ async function _advanceToKnockout() {
 }
 
 // ── Phase: Knockout ───────────────────────────────────────────────────────────
+function _setKnockoutTab(tab) {
+  _knockoutTab = tab;
+  _renderKnockout();
+}
+
 function _renderKnockout() {
   const t = _tournament;
   const canEdit = _user && _user.uid === t.createdBy;
@@ -531,16 +545,25 @@ function _renderKnockout() {
   let html = '';
   if (champ) html += `<div class="champion-banner">Champion: ${_esc(champ)}</div>`;
 
-  html += `<div class="bracket-container">
-    <div class="sh">Winners bracket</div>
-    ${_renderBracket(wm, canEdit)}
-  </div>`;
+  html += `<nav class="tab-bar">
+    <button class="tab${_knockoutTab === 'bracket' ? ' tab-active' : ''}" onclick="_setKnockoutTab('bracket')">Bracket</button>
+    <button class="tab${_knockoutTab === 'groups'  ? ' tab-active' : ''}" onclick="_setKnockoutTab('groups')">Group stage</button>
+  </nav>`;
 
-  if (lm.length > 0) {
+  if (_knockoutTab === 'groups') {
+    html += _buildGroupsHtml();
+  } else {
     html += `<div class="bracket-container">
-      <div class="sh">Losers bracket</div>
-      ${_renderBracket(lm, canEdit)}
+      <div class="sh">Winners bracket</div>
+      ${_renderBracket(wm, canEdit)}
     </div>`;
+
+    if (lm.length > 0) {
+      html += `<div class="bracket-container">
+        <div class="sh">Losers bracket</div>
+        ${_renderBracket(lm, canEdit)}
+      </div>`;
+    }
   }
 
   html += `<div class="bottom-actions">`;
