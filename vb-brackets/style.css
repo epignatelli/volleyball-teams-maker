@@ -244,24 +244,25 @@ body {
 .advance-w td:nth-child(2) { color: var(--y); }
 .advance-l td:nth-child(2) { color: var(--b); }
 
-/* Match rows — border-bottom list, no card bg */
+/* Match rows — one match per row */
 .matches-list { }
 .match-card {
-  border-bottom: 1px solid var(--rule);
+  display: flex; align-items: center;
+  padding: 10px 16px; gap: 10px;
+  border-bottom: 1px solid var(--rule); font-size: 14px;
 }
 .match-card:first-child { border-top: 1px solid var(--rule); }
-.match-card:not(.match-done)[onclick] { cursor: pointer; }
-.match-card:not(.match-done)[onclick]:active { background: rgba(255,255,255,.03); }
+.match-card[onclick] { cursor: pointer; }
+.match-card[onclick]:active { background: rgba(255,255,255,.03); }
 
-.mc-team {
-  display: flex; align-items: center; justify-content: space-between;
-  padding: 9px 16px; border-bottom: 1px solid var(--rule); font-size: 14px;
+.mc-name { font-weight: 600; letter-spacing: .03em; flex: 1; }
+.mc-name-b { text-align: right; }
+.mc-score {
+  font-weight: 900; font-size: 15px; color: var(--mid);
+  min-width: 52px; text-align: center; flex-shrink: 0; white-space: nowrap;
 }
-.mc-team:last-child { border-bottom: none; }
-.mc-name  { font-weight: 600; letter-spacing: .03em; }
-.mc-score { font-weight: 900; color: var(--mid); font-size: 15px; }
-.mc-winner .mc-name  { color: var(--y); font-weight: 700; }
-.mc-winner .mc-score { color: var(--y); }
+.mc-winner-a .mc-name-a { color: var(--y); font-weight: 700; }
+.mc-winner-b .mc-name-b { color: var(--y); font-weight: 700; }
 
 /* Matches section header */
 .matches-sh {
