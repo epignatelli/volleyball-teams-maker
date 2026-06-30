@@ -148,9 +148,29 @@ body {
   font-size: 12px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
   color: var(--amber); margin-top: 8px; margin-bottom: 4px;
 }
-.team-input { margin-bottom: 6px; }
+.team-textarea {
+  resize: vertical; min-height: 160px; line-height: 1.6;
+  font-size: 15px;
+}
 .create-actions { padding-top: 8px; }
 .create-actions .btn-primary { width: 100%; }
+
+/* Group preview */
+.group-preview {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 8px; overflow: hidden; margin-bottom: 4px;
+}
+.gp-row {
+  display: flex; gap: 10px; align-items: baseline;
+  padding: 8px 12px; border-bottom: 1px solid var(--border);
+  font-size: 13px;
+}
+.gp-row:last-child { border-bottom: none; }
+.gp-label {
+  font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--amber); min-width: 56px; flex-shrink: 0;
+}
+.gp-teams { color: var(--muted); }
 
 /* ── Setup phase ─────────────────────────────────────────────────────────────── */
 .phase-setup { padding: 16px; display: flex; flex-direction: column; gap: 16px; }

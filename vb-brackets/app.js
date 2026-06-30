@@ -132,15 +132,6 @@ function _showCreate() {
           <option value="2" selected>2</option>
           <option value="3">3</option>
           <option value="4">4</option>
-          <option value="6">6</option>
-          <option value="8">8</option>
-        </select>
-      </div>
-      <div class="field">
-        <label class="field-label">Teams per group</label>
-        <select class="field-input field-select" id="cf-tpg" onchange="_updateCreateForm()">
-          <option value="3">3</option>
-          <option value="4" selected>4</option>
           <option value="5">5</option>
           <option value="6">6</option>
           <option value="8">8</option>
@@ -179,61 +170,70 @@ function _showCreate() {
           <option value="double">Double elimination</option>
         </select>
       </div>
-      <p class="field-hint" id="cf-summary"></p>
       <div class="section-divider" style="display:flex;align-items:center;justify-content:space-between">
-        <span>Teams</span>
+        <span>Teams <span id="cf-team-count" style="font-weight:400;color:var(--muted)"></span></span>
         <button type="button" class="shuffle-btn" onclick="_randomizeGroups()">⇄ Randomize</button>
       </div>
-      <div id="cf-teams"></div>
+      <div class="field">
+        <textarea class="field-input team-textarea" id="cf-teams-txt" rows="10"
+          placeholder="One team per line&#10;e.g.&#10;Team Alpha&#10;Team Beta&#10;Team Gamma&#10;…"
+          oninput="_updateCreateForm()"></textarea>
+      </div>
+      <div id="cf-group-preview"></div>
+      <p class="field-hint" id="cf-summary"></p>
       <button type="submit" class="btn-primary" id="cf-submit">Create tournament</button>
     </form>`;
 
   _updateCreateForm();
 }
 
+function _parseTeamNames() {
+  return (document.getElementById('cf-teams-txt')?.value || '')
+    .split('\n').map(s => s.trim()).filter(Boolean);
+}
+
 function _updateCreateForm() {
   const groups = parseInt(document.getElementById('cf-groups')?.value || 2);
-  const tpg    = parseInt(document.getElementById('cf-tpg')?.value || 4);
   const advW   = parseInt(document.getElementById('cf-advw')?.value || 2);
+  const names  = _parseTeamNames();
+  const n      = names.length;
+
+  const countEl = document.getElementById('cf-team-count');
+  if (countEl) countEl.textContent = n ? `(${n})` : '';
+
+  // Group preview
+  const preview = document.getElementById('cf-group-preview');
+  if (preview && n > 0) {
+    let html = '<div class="group-preview">';
+    for (let g = 0; g < groups; g++) {
+      const members = names.filter((_, i) => i % groups === g);
+      html += `<div class="gp-row">
+        <span class="gp-label">Group ${_groupLabel(g)}</span>
+        <span class="gp-teams">${members.map(m => _esc(m)).join(', ') || '—'}</span>
+      </div>`;
+    }
+    html += '</div>';
+    preview.innerHTML = html;
+  } else if (preview) {
+    preview.innerHTML = '';
+  }
 
   const sum = document.getElementById('cf-summary');
-  if (sum) sum.textContent = `${groups * tpg} teams total · Winners bracket: ${_nextPow2(groups * advW)} slots`;
-
-  const tf = document.getElementById('cf-teams');
-  if (!tf) return;
-  let html = '';
-  for (let g = 0; g < groups; g++) {
-    html += `<div class="group-label">Group ${_groupLabel(g)}</div>`;
-    for (let t = 0; t < tpg; t++) {
-      html += `<input class="field-input team-input" type="text"
-        id="ti-${g}-${t}" placeholder="${_groupLabel(g)}${t + 1}"
-        data-g="${g}" data-t="${t}"/>`;
-    }
-  }
-  tf.innerHTML = html;
+  if (sum) sum.textContent = n > 0
+    ? `Winners bracket: ${_nextPow2(groups * advW)} slots`
+    : '';
 }
 
 function _randomizeGroups() {
-  const groups = parseInt(document.getElementById('cf-groups')?.value || 2);
-  const tpg    = parseInt(document.getElementById('cf-tpg')?.value || 4);
-
-  // Collect all current values
-  const names = [];
-  for (let g = 0; g < groups; g++)
-    for (let t = 0; t < tpg; t++)
-      names.push(document.getElementById(`ti-${g}-${t}`)?.value.trim() || '');
-
-  // Fisher-Yates shuffle
+  const ta = document.getElementById('cf-teams-txt');
+  if (!ta) return;
+  const names = _parseTeamNames();
   for (let i = names.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [names[i], names[j]] = [names[j], names[i]];
   }
-
-  // Write back
-  let idx = 0;
-  for (let g = 0; g < groups; g++)
-    for (let t = 0; t < tpg; t++)
-      document.getElementById(`ti-${g}-${t}`).value = names[idx++];
+  ta.value = names.join('\n');
+  _updateCreateForm();
 }
 
 async function _submitCreate(e) {
@@ -243,25 +243,22 @@ async function _submitCreate(e) {
 
   try {
     const groups = parseInt(document.getElementById('cf-groups').value);
-    const tpg    = parseInt(document.getElementById('cf-tpg').value);
     const rounds = parseInt(document.getElementById('cf-rounds').value);
     const advW   = parseInt(document.getElementById('cf-advw').value);
     const advL   = parseInt(document.getElementById('cf-advl').value);
     const wbf    = document.getElementById('cf-wbf').value;
+    const names  = _parseTeamNames();
 
-    const teams = [];
-    for (let g = 0; g < groups; g++) {
-      for (let t = 0; t < tpg; t++) {
-        const v = document.getElementById(`ti-${g}-${t}`)?.value.trim();
-        teams.push({ id: `t${g}${t}`, name: v || `${_groupLabel(g)}${t + 1}`, group: g });
-      }
-    }
+    if (names.length < 2) { _toast('Enter at least 2 teams'); btn.disabled = false; btn.textContent = 'Create tournament'; return; }
+
+    // Distribute round-robin across groups: names[0]→g0, names[1]→g1, …, names[groups]→g0, …
+    const teams = names.map((name, i) => ({ id: `t${i}`, name, group: i % groups }));
 
     const ref = await _db().collection('brackets').add({
       name: document.getElementById('cf-name').value.trim(),
       status: 'setup',
       groupCount: groups,
-      teamsPerGroup: tpg,
+      teamsPerGroup: Math.ceil(names.length / groups),
       roundsPerGroup: rounds,
       advanceWinners: advW,
       advanceLosers: advL,
