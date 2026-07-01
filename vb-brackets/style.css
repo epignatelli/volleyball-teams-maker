@@ -223,8 +223,21 @@ body {
 
 /* ── Groups phase ────────────────────────────────────────────────────────────── */
 .groups-container { display: flex; flex-direction: column; }
-.group-block { padding-bottom: 12px; }
-.group-block + .group-block { border-top: 1px solid var(--rule); padding-top: 8px; }
+.group-block { }
+.group-block + .group-block { border-top: 1px solid var(--rule); }
+
+/* Two-column layout: standings | matches */
+.group-cols {
+  display: grid;
+  grid-template-columns: minmax(260px, 400px) 1fr;
+}
+.group-col-standings { border-right: 1px solid var(--rule); }
+.group-col-matches { }
+
+@media (max-width: 600px) {
+  .group-cols { grid-template-columns: 1fr; }
+  .group-col-standings { border-right: none; border-bottom: 1px solid var(--rule); }
+}
 
 .standings-table { width: 100%; border-collapse: collapse; table-layout: fixed; }
 .standings-table th {
@@ -257,7 +270,7 @@ body {
   padding: 10px 16px; gap: 12px;
   border-bottom: 1px solid var(--rule);
 }
-.match-card:first-child { border-top: 1px solid var(--rule); }
+.matches-list .match-card:first-child { border-top: none; }
 .match-card[onclick] { cursor: pointer; }
 .match-card[onclick]:active { background: rgba(255,255,255,.03); }
 
@@ -284,10 +297,12 @@ body {
   display: flex; align-items: center;
   padding: 7px 16px;
   border-left: 2px solid rgba(255,255,255,.2);
-  border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule);
+  border-bottom: 1px solid var(--rule);
   font-size: 11px; font-weight: 700; letter-spacing: .1em; text-transform: uppercase;
-  color: var(--mid); margin-top: 8px;
+  color: var(--mid);
 }
+/* In the two-column layout, top border comes from the group-block sh */
+.group-col-matches .matches-sh { border-top: 1px solid var(--rule); }
 
 /* ── Score overlay ───────────────────────────────────────────────────────────── */
 .score-overlay {

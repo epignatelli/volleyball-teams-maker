@@ -1,4 +1,4 @@
-const CACHE = 'vb-brackets-v12';
+const CACHE = 'vb-brackets-v13';
 const ASSETS = ['./', './index.html', './app.js', './style.css', './manifest.json'];
 
 self.addEventListener('install', e => {

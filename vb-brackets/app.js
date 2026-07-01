@@ -388,20 +388,26 @@ function _buildGroupsHtml(canEdit) {
 
     html += `<div class="group-block">
       <div class="sh">Group ${_groupLabel(g)}</div>
-      <table class="standings-table">
-        <thead><tr><th>#</th><th>Team</th><th>W</th><th>L</th><th>+/−</th></tr></thead>
-        <tbody>
-          ${stands.map((s, i) => `
-            <tr class="${i < advW ? 'advance-w' : i < advW + advL ? 'advance-l' : ''}">
-              <td>${i + 1}</td><td>${_esc(s.name)}</td>
-              <td>${s.W}</td><td>${s.L}</td>
-              <td>${s.sW - s.sL >= 0 ? '+' : ''}${s.sW - s.sL}</td>
-            </tr>`).join('')}
-        </tbody>
-      </table>
-      <div class="matches-sh">Matches</div>
-      <div class="matches-list">
-        ${(byG[g] || []).sort((a,b) => a.slot - b.slot).map(m => _matchCard(m, canEdit)).join('')}
+      <div class="group-cols">
+        <div class="group-col-standings">
+          <table class="standings-table">
+            <thead><tr><th>#</th><th>Team</th><th>W</th><th>L</th><th>+/−</th></tr></thead>
+            <tbody>
+              ${stands.map((s, i) => `
+                <tr class="${i < advW ? 'advance-w' : i < advW + advL ? 'advance-l' : ''}">
+                  <td>${i + 1}</td><td>${_esc(s.name)}</td>
+                  <td>${s.W}</td><td>${s.L}</td>
+                  <td>${s.sW - s.sL >= 0 ? '+' : ''}${s.sW - s.sL}</td>
+                </tr>`).join('')}
+            </tbody>
+          </table>
+        </div>
+        <div class="group-col-matches">
+          <div class="matches-sh">Matches</div>
+          <div class="matches-list">
+            ${(byG[g] || []).sort((a,b) => a.slot - b.slot).map(m => _matchCard(m, canEdit)).join('')}
+          </div>
+        </div>
       </div>
     </div>`;
   }
