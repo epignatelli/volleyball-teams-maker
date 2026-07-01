@@ -35,8 +35,9 @@ body {
 }
 .top-btn {
   background: none; border: none; cursor: pointer;
-  color: var(--mid); font-size: 20px; font-family: var(--font);
-  padding: 6px 8px; line-height: 1; min-width: 36px; font-weight: 500;
+  color: var(--mid); font-size: 14px; font-family: var(--font);
+  padding: 6px 8px; line-height: 1; min-width: 36px; font-weight: 600;
+  letter-spacing: .03em;
 }
 .top-btn:active { color: var(--text); }
 
@@ -222,23 +223,26 @@ body {
 
 /* ── Groups phase ────────────────────────────────────────────────────────────── */
 .groups-container { display: flex; flex-direction: column; }
-.group-block { }
-.group-block + .group-block { border-top: 3px solid var(--y); margin-top: 0; }
+.group-block { padding-bottom: 12px; }
+.group-block + .group-block { border-top: 1px solid var(--rule); padding-top: 8px; }
 
 .standings-table { width: 100%; border-collapse: collapse; }
 .standings-table th {
   font-size: 9px; font-weight: 700; letter-spacing: .12em; text-transform: uppercase;
-  color: var(--mid); text-align: left; padding: 8px 16px 6px;
+  color: var(--mid); text-align: left; padding: 7px 16px 6px;
   border-bottom: 1px solid var(--rule);
 }
-.standings-table th:not(:first-child) { text-align: center; }
+.standings-table th:first-child  { width: 32px; }
+.standings-table th:nth-child(3),
+.standings-table th:nth-child(4),
+.standings-table th:nth-child(5) { width: 52px; text-align: center; }
 .standings-table td {
-  padding: 10px 16px; font-size: 14px;
+  padding: 9px 16px; font-size: 14px;
   border-bottom: 1px solid var(--rule);
 }
 .standings-table td:not(:first-child) { text-align: center; font-weight: 700; }
 .standings-table tr:last-child td { border-bottom: none; }
-.standings-table td:first-child { color: var(--mid); font-size: 11px; font-weight: 700; letter-spacing: .04em; }
+.standings-table td:first-child { color: var(--mid); font-size: 11px; font-weight: 700; letter-spacing: .04em; width: 32px; }
 .standings-table td:nth-child(2) { font-weight: 700; letter-spacing: .03em; }
 
 .advance-w td:nth-child(2) { color: var(--y); }
@@ -248,30 +252,39 @@ body {
 .matches-list { }
 .match-card {
   display: flex; align-items: center;
-  padding: 10px 16px; gap: 10px;
-  border-bottom: 1px solid var(--rule); font-size: 14px;
+  padding: 10px 16px; gap: 12px;
+  border-bottom: 1px solid var(--rule);
 }
 .match-card:first-child { border-top: 1px solid var(--rule); }
 .match-card[onclick] { cursor: pointer; }
 .match-card[onclick]:active { background: rgba(255,255,255,.03); }
 
-.mc-teams { flex: 1; display: flex; align-items: baseline; gap: 6px; min-width: 0; }
-.mc-name { font-weight: 600; letter-spacing: .03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.mc-sep { color: var(--rule); font-size: 12px; flex-shrink: 0; }
-.mc-score {
-  font-weight: 900; font-size: 15px; color: var(--mid);
-  flex-shrink: 0; white-space: nowrap; padding-left: 10px;
-}
-.mc-winner-a .mc-name-a { color: var(--y); font-weight: 700; }
-.mc-winner-b .mc-name-b { color: var(--y); font-weight: 700; }
+.mc-teams { flex: 1; display: flex; align-items: baseline; gap: 5px; min-width: 0; overflow: hidden; }
+.mc-name { font-size: 14px; font-weight: 600; letter-spacing: .03em; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mc-sep { color: rgba(255,255,255,.2); font-size: 11px; flex-shrink: 0; }
 
-/* Matches section header */
+/* Score column — fixed width so scores align across all rows */
+.mc-score {
+  flex-shrink: 0; min-width: 68px;
+  display: flex; align-items: center; justify-content: flex-end; gap: 4px;
+}
+.mc-s { font-size: 14px; font-weight: 900; color: var(--mid); }
+.mc-s-win { color: var(--y); }
+.mc-score-sep { font-size: 11px; color: rgba(255,255,255,.2); }
+.mc-score-vs { font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--mid); }
+
+/* Winner: bold-white name, yellow score (distinct from standings yellow = advancement) */
+.mc-winner-a .mc-name-a { color: var(--text); font-weight: 800; }
+.mc-winner-b .mc-name-b { color: var(--text); font-weight: 800; }
+
+/* Matches sub-header */
 .matches-sh {
   display: flex; align-items: center;
-  padding: 10px 16px;
+  padding: 7px 16px;
+  border-left: 2px solid rgba(255,255,255,.15);
   border-top: 1px solid var(--rule); border-bottom: 1px solid var(--rule);
   font-size: 9px; font-weight: 700; letter-spacing: .14em; text-transform: uppercase;
-  color: var(--mid); background: rgba(255,255,255,.02);
+  color: var(--mid); margin-top: 8px;
 }
 
 /* ── Score overlay ───────────────────────────────────────────────────────────── */

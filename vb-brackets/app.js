@@ -431,9 +431,9 @@ function _renderGroups() {
 function _matchCard(m, canEdit) {
   const wA = m.winner === 'A', wB = m.winner === 'B';
   const clickable = canEdit;
-  const scoreStr = m.scoreA !== null && m.scoreB !== null
-    ? `${m.scoreA} — ${m.scoreB}`
-    : 'vs';
+  const scoreHtml = m.scoreA !== null && m.scoreB !== null
+    ? `<span class="mc-s${wA ? ' mc-s-win' : ''}">${m.scoreA}</span><span class="mc-score-sep">—</span><span class="mc-s${wB ? ' mc-s-win' : ''}">${m.scoreB}</span>`
+    : `<span class="mc-score-vs">vs</span>`;
   return `
     <div class="match-card${wA ? ' mc-winner-a' : wB ? ' mc-winner-b' : ''}"
       ${clickable ? `onclick="_openScore('${_esc(m.id)}')"` : ''}>
@@ -442,7 +442,7 @@ function _matchCard(m, canEdit) {
         <span class="mc-sep">·</span>
         <span class="mc-name mc-name-b">${_esc(m.nameB)}</span>
       </span>
-      <span class="mc-score">${scoreStr}</span>
+      <span class="mc-score">${scoreHtml}</span>
     </div>`;
 }
 
