@@ -288,6 +288,7 @@ body {
 }
 .mc-s { font-size: 15px; font-weight: 900; color: var(--mid); }
 .mc-s-win { color: var(--y); }
+.mc-s-prog { font-size: 13px; font-weight: 700; color: rgba(255,255,255,.35); }
 .mc-score-sep { font-size: 12px; color: rgba(255,255,255,.38); }
 .mc-score-vs { font-size: 12px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--mid); }
 .mc-score-vs-edit { color: var(--y); }
@@ -352,6 +353,17 @@ body {
   font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--mid);
 }
 .sset-input { font-size: 22px; width: 100%; }
+
+/* Read-only previous-set rows shown above the current-set input */
+.score-prev-row {
+  display: grid; grid-template-columns: 44px 1fr 1fr; gap: 8px; align-items: center;
+  padding: 4px 0; border-bottom: 1px solid var(--rule);
+}
+.sset-prev {
+  font-size: 20px; font-weight: 900; color: var(--mid); text-align: center;
+}
+.sset-prev-win { color: var(--y); }
+.score-set-current { padding-top: 4px; }
 
 /* ── Knockout bracket ────────────────────────────────────────────────────────── */
 .champion-banner {

@@ -463,10 +463,21 @@ function _renderGroups() {
 function _matchCard(m, canEdit) {
   const wA = m.winner === 'A', wB = m.winner === 'B';
   const clickable = canEdit;
-  const hasScore = m.scoreA !== null && m.scoreB !== null;
-  const scoreHtml = hasScore
-    ? `<span class="mc-s${wA ? ' mc-s-win' : ''}">${m.scoreA}</span><span class="mc-score-sep">—</span><span class="mc-s${wB ? ' mc-s-win' : ''}">${m.scoreB}</span>`
-    : `<span class="mc-score-vs${clickable ? ' mc-score-vs-edit' : ''}">vs</span>`;
+  const spm = _tournament.setsPerMatch || 1;
+  const sets = m.sets || [];
+  let scoreHtml;
+  if (m.winner) {
+    scoreHtml = `<span class="mc-s${wA ? ' mc-s-win' : ''}">${m.scoreA}</span><span class="mc-score-sep">—</span><span class="mc-s${wB ? ' mc-s-win' : ''}">${m.scoreB}</span>`;
+  } else if (spm > 1 && sets.length > 0) {
+    // Multi-set match in progress — show running sets count
+    const rA = sets.filter(s => s.a > s.b).length;
+    const rB = sets.filter(s => s.b > s.a).length;
+    scoreHtml = `<span class="mc-s mc-s-prog">${rA}</span><span class="mc-score-sep">–</span><span class="mc-s mc-s-prog">${rB}</span>`;
+  } else if (m.scoreA !== null && m.scoreB !== null) {
+    scoreHtml = `<span class="mc-s${wA ? ' mc-s-win' : ''}">${m.scoreA}</span><span class="mc-score-sep">—</span><span class="mc-s${wB ? ' mc-s-win' : ''}">${m.scoreB}</span>`;
+  } else {
+    scoreHtml = `<span class="mc-score-vs${clickable ? ' mc-score-vs-edit' : ''}">vs</span>`;
+  }
   const refHtml = m.refTeamName
     ? `<div class="mc-ref">ref · ${_esc(m.refTeamName)}</div>` : '';
   return `
@@ -517,30 +528,51 @@ function _openScore(matchId) {
     document.getElementById('se-a').focus();
   } else {
     const prevSets = m.sets || [];
-    const setRows = Array.from({ length: spm }, (_, i) => `
-      <div class="score-set-row">
+    const setsToWin = Math.ceil(spm / 2);
+    let wA = 0, wB = 0;
+    for (const s of prevSets) { if (s.a > s.b) wA++; else wB++; }
+    const matchDone = Math.max(wA, wB) >= setsToWin;
+    const nextIdx   = prevSets.length;
+
+    const prevHtml = prevSets.map((s, i) => {
+      const aWins = s.a > s.b;
+      return `<div class="score-prev-row">
         <span class="sset-label">Set ${i + 1}</span>
-        <input class="score-input sset-input" id="se-${i}-a" type="number" min="0" max="99" inputmode="numeric"
-          value="${prevSets[i] ? prevSets[i].a : ''}"/>
-        <input class="score-input sset-input" id="se-${i}-b" type="number" min="0" max="99" inputmode="numeric"
-          value="${prevSets[i] ? prevSets[i].b : ''}"/>
-      </div>`).join('');
+        <span class="sset-prev${aWins ? ' sset-prev-win' : ''}">${s.a}</span>
+        <span class="sset-prev${!aWins ? ' sset-prev-win' : ''}">${s.b}</span>
+      </div>`;
+    }).join('');
+
+    const inputHtml = !matchDone ? `
+      <div class="score-set-row score-set-current">
+        <span class="sset-label">Set ${nextIdx + 1}</span>
+        <input class="score-input sset-input" id="se-a" type="number" min="0" max="99" inputmode="numeric"/>
+        <input class="score-input sset-input" id="se-b" type="number" min="0" max="99" inputmode="numeric"/>
+      </div>` : '';
+
+    const actionHtml = !matchDone
+      ? `<button class="btn-primary" onclick="_submitScore('${_esc(matchId)}')">Save set ${nextIdx + 1}</button>`
+      : `<button class="btn-ghost" onclick="_undoLastSet('${_esc(matchId)}')">↩ Undo last set</button>`;
+
+    const title = matchDone ? 'Match complete' : prevSets.length === 0 ? 'Set 1' : `Set ${nextIdx + 1} · ${wA}–${wB}`;
+
     el.innerHTML = `
       <div class="score-modal score-modal-sets">
-        <div class="score-modal-title">Enter score</div>
+        <div class="score-modal-title">${title}</div>
         <div class="score-sets-header">
           <span></span>
           <span class="sset-team">${_esc(m.nameA)}</span>
           <span class="sset-team">${_esc(m.nameB)}</span>
         </div>
-        ${setRows}
+        ${prevHtml}
+        ${inputHtml}
         <div class="score-modal-actions">
           <button class="btn-ghost" onclick="document.getElementById('score-overlay').remove()">Cancel</button>
-          <button class="btn-primary" onclick="_submitScore('${_esc(matchId)}')">Save</button>
+          ${actionHtml}
         </div>
       </div>`;
     document.body.appendChild(el);
-    document.getElementById('se-0-a').focus();
+    if (!matchDone) document.getElementById('se-a').focus();
   }
 }
 
@@ -560,24 +592,17 @@ async function _submitScore(matchId) {
     winner = sA > sB ? 'A' : 'B';
     update = { scoreA, scoreB, winner };
   } else {
+    const a = parseInt(document.getElementById('se-a')?.value);
+    const b = parseInt(document.getElementById('se-b')?.value);
+    if (isNaN(a) || isNaN(b) || a < 0 || b < 0) { _toast('Enter valid scores'); return; }
+    if (a === b) { _toast('Scores cannot be equal'); return; }
+
     const setsToWin = Math.ceil(spm / 2);
-    const sets = [];
+    const sets = [...(m.sets || []), { a, b }];
     let wA = 0, wB = 0;
-    for (let i = 0; i < spm; i++) {
-      const aVal = document.getElementById(`se-${i}-a`)?.value;
-      const bVal = document.getElementById(`se-${i}-b`)?.value;
-      if (aVal === '' && bVal === '') continue;
-      const a = parseInt(aVal), b = parseInt(bVal);
-      if (isNaN(a) || isNaN(b) || a < 0 || b < 0) { _toast(`Set ${i + 1}: enter valid scores`); return; }
-      if (a === b) { _toast(`Set ${i + 1}: scores cannot be equal`); return; }
-      sets.push({ a, b });
-      if (a > b) wA++; else wB++;
-    }
-    if (sets.length === 0) { _toast('Enter at least one set score'); return; }
-    if (Math.max(wA, wB) < setsToWin) { _toast(`Need ${setsToWin} sets to win`); return; }
-    if (wA === wB) { _toast('Match cannot be a tie'); return; }
+    for (const s of sets) { if (s.a > s.b) wA++; else wB++; }
+    winner = wA >= setsToWin ? 'A' : wB >= setsToWin ? 'B' : null;
     scoreA = wA; scoreB = wB;
-    winner = wA > wB ? 'A' : 'B';
     update = { scoreA, scoreB, sets, winner };
   }
 
@@ -595,6 +620,16 @@ async function _submitScore(matchId) {
       await _mRef(_tid, m.winnerTo).update(upd);
     }
   } catch (err) { _toast(err.message); }
+}
+
+async function _undoLastSet(matchId) {
+  const m = _matches.find(x => x.id === matchId);
+  if (!m || !m.sets || m.sets.length === 0) return;
+  document.getElementById('score-overlay')?.remove();
+  const sets = m.sets.slice(0, -1);
+  let wA = 0, wB = 0;
+  for (const s of sets) { if (s.a > s.b) wA++; else wB++; }
+  await _mRef(_tid, matchId).update({ sets, scoreA: wA, scoreB: wB, winner: null }).catch(e => _toast(e.message));
 }
 
 // ── Action: Advance to knockout ────────────────────────────────────────────────
